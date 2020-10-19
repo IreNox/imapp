@@ -2,13 +2,13 @@
 
 local project = Project:new(
 	"imapp_hello_world",
-	{ "x32", "x64" },
+	{ "x86", "x64" },
 	{ "Debug", "Release" },
-	ProjectTypes.ConsoleApplication
+	ProjectTypes.WindowApplication
 );
 
-project:add_files( 'src/*.cpp' )
+project:add_files( 'src/*.c' )
 
-project:add_external( "https://www.libsdl.org/@2.0.12" )
+project:add_external( "local://../.." )
 
 finalize_default_solution( project )
