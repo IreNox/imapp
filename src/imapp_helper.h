@@ -1,5 +1,7 @@
 #pragma once
 
+#include "imapp_types.h"
+
 #include <stdlib.h>
 #include <string.h>
 
