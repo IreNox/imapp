@@ -1,20 +1,27 @@
 #pragma once
 
+struct SDL_Window;
+typedef struct SDL_Window SDL_Window;
+
 struct ImAppRenderer;
+typedef struct ImAppRenderer ImAppRenderer;
 
 struct ImAppRendererFrame;
+typedef struct ImAppRendererFrame ImAppRendererFrame;
+
 struct ImAppRendererTexture;
+typedef struct ImAppRendererTexture ImAppRendererTexture;
 
-struct ImAppRenderer*			ImAppRendererCreate( SDL_Window* pWindow );
-void							ImAppRendererDestroy( struct ImAppRenderer* pRenderer );
+ImAppRenderer*			ImAppRendererCreate( SDL_Window* pWindow );
+void					ImAppRendererDestroy( ImAppRenderer* pRenderer );
 
-void							ImAppRendererUpdate( struct ImAppRenderer* pRenderer );
+void					ImAppRendererUpdate( ImAppRenderer* pRenderer );
 
-struct ImAppRendererTexture*	ImAppRendererTextureCreateFromPng( struct ImAppRenderer* pRenderer, const void* pData, size_t dataSize );
-struct ImAppRendererTexture*	ImAppRendererTextureCreateFromJpeg( struct ImAppRenderer* pRenderer, const void* pData, size_t dataSize );
-void							ImAppRendererTextureDestroy( struct ImAppRenderer* pRenderer, struct ImAppRendererTexture* pTexture );
+ImAppRendererTexture*	ImAppRendererTextureCreateFromFile( ImAppRenderer* pRenderer, const void* pFilename );
+ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, size_t width, size_t height );
+void					ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture* pTexture );
 
-struct ImAppRendererFrame*		ImAppRendererBeginFrame( struct ImAppRenderer* pRenderer );
-void							ImAppRendererEndFrame( struct ImAppRenderer* pRenderer, struct ImAppRendererFrame* pFrame );
+ImAppRendererFrame*		ImAppRendererBeginFrame( ImAppRenderer* pRenderer );
+void					ImAppRendererEndFrame( ImAppRenderer* pRenderer, ImAppRendererFrame* pFrame );
 
-void							ImAppRendererFrameClear( struct ImAppRendererFrame* pFrame, float color[ 4u ] );
+void					ImAppRendererFrameClear( ImAppRendererFrame* pFrame, const float color[ 4u ] );
