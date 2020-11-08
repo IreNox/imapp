@@ -3,9 +3,14 @@
 #include "imapp_helper.h"
 #include "imapp_shader.h"
 
-#include <GL/glew.h>
-#include <SDL_opengl.h>
+#include <SDL_video.h>
 #include <stdint.h>
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+#	include <GL/glew.h>
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#	include <GLES3/gl3.h>
+#endif
 
 struct ImAppRenderer
 {
@@ -22,9 +27,9 @@ struct ImAppRenderer
 	GLint						programUniformProjection;
 	GLint						programUniformTexture;
 
-	GLint						vertexArray;
-	GLint						vertexBuffer;
-	GLint						elementBuffer;
+	GLuint						vertexArray;
+	GLuint						vertexBuffer;
+	GLuint						elementBuffer;
 
 	struct nk_font_atlas		fontAtlas;
 	struct nk_convert_config	convertConfig;
@@ -69,9 +74,15 @@ ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
 	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( ImAppRenderer );
 	pRenderer->pSdlWindow	= pWindow;
 
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+#else
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+#endif
 
 	pRenderer->pGlContext = SDL_GL_CreateContext( pWindow );
 	if( pRenderer->pGlContext == NULL )
@@ -85,11 +96,13 @@ ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
 		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
 	}
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
 	{
 		ImAppTrace( "[renderer] Failed to initialize GLEW.\n" );
 		return NULL;
 	}
+#endif
 
 	if( !ImAppRendererInitializeShader( pRenderer ) )
 	{
@@ -188,7 +201,7 @@ static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer )
 	const GLuint attributePosition	= (GLuint)glGetAttribLocation( pRenderer->program, "Position" );
 	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( pRenderer->program, "TexCoord" );
 	const GLuint attributeColor		= (GLuint)glGetAttribLocation( pRenderer->program, "Color" );
-	
+
 	glGenBuffers( 1, &pRenderer->vertexBuffer );
 	glGenBuffers( 1, &pRenderer->elementBuffer );
 	glGenVertexArrays( 1, &pRenderer->vertexArray );
@@ -411,8 +424,8 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 
 	// upload
 	{
-		void* pVertexData = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
-		void* pElementData = glMapBuffer( GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY );
+		void* pVertexData = glMapBufferRange( GL_ARRAY_BUFFER, 0, IMAPP_MAX_VERTEX_SIZE, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT );
+		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, IMAPP_MAX_ELEMENT_SIZE, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT );
 		{
 			struct nk_buffer vertexBuffer;
 			struct nk_buffer elementBuffer;

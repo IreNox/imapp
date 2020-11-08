@@ -2,19 +2,17 @@
 
 #include <stdlib.h>
 
-#include <windows.h>
-#include <debugapi.h>
-
 struct ProgramContext
 {
 };
 
 void* ImAppProgramInitialize( ImAppParameters* pParameters )
 {
-	pParameters->tickIntervalMs	= 15;
-	pParameters->pWindowTitle	= "Hello World";
-	pParameters->windowWidth	= 400;
-	pParameters->windowHeight	= 200;
+	pParameters->tickIntervalMs		= 15;
+	pParameters->defaultFullWindow	= false;
+	pParameters->pWindowTitle		= "Hello World";
+	pParameters->windowWidth		= 400;
+	pParameters->windowHeight		= 200;
 
 	ProgramContext* pContext = (ProgramContext*)malloc( sizeof( ProgramContext ) );
 	return pContext;

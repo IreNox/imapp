@@ -27,12 +27,7 @@ if not os.isfile( download_path ) then
 	end
 end
 
-local sdl_project = Project:new(
-	"sdl",
-	{ "x86", "x64" },
-	{ "Debug", "Release" },
-	ProjectTypes.StaticLibrary
-)
+local sdl_project = Project:new( "sdl", ProjectTypes.StaticLibrary )
 
 sdl_project.module.module_type = ModuleTypes.FilesModule
 
@@ -41,6 +36,10 @@ sdl_project:add_include_dir( version_name .. "/include" )
 sdl_project:add_files( version_name .. "/include/*.h" )
 sdl_project:add_files( version_name .. "/src/*.h" )
 sdl_project:add_files( version_name .. "/src/*.c" )
+
+if tiki.target_platform == Platforms.Android then
+	sdl_project:set_define( "GL_GLEXT_PROTOTYPES" )
+end
 
 sdl_modules = {
 	atomic		= { header = false,	source = true,	platforms = {} },
@@ -81,6 +80,21 @@ sdl_modules[ "thread" ].platforms[ Platforms.Windows ]		= { windows	= { header =
 sdl_modules[ "timer" ].platforms[ Platforms.Windows ]		= { windows	= { header = false,	source = true } }
 sdl_modules[ "video" ].platforms[ Platforms.Windows ]		= { windows	= { header = true,	source = true }, dummy = { header = true, source = true }, yuv2rgb = { header = true, source = true } }
 
+sdl_modules[ "audio" ].platforms[ Platforms.Android ]		= { android = { header = true,	source = true }, dummy = { header = true, source = true }, openslES = { header = true, source = true } }
+sdl_modules[ "core" ].platforms[ Platforms.Android ]		= { android	= { header = true,	source = true } }
+sdl_modules[ "filesystem" ].platforms[ Platforms.Android ]	= { android	= { header = false,	source = true } }
+sdl_modules[ "haptic" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source = true } }
+sdl_modules[ "hidapi" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source_cpp = true } }
+sdl_modules[ "joystick" ].platforms[ Platforms.Android ]	= { android	= { header = true,	source = true }, hidapi = { header = true, source = true } }
+sdl_modules[ "loadso" ].platforms[ Platforms.Android ]		= { dlopen	= { header = false,	source = true } }
+sdl_modules[ "main" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source = true } }
+sdl_modules[ "power" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source = true } }
+sdl_modules[ "render" ].platforms[ Platforms.Android ]		= { opengles = { header = true, source = true }, software = { header = true, source = true } }
+sdl_modules[ "sensor" ].platforms[ Platforms.Android ]		= { android	= { header = true,	source = true } }
+sdl_modules[ "thread" ].platforms[ Platforms.Android ]		= { pthread	= { header = true,	source = true }, generic = { header = true, source = true } }
+sdl_modules[ "timer" ].platforms[ Platforms.Android ]		= { unix	= { header = false,	source = true } }
+sdl_modules[ "video" ].platforms[ Platforms.Android ]		= { android	= { header = true,	source = true }, dummy = { header = true, source = true }, yuv2rgb = { header = true, source = true } }
+
 for module_name, module_data in pairs( sdl_modules ) do
 	local module_path = version_name .. "/src/" .. module_name
 
@@ -92,7 +106,7 @@ for module_name, module_data in pairs( sdl_modules ) do
 		sdl_project:add_files( module_path .. "/*.c" )
 	end
 
-	local module_platform = module_data.platforms[ tiki.platform ]
+	local module_platform = module_data.platforms[ tiki.target_platform ]
 	if module_platform then
 		for platform_name, platform_data in pairs( module_platform ) do
 			local platform_path = module_path .. "/" .. platform_name
@@ -104,6 +118,10 @@ for module_name, module_data in pairs( sdl_modules ) do
 			if platform_data.source then
 				sdl_project:add_files( platform_path .. "/*.c" )
 			end
+
+			if platform_data.source_cpp then
+				sdl_project:add_files( platform_path .. "/*.cpp" )
+			end
 		end
 	end
 end
@@ -113,11 +131,15 @@ module:add_include_dir( version_name .. "/include" )
 module.import_func = function( project, solution )
 	project:add_project_dependency( sdl_project )
 	
-	if tiki.platform == Platforms.Windows then
+	if tiki.target_platform == Platforms.Windows then
 		project:add_library_file( "imm32" )
 		project:add_library_file( "winmm" )
 		project:add_library_file( "setupapi" )
 		project:add_library_file( "version" )
+	elseif tiki.target_platform == Platforms.Android then
+		project:add_library_file( "GLESv1_CM" )
+		project:add_library_file( "GLESv3" )
+		project:add_library_file( "OpenSLES" )
 	end
 	
 	solution:add_project( sdl_project )

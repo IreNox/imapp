@@ -16,10 +16,11 @@ static void ImAppHandleEvent( ImApp* pImApp, const SDL_Event* pSdlEvent );
 int main( int argc, char* argv[] )
 {
 	ImApp* pImApp = IMAPP_NEW_ZERO( ImApp );
-	pImApp->parameters.tickIntervalMs	= 0;
-	pImApp->parameters.pWindowTitle		= "I'm App";
-	pImApp->parameters.windowWidth		= 1280;
-	pImApp->parameters.windowHeight		= 720;
+	pImApp->parameters.tickIntervalMs		= 0;
+	pImApp->parameters.defaultFullWindow	= true;
+	pImApp->parameters.pWindowTitle			= "I'm App";
+	pImApp->parameters.windowWidth			= 1280;
+	pImApp->parameters.windowHeight			= 720;
 
 	if( !ImAppInitialize( pImApp ) )
 	{
@@ -56,7 +57,19 @@ int main( int argc, char* argv[] )
 		ImAppRendererUpdate( pImApp->pRenderer );
 		ImAppRendererGetTargetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pRenderer );
 
-		ImAppProgramDoUi( &pImApp->context, pImApp->pProgramContext );
+		{
+			if( pImApp->parameters.defaultFullWindow )
+			{
+				nk_begin( &pImApp->nkContext, "Default", nk_recti( 0, 0, pImApp->context.width, pImApp->context.height ), NK_WINDOW_NO_SCROLLBAR );
+			}
+
+			ImAppProgramDoUi( &pImApp->context, pImApp->pProgramContext );
+
+			if( pImApp->parameters.defaultFullWindow )
+			{
+				nk_end( &pImApp->nkContext );
+			}
+		}
 
 		ImAppRendererDrawFrame( pImApp->pRenderer, &pImApp->nkContext );
 
@@ -87,6 +100,9 @@ static bool ImAppInitialize( ImApp* pImApp )
 	Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	windowFlags |= SDL_WINDOW_RESIZABLE;
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	pImApp->parameters.windowWidth	= 0u;
+	pImApp->parameters.windowHeight	= 0u;
 #endif
 
 	pImApp->pSdlWindow = SDL_CreateWindow( pImApp->parameters.pWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, windowFlags );

@@ -27,12 +27,7 @@ if not os.isfile( download_path ) then
 	end
 end
 
-local glew_project = Project:new(
-	"glew",
-	{ "x86", "x64" },
-	{ "Debug", "Release" },
-	ProjectTypes.StaticLibrary
-)
+local glew_project = Project:new( "glew", ProjectTypes.StaticLibrary )
 
 glew_project.module.module_type = ModuleTypes.FilesModule
 

@@ -1,13 +1,19 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stddef.h>
+
+#if defined(__ANDROID__)
+#	define NK_SIZE_TYPE size_t
+#	define NK_POINTER_TYPE size_t
+#endif
+
 #define NK_BUTTON_TRIGGER_ON_RELEASE
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
 #include "nuklear.h"
-
-#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -35,6 +41,7 @@ struct ImAppParameters
 	ImAppAllocator			allocator;			// Override memory Allocator. Default use malloc/free
 
 	int						tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
+	bool					defaultFullWindow;	// Opens a default Window over the full size. Default: true
 
 	// Only for windowed Platforms:
 	const char*				pWindowTitle;		// Default: "I'm App"

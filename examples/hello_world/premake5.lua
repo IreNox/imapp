@@ -1,11 +1,6 @@
 -- examples/hello_world
 
-local project = Project:new(
-	"imapp_hello_world",
-	{ "x86", "x64" },
-	{ "Debug", "Release" },
-	ProjectTypes.WindowApplication
-);
+local project = Project:new( "imapp_hello_world", ProjectTypes.WindowApplication )
 
 project:add_files( 'src/*.c' )
 

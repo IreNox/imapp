@@ -12,6 +12,8 @@
 
 #	include <windows.h>
 #	include <debugapi.h>
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#	include <android/log.h>
 #endif
 
 void* ImAppMalloc( size_t size )
@@ -46,6 +48,8 @@ void ImAppTrace( const char* pFormat, ... )
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	OutputDebugStringA( buffer );
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	__android_log_write( ANDROID_LOG_INFO, "ImApp", buffer );
 #else
 #	error Platform not supported
 #endif
