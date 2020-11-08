@@ -1,27 +1,27 @@
 #pragma once
 
-struct SDL_Window;
-typedef struct SDL_Window SDL_Window;
-
 struct ImAppRenderer;
 typedef struct ImAppRenderer ImAppRenderer;
 
-struct ImAppRendererFrame;
-typedef struct ImAppRendererFrame ImAppRendererFrame;
-
 struct ImAppRendererTexture;
 typedef struct ImAppRendererTexture ImAppRendererTexture;
+
+struct nk_context;
+struct nk_font;
+
+struct SDL_Window;
+typedef struct SDL_Window SDL_Window;
 
 ImAppRenderer*			ImAppRendererCreate( SDL_Window* pWindow );
 void					ImAppRendererDestroy( ImAppRenderer* pRenderer );
 
 void					ImAppRendererUpdate( ImAppRenderer* pRenderer );
+void					ImAppRendererGetTargetSize( int* pWidth, int* pHeight, ImAppRenderer* pRenderer );
+
+struct nk_font*			ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext );
 
 ImAppRendererTexture*	ImAppRendererTextureCreateFromFile( ImAppRenderer* pRenderer, const void* pFilename );
 ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, size_t width, size_t height );
 void					ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture* pTexture );
 
-ImAppRendererFrame*		ImAppRendererBeginFrame( ImAppRenderer* pRenderer );
-void					ImAppRendererEndFrame( ImAppRenderer* pRenderer, ImAppRendererFrame* pFrame );
-
-void					ImAppRendererFrameClear( ImAppRendererFrame* pFrame, const float color[ 4u ] );
+void					ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkContext );

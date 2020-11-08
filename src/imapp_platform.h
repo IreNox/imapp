@@ -174,9 +174,9 @@
 #endif
 
 #if IMAPP_ENABLED( IMAPP_COMPILER_GCC ) || IMAPP_ENABLED( IMAPP_COMPILER_CLANG )
-#	define TIKI_OFFSETOF( type, member )		( __builtin_offsetof( type, member ) )
+#	define IMAPP_OFFSETOF( type, member )		__builtin_offsetof( type, member )
 #else
-#	define TIKI_OFFSETOF( type, member )		( (uint)(&((type*)nullptr)->member) )
+#	define IMAPP_OFFSETOF( type, member )		((size_t)(&((type*)0)->member))
 #endif
 
 #if IMAPP_ENABLED( IMAPP_USE_INLINE )

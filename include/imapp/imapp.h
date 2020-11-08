@@ -1,5 +1,10 @@
 #pragma once
 
+#define NK_BUTTON_TRIGGER_ON_RELEASE
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
 #include "nuklear.h"
 
 #include <stddef.h>
@@ -9,13 +14,26 @@ extern "C"
 {
 #endif
 
-struct ImAppInput;
-struct ImAppRenderer;
 struct SDL_Window;
+typedef struct SDL_Window SDL_Window;
+
 struct nk_context;
+
+typedef void*(*ImAppAllocatorMalloc)( size_t size );
+typedef void*(*ImAppAllocatorFree)(size_t size);
+
+struct ImAppAllocator
+{
+	ImAppAllocatorMalloc	pMalloc;
+	ImAppAllocatorFree		pFree;
+	void*					pUserData;
+};
+typedef struct ImAppAllocator ImAppAllocator;
 
 struct ImAppParameters
 {
+	ImAppAllocator			allocator;			// Override memory Allocator. Default use malloc/free
+
 	int						tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 
 	// Only for windowed Platforms:
@@ -23,38 +41,42 @@ struct ImAppParameters
 	int						windowWidth;		// Default: 1280
 	int						windowHeight;		// Default: 720
 };
+typedef struct ImAppParameters ImAppParameters;
 
 struct ImAppContext
 {
-	struct ImAppInput*		pInput;
-	struct ImAppRenderer*	pRenderer;
-
-	struct SDL_Window*		pSdlWindow;
+	SDL_Window*				pSdlWindow;
 	struct nk_context*		pNkContext;
+
+	int						width;
+	int						height;
 };
+typedef struct ImAppContext ImAppContext;
+
+//////////////////////////////////////////////////////////////////////////
+// These function must be implemented to create a ImApp Program:
+
+// Called at startup to initialize Program and create Context. To customize the App change values in pParameters. Must return a Program Context. Return nullptr to signal an Error.
+void*						ImAppProgramInitialize( ImAppParameters* pParameters );
+
+// Called for every tick to build the UI
+void						ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext );
+
+// Called before shutdown. Free the Program Context here.
+void						ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext );
 
 
 //////////////////////////////////////////////////////////////////////////
-// These function must be implemented to create a ImApp Application:
+// Control
 
-// Called at startup to initialize Program and create Context. To customize the App change values in pParameters. Must return a Program Context. Return nullptr to signal an Error.
-void*						ImAppProgramInitialize( struct ImAppParameters* pParameters );
-
-// Called for event and every tick
-void						ImAppProgramTick( struct ImAppContext* pImAppContext, void* pProgramContext );
-
-// Called after the tick to build the UI
-void						ImAppProgramDoUi( struct ImAppContext* pImAppContext, void* pProgramContext );
-
-// Called before shutdown. Free the Program Context here.
-void						ImAppProgramShutdown( struct ImAppContext* pImAppContext, void* pProgramContext );
-
+void						ImAppQuit( ImAppContext* pImAppContext );
 
 //////////////////////////////////////////////////////////////////////////
 // Image
 
-struct nk_image				ImAppImageLoad( struct ImAppContext* pImAppContext, const void* pImageData, size_t imageDataSize );
-struct nk_image				ImAppImageFree( struct ImAppContext* pImAppContext, struct nk_image image );
+struct nk_image				ImAppImageLoadResource( ImAppContext* pImAppContext, const char* pResourceName );
+struct nk_image				ImAppImageLoadFromMemory( ImAppContext* pImAppContext, const void* pImageData, size_t imageDataSize );
+void						ImAppImageFree( ImAppContext* pImAppContext, struct nk_image image );
 
 #ifdef __cplusplus
 }

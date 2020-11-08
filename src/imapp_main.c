@@ -1,25 +1,12 @@
 #include "imapp/imapp.h"
 
 #include "imapp_helper.h"
+#include "imapp_platform.h"
+#include "imapp_input.h"
 #include "imapp_renderer.h"
 
 #include <SDL.h>
 #include <limits.h>
-#include <stdbool.h>
-
-struct ImApp
-{
-	struct ImAppParameters	parameters;
-	struct ImAppContext		context;
-	bool					running;
-
-	void*					pProgramContext;
-	struct SDL_Window*		pSdlWindow;
-	struct nk_context		nkContext;
-
-	ImAppRenderer*			pRenderer;
-};
-typedef struct ImApp ImApp;
 
 static bool ImAppInitialize( ImApp* pImApp );
 static void ImAppCleanup( ImApp* pImApp );
@@ -39,6 +26,9 @@ int main( int argc, char* argv[] )
 		ImAppCleanup( pImApp );
 		return 1;
 	}
+
+	pImApp->context.pSdlWindow	= pImApp->pSdlWindow;
+	pImApp->context.pNkContext	= &pImApp->nkContext;
 	
 	int remainingMs = 0;
 	pImApp->running = true;
@@ -52,6 +42,7 @@ int main( int argc, char* argv[] )
 			timeToWait = INT_MAX;
 		}
 
+		ImAppInputBegin( pImApp->pInput );
 		if( SDL_WaitEventTimeout( NULL, timeToWait ) != 0 )
 		{
 			SDL_Event sdlEvent;
@@ -60,13 +51,14 @@ int main( int argc, char* argv[] )
 				ImAppHandleEvent( pImApp, &sdlEvent );
 			}
 		}
+		ImAppInputEnd( pImApp->pInput );
 
-		ImAppRendererFrame* pFrame = ImAppRendererBeginFrame( pImApp->pRenderer );
+		ImAppRendererUpdate( pImApp->pRenderer );
+		ImAppRendererGetTargetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pRenderer );
 
-		const float color[ 4u ] = { 1.0f, 0.0f, 0.0f, 1.0f };
-		ImAppRendererFrameClear( pFrame, color );
+		ImAppProgramDoUi( &pImApp->context, pImApp->pProgramContext );
 
-		ImAppRendererEndFrame( pImApp->pRenderer, pFrame );
+		ImAppRendererDrawFrame( pImApp->pRenderer, &pImApp->nkContext );
 
 		const Uint32 endTick = SDL_GetTicks();
 		remainingMs = pImApp->parameters.tickIntervalMs - (endTick - startTick);
@@ -104,11 +96,23 @@ static bool ImAppInitialize( ImApp* pImApp )
 		return false;
 	}
 
+	pImApp->pInput = ImAppInputCreate( pImApp->pSdlWindow, &pImApp->nkContext );
+	if( pImApp->pInput == NULL )
+	{
+		ImAppShowError( pImApp, "Failed to create Input." );
+		return false;
+	}
+
 	pImApp->pRenderer = ImAppRendererCreate( pImApp->pSdlWindow );
 	if( pImApp->pRenderer == NULL )
 	{
 		ImAppShowError( pImApp, "Failed to create Renderer." );
 		return false;
+	}
+
+	{
+		struct nk_font* pFont = ImAppRendererCreateDefaultFont( pImApp->pRenderer, &pImApp->nkContext );
+		nk_init_default( &pImApp->nkContext, &pFont->handle );
 	}
 
 	return true;
@@ -128,6 +132,12 @@ static void ImAppCleanup( ImApp* pImApp )
 		pImApp->pRenderer = NULL;
 	}
 
+	if( pImApp->pInput != NULL )
+	{
+		ImAppInputDestroy( pImApp->pInput );
+		pImApp->pInput = NULL;
+	}
+
 	if( pImApp->pSdlWindow != NULL )
 	{
 		SDL_DestroyWindow( pImApp->pSdlWindow );
@@ -136,7 +146,7 @@ static void ImAppCleanup( ImApp* pImApp )
 
 	SDL_Quit();
 
-	free( pImApp );
+	ImAppFree( pImApp );
 }
 
 static void ImAppShowError( ImApp* pImApp, const char* pMessage )
@@ -148,6 +158,17 @@ void ImAppHandleEvent( ImApp* pImApp, const SDL_Event* pSdlEvent )
 {
 	switch( pSdlEvent->type )
 	{
+	case SDL_KEYDOWN:
+	case SDL_KEYUP:
+	case SDL_TEXTEDITING:
+	case SDL_TEXTINPUT:
+	case SDL_MOUSEMOTION:
+	case SDL_MOUSEBUTTONDOWN:
+	case SDL_MOUSEBUTTONUP:
+	case SDL_MOUSEWHEEL:
+		ImAppInputHandleEvent( pImApp->pInput, pSdlEvent );
+		break;
+
 	case SDL_WINDOWEVENT:
 		{
 			const SDL_WindowEvent* pWindowEvent = &pSdlEvent->window;

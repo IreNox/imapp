@@ -1,45 +1,77 @@
 #include "imapp_renderer.h"
 
 #include "imapp_helper.h"
+#include "imapp_shader.h"
 
-//#include <GL/glew.h>
+#include <GL/glew.h>
 #include <SDL_opengl.h>
-
-struct ImAppRendererFrame
-{
-	ImAppRenderer*		pRenderer;
-};
+#include <stdint.h>
 
 struct ImAppRenderer
 {
-	SDL_Window*			pSdlWindow;
-	SDL_GLContext		pGlContext;
+	SDL_Window*					pSdlWindow;
+	SDL_GLContext				pGlContext;
 
-	ImAppRendererFrame	frame;
+	int							width;
+	int							height;
+
+	GLuint						vertexShader;
+	GLuint						fragmentShader;
+
+	GLuint						program;
+	GLint						programUniformProjection;
+	GLint						programUniformTexture;
+
+	GLint						vertexArray;
+	GLint						vertexBuffer;
+	GLint						elementBuffer;
+
+	struct nk_font_atlas		fontAtlas;
+	struct nk_convert_config	convertConfig;
+	struct nk_buffer			commands;
 };
+
+struct ImAppRendererTexture
+{
+	GLuint						texture;
+};
+
+struct ImAppRendererVertex
+{
+	float						position[ 2u ];
+	float						uv[ 2u ];
+	uint8_t						color[ 4u ];
+};
+typedef struct ImAppRendererVertex ImAppRendererVertex;
+
+static const struct nk_draw_vertex_layout_element s_aVertexLayout[] = {
+	{ NK_VERTEX_POSITION,	NK_FORMAT_FLOAT,	IMAPP_OFFSETOF( ImAppRendererVertex, position ) },
+	{ NK_VERTEX_TEXCOORD,	NK_FORMAT_FLOAT,	IMAPP_OFFSETOF( ImAppRendererVertex, uv ) },
+	{ NK_VERTEX_COLOR,		NK_FORMAT_R8G8B8A8,	IMAPP_OFFSETOF( ImAppRendererVertex, color ) },
+	{ NK_VERTEX_LAYOUT_END}
+};
+
+#define IMAPP_MAX_VERTEX_COUNT	1024u
+#define IMAPP_MAX_ELEMENT_COUNT	2048u
+#define IMAPP_MAX_VERTEX_SIZE	sizeof( ImAppRendererVertex ) * IMAPP_MAX_VERTEX_COUNT
+#define IMAPP_MAX_ELEMENT_SIZE	sizeof( nk_draw_index ) * IMAPP_MAX_ELEMENT_COUNT
+
+static bool ImAppRendererInitializeShader( ImAppRenderer* pRenderer );
+static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode );
+static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer );
+
+static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
 ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
 {
 	IMAPP_ASSERT( pWindow != NULL );
 
-	int driverIndex = -1;
-	for( int i = 0u; i < SDL_GetNumRenderDrivers(); ++i )
-	{
-		SDL_RendererInfo info;
-		IMAPP_VERIFY( SDL_GetRenderDriverInfo( i, &info ) == 0 );
-
-		if( !(info.flags & SDL_RENDERER_ACCELERATED) )
-		{
-			continue;
-		}
-	}
-
 	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( ImAppRenderer );
 	pRenderer->pSdlWindow	= pWindow;
 
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
 
 	pRenderer->pGlContext = SDL_GL_CreateContext( pWindow );
 	if( pRenderer->pGlContext == NULL )
@@ -50,62 +82,378 @@ ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
 
 	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
 	{
-		//printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
 	}
+
+	if( glewInit() != GLEW_OK )
+	{
+		ImAppTrace( "[renderer] Failed to initialize GLEW.\n" );
+		return NULL;
+	}
+
+	if( !ImAppRendererInitializeShader( pRenderer ) )
+	{
+		ImAppRendererDestroy( pRenderer );
+		return NULL;
+	}
+
+	if( !ImAppRendererInitializeBuffer( pRenderer ) )
+	{
+		ImAppRendererDestroy( pRenderer );
+		return NULL;
+	}
+
+	nk_font_atlas_init_default( &pRenderer->fontAtlas );
+	nk_buffer_init_default( &pRenderer->commands );
+
+	pRenderer->convertConfig.vertex_layout			= s_aVertexLayout;
+	pRenderer->convertConfig.vertex_size			= sizeof( ImAppRendererVertex );
+	pRenderer->convertConfig.vertex_alignment		= NK_ALIGNOF( ImAppRendererVertex );
+	pRenderer->convertConfig.circle_segment_count	= 22;
+	pRenderer->convertConfig.curve_segment_count	= 22;
+	pRenderer->convertConfig.arc_segment_count		= 22;
+	pRenderer->convertConfig.global_alpha			= 1.0f;
+	pRenderer->convertConfig.shape_AA				= NK_ANTI_ALIASING_ON;
+	pRenderer->convertConfig.line_AA				= NK_ANTI_ALIASING_ON;
 
 	return pRenderer;
 }
 
+static bool ImAppRendererInitializeShader( ImAppRenderer* pRenderer )
+{
+	pRenderer->vertexShader		= glCreateShader( GL_VERTEX_SHADER );
+	pRenderer->fragmentShader	= glCreateShader( GL_FRAGMENT_SHADER );
+	if( pRenderer->vertexShader == 0u ||
+		pRenderer->fragmentShader == 0u )
+	{
+		ImAppTrace( "[renderer] Failed to create GL Shader.\n" );
+		return false;
+	}
+
+	if( !ImAppRendererCompileShader( pRenderer->vertexShader, s_vertexShader ) ||
+		!ImAppRendererCompileShader( pRenderer->fragmentShader, s_fragmentShader ) )
+	{
+		ImAppTrace( "[renderer] Failed to compile GL Shader.\n" );
+		return false;
+	}
+
+	pRenderer->program = glCreateProgram();
+	if( pRenderer->program == 0u )
+	{
+		ImAppTrace( "[renderer] Failed to create GL Program.\n" );
+		return false;
+	}
+
+	GLint programStatus;
+	glAttachShader( pRenderer->program, pRenderer->vertexShader );
+	glAttachShader( pRenderer->program, pRenderer->fragmentShader );
+	glLinkProgram( pRenderer->program );
+	glGetProgramiv( pRenderer->program, GL_LINK_STATUS, &programStatus );
+
+	if( programStatus != GL_TRUE )
+	{
+		ImAppTrace( "[renderer] Failed to link GL Program.\n" );
+		return false;
+	}
+
+	pRenderer->programUniformProjection	= glGetUniformLocation( pRenderer->program, "ProjectionMatrix" );
+	pRenderer->programUniformTexture	= glGetUniformLocation( pRenderer->program, "Texture" );
+
+	return true;
+}
+
+static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
+{
+	glShaderSource( shader, 1, &pShaderCode, 0 );
+	glCompileShader( shader );
+
+	GLint shaderStatus;
+	glGetShaderiv( shader, GL_COMPILE_STATUS, &shaderStatus );
+
+	if( shaderStatus != GL_TRUE )
+	{
+		char buffer[ 2048u ];
+		GLsizei infoLength;
+		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
+
+		ImAppTrace( "[renderer] Failed to compile Shader. Error: %s\n", buffer );
+		return false;
+	}
+
+	return true;
+}
+
+static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer )
+{
+	const GLuint attributePosition	= (GLuint)glGetAttribLocation( pRenderer->program, "Position" );
+	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( pRenderer->program, "TexCoord" );
+	const GLuint attributeColor		= (GLuint)glGetAttribLocation( pRenderer->program, "Color" );
+	
+	glGenBuffers( 1, &pRenderer->vertexBuffer );
+	glGenBuffers( 1, &pRenderer->elementBuffer );
+	glGenVertexArrays( 1, &pRenderer->vertexArray );
+
+	glBindVertexArray( pRenderer->vertexArray );
+	glBindBuffer( GL_ARRAY_BUFFER, pRenderer->vertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, pRenderer->elementBuffer );
+
+	glEnableVertexAttribArray( attributePosition );
+	glEnableVertexAttribArray( attributeTexCoord );
+	glEnableVertexAttribArray( attributeColor );
+
+	const GLsizei vertexSize	= sizeof( ImAppRendererVertex );
+	size_t vertexPositionOffset	= IMAPP_OFFSETOF( ImAppRendererVertex, position );
+	size_t vertexUvOffset		= IMAPP_OFFSETOF( ImAppRendererVertex, uv );
+	size_t vertexColorOffset	= IMAPP_OFFSETOF( ImAppRendererVertex, color );
+	glVertexAttribPointer( attributePosition,	2, GL_FLOAT,			GL_FALSE,	vertexSize, (void*)vertexPositionOffset );
+	glVertexAttribPointer( attributeTexCoord,	2, GL_FLOAT,			GL_FALSE,	vertexSize, (void*)vertexUvOffset );
+	glVertexAttribPointer( attributeColor,		4, GL_UNSIGNED_BYTE,	GL_TRUE,	vertexSize, (void*)vertexColorOffset );
+
+	return true;
+}
+
 void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 {
+	nk_font_atlas_cleanup( &pRenderer->fontAtlas );
+	nk_buffer_free( &pRenderer->commands );
+
+	if( pRenderer->vertexArray != 0u )
+	{
+		glDeleteVertexArrays( 1, &pRenderer->vertexArray );
+		pRenderer->vertexArray = 0u;
+	}
+
+	if( pRenderer->elementBuffer != 0u )
+	{
+		glDeleteBuffers( 1, &pRenderer->elementBuffer );
+		pRenderer->elementBuffer = 0u;
+	}
+
+	if( pRenderer->vertexBuffer != 0u )
+	{
+		glDeleteBuffers( 1, &pRenderer->vertexBuffer );
+		pRenderer->vertexBuffer = 0u;
+	}
+
+	if( pRenderer->program != 0u )
+	{
+		glDetachShader( pRenderer->program, pRenderer->fragmentShader );
+		glDetachShader( pRenderer->program, pRenderer->vertexShader );
+		glDeleteProgram( pRenderer->program );
+
+		pRenderer->program = 0u;
+	}
+
+	if( pRenderer->vertexShader != 0u )
+	{
+		glDeleteShader( pRenderer->vertexShader );
+		pRenderer->vertexShader = 0u;
+	}
+
+	if( pRenderer->fragmentShader != 0u )
+	{
+		glDeleteShader( pRenderer->fragmentShader );
+		pRenderer->fragmentShader = 0u;
+	}
+
 	if( pRenderer->pGlContext != NULL )
 	{
 		SDL_GL_DeleteContext( pRenderer->pGlContext );
 		pRenderer->pGlContext = NULL;
 	}
 
-	free( pRenderer );
+	ImAppFree( pRenderer );
 }
 
 void ImAppRendererUpdate( ImAppRenderer* pRenderer )
 {
-	
+	int width;
+	int height;
+	SDL_GL_GetDrawableSize( pRenderer->pSdlWindow, &width, &height );
+
+	if( width == pRenderer->width &&
+		height == pRenderer->height )
+	{
+		return;
+	}
+
+	pRenderer->width = width;
+	pRenderer->height = height;
+}
+
+void ImAppRendererGetTargetSize( int* pWidth, int* pHeight, ImAppRenderer* pRenderer )
+{
+	*pWidth = pRenderer->width;
+	*pHeight = pRenderer->height;
+}
+
+struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
+{
+	nk_font_atlas_begin( &pRenderer->fontAtlas );
+
+	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->fontAtlas, 13, 0 );
+
+	int imageWidth;
+	int imageHeight;
+	const void* pImageData = nk_font_atlas_bake( &pRenderer->fontAtlas, &imageWidth, &imageHeight, NK_FONT_ATLAS_RGBA32 );
+	ImAppRendererTexture* pTexture = ImAppRendererTextureCreateFromMemory( pRenderer, pImageData, imageWidth, imageHeight );
+	nk_font_atlas_end( &pRenderer->fontAtlas, nk_handle_ptr( pTexture ), &pRenderer->convertConfig.null );
+
+	return pFont;
 }
 
 ImAppRendererTexture* ImAppRendererTextureCreateFromFile( ImAppRenderer* pRenderer, const void* pFilename )
 {
+	//int x, y, n;
+	//GLuint tex;
+	//unsigned char *data = stbi_load( filename, &x, &y, &n, 0 );
+	//if( !data ) die( "[SDL]: failed to load image: %s", filename );
+	//glGenTextures( 1, &tex );
+	//glBindTexture( GL_TEXTURE_2D, tex );
+	//glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST );
+	//glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST );
+	//glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	//glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+	//glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
+	//glGenerateMipmap( GL_TEXTURE_2D );
+	//stbi_image_free( data );
+	//return nk_image_id( (int)tex );
+
 	//SDL_CreateTextureFromSurface
 	return NULL;
 }
 
 ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, size_t width, size_t height )
 {
-	return NULL;
+	ImAppRendererTexture* pTexture = IMAPP_NEW_ZERO( ImAppRendererTexture );
+	if( pTexture == NULL )
+	{
+		return NULL;
+	}
+
+	glGenTextures( 1, &pTexture->texture );
+	glBindTexture( GL_TEXTURE_2D, pTexture->texture );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pData );
+
+	return pTexture;
 }
 
 void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture* pTexture )
 {
+	if( pTexture == NULL )
+	{
+		return;
+	}
+
+	if( pTexture->texture != 0u )
+	{
+		glDeleteTextures( 1u, &pTexture->texture );
+		pTexture->texture = 0u;
+	}
+
+	ImAppFree( pTexture );
 }
 
-ImAppRendererFrame* ImAppRendererBeginFrame( ImAppRenderer* pRenderer )
+void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
 {
-	pRenderer->frame.pRenderer = pRenderer;
-
-	return &pRenderer->frame;
-}
-
-void ImAppRendererEndFrame( ImAppRenderer* pRenderer, ImAppRendererFrame* pFrame )
-{
-	IMAPP_ASSERT( pFrame == &pRenderer->frame );
-	IMAPP_ASSERT( pFrame->pRenderer == pRenderer );
-
-	SDL_GL_SwapWindow( pRenderer->pSdlWindow );
-
-	pFrame->pRenderer = NULL;
-}
-
-void ImAppRendererFrameClear( ImAppRendererFrame* pFrame, const float color[ 4u ] )
-{
+	const float color[ 4u ] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	glClearColor( color[ 0u ], color[ 1u ], color[ 2u ], color[ 3u ] );
 	glClear( GL_COLOR_BUFFER_BIT );
+
+	glEnable( GL_BLEND );
+	glBlendEquation( GL_FUNC_ADD );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+	glDisable( GL_CULL_FACE );
+
+	glDisable( GL_DEPTH_TEST );
+	glEnable( GL_SCISSOR_TEST );
+
+	glUseProgram( pRenderer->program );
+	glUniform1i( pRenderer->programUniformTexture, 0 );
+
+	int width;
+	int height;
+	SDL_GetWindowSize( pRenderer->pSdlWindow, &width, &height );
+
+	const GLfloat projectionMatrix[ 4 ][ 4 ] ={
+		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
+		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
+		{  0.0f,			0.0f,			-1.0f,	0.0f },
+		{ -1.0f,			1.0f,			 0.0f,	1.0f }
+	};
+	glUniformMatrix4fv( pRenderer->programUniformProjection, 1, GL_FALSE, &projectionMatrix[ 0u ][ 0u ] );
+
+	ImAppRendererDrawNuklear( pRenderer, pNkContext, height );
+
+	// reset OpenGL state
+	glUseProgram( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	glBindVertexArray( 0 );
+	glDisable( GL_BLEND );
+	glDisable( GL_SCISSOR_TEST );
+
+	SDL_GL_SwapWindow( pRenderer->pSdlWindow );
+}
+
+static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height )
+{
+	// bind buffers
+	glBindVertexArray( pRenderer->vertexArray );
+	glBindBuffer( GL_ARRAY_BUFFER, pRenderer->vertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, pRenderer->elementBuffer );
+
+	glBufferData( GL_ARRAY_BUFFER, IMAPP_MAX_VERTEX_SIZE, NULL, GL_STREAM_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, IMAPP_MAX_ELEMENT_SIZE, NULL, GL_STREAM_DRAW );
+
+	// upload
+	{
+		void* pVertexData = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
+		void* pElementData = glMapBuffer( GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY );
+		{
+			struct nk_buffer vertexBuffer;
+			struct nk_buffer elementBuffer;
+			nk_buffer_init_fixed( &vertexBuffer, pVertexData, IMAPP_MAX_VERTEX_SIZE );
+			nk_buffer_init_fixed( &elementBuffer, pElementData, IMAPP_MAX_ELEMENT_SIZE );
+			nk_convert( pNkContext, &pRenderer->commands, &vertexBuffer, &elementBuffer, &pRenderer->convertConfig );
+		}
+		glUnmapBuffer( GL_ARRAY_BUFFER );
+		glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
+	}
+
+	const nk_draw_index* pElementOffset = NULL;
+	const struct nk_draw_command* pCommand;
+	nk_draw_foreach( pCommand, pNkContext, &pRenderer->commands )
+	{
+		if( pCommand->elem_count == 0u )
+		{
+			continue;
+		}
+
+		ImAppRendererTexture* pTexture = (ImAppRendererTexture*)pCommand->texture.ptr;
+		if( pTexture == NULL )
+		{
+			glBindTexture( GL_TEXTURE_2D, 0 );
+		}
+		else
+		{
+			glBindTexture( GL_TEXTURE_2D, pTexture->texture );
+		}
+
+		glScissor(
+			(GLint)(pCommand->clip_rect.x),
+			(GLint)((height - (GLint)(pCommand->clip_rect.y + pCommand->clip_rect.h))),
+			(GLint)(pCommand->clip_rect.w),
+			(GLint)(pCommand->clip_rect.h)
+		);
+
+		glDrawElements( GL_TRIANGLES, (GLsizei)pCommand->elem_count, GL_UNSIGNED_SHORT, pElementOffset );
+		pElementOffset += pCommand->elem_count;
+	}
+
+	nk_clear( pNkContext );
+	nk_buffer_clear( &pRenderer->commands );
 }
