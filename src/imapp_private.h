@@ -24,3 +24,5 @@ struct ImApp
 	ImAppRenderer*		pRenderer;
 };
 typedef struct ImApp ImApp;
+
+int ImAppRun();

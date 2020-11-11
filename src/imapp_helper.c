@@ -1,6 +1,6 @@
 #include "imapp_helper.h"
 
-#include "imapp_platform.h"
+#include "imapp_defines.h"
 
 #include <stdarg.h>
 #include <stdlib.h>

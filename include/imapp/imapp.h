@@ -38,6 +38,9 @@ typedef struct ImAppAllocator ImAppAllocator;
 
 struct ImAppParameters
 {
+	int						argc;
+	char*					argv;
+
 	ImAppAllocator			allocator;			// Override memory Allocator. Default use malloc/free
 
 	int						tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0

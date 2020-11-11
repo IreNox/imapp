@@ -89,7 +89,7 @@ sdl_modules[ "joystick" ].platforms[ Platforms.Android ]	= { android	= { header 
 sdl_modules[ "loadso" ].platforms[ Platforms.Android ]		= { dlopen	= { header = false,	source = true } }
 sdl_modules[ "main" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source = true } }
 sdl_modules[ "power" ].platforms[ Platforms.Android ]		= { android	= { header = false,	source = true } }
-sdl_modules[ "render" ].platforms[ Platforms.Android ]		= { opengles = { header = true, source = true }, software = { header = true, source = true } }
+sdl_modules[ "render" ].platforms[ Platforms.Android ]		= { opengles = { header = true, source = true }, opengles2 = { header = true, source = true }, software = { header = true, source = true } }
 sdl_modules[ "sensor" ].platforms[ Platforms.Android ]		= { android	= { header = true,	source = true } }
 sdl_modules[ "thread" ].platforms[ Platforms.Android ]		= { pthread	= { header = true,	source = true }, generic = { header = true, source = true } }
 sdl_modules[ "timer" ].platforms[ Platforms.Android ]		= { unix	= { header = false,	source = true } }

@@ -5,7 +5,9 @@ A Framework to create your own Immediate Mode UI Application with just a few lin
 
 ## Features
 
-- TODO
+- Android support
+- Simple Image loading
+-  
 
 ## Example
 
@@ -14,14 +16,22 @@ void* ImAppProgramInitialize( ImAppParameters* pParameters )
 {
 	pParameters->pWindowTitle = "MyApp";
 	
-	void* pProgramContext = malloc( 1 );
+	int* pProgramContext = malloc( sizeof( int ) );
+	*pProgramContext = 0;
 	return pProgramContext;
 }
 
 void ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext )
 {
-	nk_layout_row_dynamic( pImAppContext->pNkContext, 0.0f, 1 );
-	nk_label( pImAppContext->pNkContext, "Hello World", NK_TEXT_LEFT );
+	void* pCounter = (int*)pProgramContext;
+
+	nk_layout_row_dynamic( pImAppContext->pNkContext, 0.0f, 2 );
+	
+	char buffer[ 32 ];
+	sprintf( buffer, "Hello World %d", *pCounter );
+	nk_label( pImAppContext->pNkContext, buffer, NK_TEXT_LEFT );
+	
+	*pCounter++;
 }
 
 void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )
@@ -35,12 +45,7 @@ void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )
 [tiki_build](https://github.com/IreNox/tiki_build) is used to generate project files. To create your own Project put tiki_build and premake5 in the root of your repro and write a `premake5.lua` file:
 
 ```
-local project = Project:new(
-	"my_imapp_program",
-	{ "x86", "x64" },
-	{ "Debug", "Release" },
-	ProjectTypes.WindowApplication
-);
+local project = Project:new( "my_imapp_program", ProjectTypes.WindowApplication );
 
 project:add_files( 'src/*.c' )
 
