@@ -1,5 +1,7 @@
 #include "../imapp_platform.h"
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS ) && IMAPP_DISABLED( IMAPP_PLATFORM_SDL )
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -12,7 +14,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	char** pArgs = NULL;
 	{
 		const wchar_t* pWideCommandLine = GetCommandLineW();
-		const wchar_t** ppWideArgs = CommandLineToArgvW( pWideCommandLine, &argc );
+		wchar_t** ppWideArgs = CommandLineToArgvW( pWideCommandLine, &argc );
 
 		pArgs = (char**)ImAppMallocZero( sizeof( char* ) * argc );
 
@@ -35,6 +37,24 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	ImAppFree( pArgs );
 
 	return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Shared Libraries
+
+ImAppSharedLibHandle ImAppSharedLibOpen( const char* pSharedLibName )
+{
+	return (ImAppSharedLibHandle)LoadLibraryA( pSharedLibName );
+}
+
+void ImAppSharedLibClose( ImAppSharedLibHandle libHandle )
+{
+	FreeLibrary( (HMODULE)libHandle );
+}
+
+void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFunctionName )
+{
+	return GetProcAddress( (HMODULE)libHandle, pFunctionName );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -240,15 +260,46 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 }
 
 //////////////////////////////////////////////////////////////////////////
+// SwapChain
+
+struct ImAppSwapChain
+{
+	ImAppWindow*	pWindow;
+};
+
+ImAppSwapChain* ImAppCreateDeviceAndSwapChain( ImAppWindow* pWindow )
+{
+	ImAppSwapChain* pSwapChain = IMAPP_NEW_ZERO( ImAppSwapChain );
+	if( pSwapChain == NULL )
+	{
+		return NULL;
+	}
+
+	return pSwapChain;
+}
+
+void ImAppDestroyDeviceAndSwapChain( ImAppSwapChain* pSwapChain )
+{
+
+}
+
+bool ImAppResizeSwapChain( ImAppSwapChain* pSwapChain, int width, int height )
+{
+	return false;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Input
 
 struct ImAppInputPlatform
 {
 	ImAppWindow*	pWindow;
 
-	WNDPROC			pOriginal;
+	WNDPROC			pOriginalWinProc;
 };
 
 //ImAppInputPlatform* ImAppInputPlatformCreate();
 //void ImAppInputPlatformDestroy( ImAppInputPlatform* pPlatformState );
 //void ImAppInputPlatformApply( ImAppInputPlatform* pPlatformState, struct nk_context* pNkContext );
+
+#endif

@@ -1,3 +1,7 @@
+#include "../imapp_defines.h"
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+
 #include <android/native_activity.h>
 
 #include "../imapp_helper.h"
@@ -207,3 +211,5 @@ static void ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInpu
 	ImAppTrace( "InputQueueDestroyed: %p -- %p\n", pActivity, queue );
 	//android_app_set_input( (struct android_app*)pActivity->instance, NULL );
 }
+
+#endif

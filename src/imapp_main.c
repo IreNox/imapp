@@ -2,20 +2,21 @@
 
 #include "imapp_defines.h"
 #include "imapp_helper.h"
-#include "imapp_input.h"
+#include "imapp_platform.h"
 #include "imapp_renderer.h"
 
-#include <SDL.h>
 #include <limits.h>
 
 static bool ImAppInitialize( ImApp* pImApp );
 static void ImAppCleanup( ImApp* pImApp );
-static void ImAppShowError( ImApp* pImApp, const char* pMessage );
-static void ImAppHandleEvent( ImApp* pImApp, const SDL_Event* pSdlEvent );
 
 int ImAppMain( int argc, char* argv[] )
 {
 	ImApp* pImApp = IMAPP_NEW_ZERO( ImApp );
+
+	pImApp->running				= true;
+	pImApp->context.pNkContext	= &pImApp->nkContext;
+
 	pImApp->parameters.tickIntervalMs		= 0;
 	pImApp->parameters.defaultFullWindow	= true;
 	pImApp->parameters.pWindowTitle			= "I'm App";
@@ -28,35 +29,19 @@ int ImAppMain( int argc, char* argv[] )
 		return 1;
 	}
 
-	pImApp->context.pSdlWindow	= pImApp->pSdlWindow;
-	pImApp->context.pNkContext	= &pImApp->nkContext;
-
-	int remainingMs = 0;
-	pImApp->running = true;
+	int64_t lastTickValue = 0;
 	while( pImApp->running )
 	{
-		const Uint32 startTick = SDL_GetTicks();
+		lastTickValue = ImAppWindowWaitForEvent( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
 
-		int timeToWait = remainingMs;
-		if( pImApp->parameters.tickIntervalMs == 0 )
-		{
-			timeToWait = INT_MAX;
-		}
-
-		ImAppInputBegin( pImApp->pInput );
-		if( SDL_WaitEventTimeout( NULL, timeToWait ) != 0 )
-		{
-			SDL_Event sdlEvent;
-			while( SDL_PollEvent( &sdlEvent ) )
-			{
-				ImAppHandleEvent( pImApp, &sdlEvent );
-			}
-		}
-		ImAppInputEnd( pImApp->pInput );
+		nk_input_begin( &pImApp->nkContext );
+		ImAppInputApply( pImApp->pInput, &pImApp->nkContext );
+		nk_input_end( &pImApp->nkContext );
 
 		ImAppRendererUpdate( pImApp->pRenderer );
 		ImAppRendererGetTargetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pRenderer );
 
+		// UI
 		{
 			if( pImApp->parameters.defaultFullWindow )
 			{
@@ -72,10 +57,6 @@ int ImAppMain( int argc, char* argv[] )
 		}
 
 		ImAppRendererDrawFrame( pImApp->pRenderer, &pImApp->nkContext );
-
-		const Uint32 endTick = SDL_GetTicks();
-		remainingMs = pImApp->parameters.tickIntervalMs - (endTick - startTick);
-		remainingMs = remainingMs < 0 ? 0 : remainingMs;
 	}
 
 	ImAppCleanup( pImApp );
@@ -84,45 +65,31 @@ int ImAppMain( int argc, char* argv[] )
 
 static bool ImAppInitialize( ImApp* pImApp )
 {
-	if( SDL_Init( SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER ) < 0 )
-	{
-		ImAppShowError( pImApp, "Failed to initialize SDL." );
-		return false;
-	}
-
 	pImApp->pProgramContext = ImAppProgramInitialize( &pImApp->parameters );
 	if( pImApp->pProgramContext == NULL )
 	{
-		ImAppShowError( pImApp, "Failed to initialize Program." );
+		ImAppShowError( "Failed to initialize Program." );
 		return false;
 	}
 
-	Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	windowFlags |= SDL_WINDOW_RESIZABLE;
-#elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-	pImApp->parameters.windowWidth	= 0u;
-	pImApp->parameters.windowHeight	= 0u;
-#endif
-
-	pImApp->pSdlWindow = SDL_CreateWindow( pImApp->parameters.pWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, windowFlags );
-	if( pImApp->pSdlWindow == NULL )
+	pImApp->pWindow = ImAppWindowCreate( pImApp->parameters.pWindowTitle, 0, 0, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, ImAppWindowState_Default );
+	if( pImApp->pWindow == NULL )
 	{
-		ImAppShowError( pImApp, "Failed to create Window." );
+		ImAppShowError( "Failed to create Window." );
 		return false;
 	}
 
-	pImApp->pInput = ImAppInputCreate( pImApp->pSdlWindow, &pImApp->nkContext );
+	pImApp->pInput = ImAppInputCreate( pImApp->pWindow );
 	if( pImApp->pInput == NULL )
 	{
-		ImAppShowError( pImApp, "Failed to create Input." );
+		ImAppShowError( "Failed to create Input." );
 		return false;
 	}
 
-	pImApp->pRenderer = ImAppRendererCreate( pImApp->pSdlWindow );
+	pImApp->pRenderer = ImAppRendererCreate( pImApp->pWindow );
 	if( pImApp->pRenderer == NULL )
 	{
-		ImAppShowError( pImApp, "Failed to create Renderer." );
+		ImAppShowError( "Failed to create Renderer." );
 		return false;
 	}
 
@@ -154,53 +121,11 @@ static void ImAppCleanup( ImApp* pImApp )
 		pImApp->pInput = NULL;
 	}
 
-	if( pImApp->pSdlWindow != NULL )
+	if( pImApp->pWindow != NULL )
 	{
-		SDL_DestroyWindow( pImApp->pSdlWindow );
-		pImApp->pSdlWindow = NULL;
+		ImAppWindowDestroy( pImApp->pWindow );
+		pImApp->pWindow = NULL;
 	}
-
-	SDL_Quit();
 
 	ImAppFree( pImApp );
-}
-
-static void ImAppShowError( ImApp* pImApp, const char* pMessage )
-{
-	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, pImApp->parameters.pWindowTitle, pMessage, pImApp->pSdlWindow );
-}
-
-void ImAppHandleEvent( ImApp* pImApp, const SDL_Event* pSdlEvent )
-{
-	switch( pSdlEvent->type )
-	{
-	case SDL_KEYDOWN:
-	case SDL_KEYUP:
-	case SDL_TEXTEDITING:
-	case SDL_TEXTINPUT:
-	case SDL_MOUSEMOTION:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP:
-	case SDL_MOUSEWHEEL:
-		ImAppInputHandleEvent( pImApp->pInput, pSdlEvent );
-		break;
-
-	case SDL_WINDOWEVENT:
-		{
-			const SDL_WindowEvent* pWindowEvent = &pSdlEvent->window;
-			switch( pWindowEvent->event )
-			{
-			case SDL_WINDOWEVENT_CLOSE:
-				pImApp->running = false;
-				break;
-
-			default:
-				break;
-			}
-		}
-		break;
-
-	default:
-		break;
-	}
 }

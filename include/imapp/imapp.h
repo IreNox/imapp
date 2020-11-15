@@ -20,9 +20,6 @@ extern "C"
 {
 #endif
 
-struct SDL_Window;
-typedef struct SDL_Window SDL_Window;
-
 struct nk_context;
 
 typedef void*(*ImAppAllocatorMalloc)( size_t size );
@@ -39,7 +36,7 @@ typedef struct ImAppAllocator ImAppAllocator;
 struct ImAppParameters
 {
 	int						argc;
-	char*					argv;
+	char**					argv;
 
 	ImAppAllocator			allocator;			// Override memory Allocator. Default use malloc/free
 
@@ -55,7 +52,6 @@ typedef struct ImAppParameters ImAppParameters;
 
 struct ImAppContext
 {
-	SDL_Window*				pSdlWindow;
 	struct nk_context*		pNkContext;
 
 	int						width;
@@ -66,7 +62,7 @@ typedef struct ImAppContext ImAppContext;
 //////////////////////////////////////////////////////////////////////////
 // These function must be implemented to create a ImApp Program:
 
-// Called at startup to initialize Program and create Context. To customize the App change values in pParameters. Must return a Program Context. Return nullptr to signal an Error.
+// Called at startup to initialize Program and create Context. To customize the App change values in pParameters. Must return a Program Context. Return NULL to signal an Error.
 void*						ImAppProgramInitialize( ImAppParameters* pParameters );
 
 // Called for every tick to build the UI
@@ -74,7 +70,6 @@ void						ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext )
 
 // Called before shutdown. Free the Program Context here.
 void						ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext );
-
 
 //////////////////////////////////////////////////////////////////////////
 // Control

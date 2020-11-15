@@ -2,7 +2,6 @@
 
 #include "imapp_helper.h"
 
-#include <SDL_video.h>
 #include <stdint.h>
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
@@ -11,10 +10,12 @@
 #	include <GLES3/gl3.h>
 #endif
 
+#include <SDL_vulkan.h>
+
 struct ImAppRenderer
 {
-	SDL_Window*					pSdlWindow;
-	SDL_GLContext				pGlContext;
+	ImAppWindow*				pWindow;
+	ImAppSwapChain*				pSwapChain;
 
 	int							width;
 	int							height;
@@ -92,12 +93,17 @@ static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer );
 
 static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
-ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
+ImAppRenderer* ImAppRendererCreate( ImAppWindow* pWindow )
 {
 	IMAPP_ASSERT( pWindow != NULL );
 
 	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( ImAppRenderer );
-	pRenderer->pSdlWindow	= pWindow;
+	if( pRenderer == NULL )
+	{
+		return NULL;
+	}
+
+	pRenderer->pWindow = pWindow;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
@@ -109,22 +115,17 @@ ImAppRenderer* ImAppRendererCreate( SDL_Window* pWindow )
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
 #endif
 
-	pRenderer->pGlContext = SDL_GL_CreateContext( pWindow );
-	if( pRenderer->pGlContext == NULL )
+	pRenderer->pSwapChain = ImAppCreateDeviceAndSwapChain( pWindow );
+	if( pRenderer->pSwapChain == NULL )
 	{
 		ImAppRendererDestroy( pRenderer );
 		return NULL;
 	}
 
-	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
-	{
-		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
-	}
-
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
 	{
-		ImAppTrace( "[renderer] Failed to initialize GLEW.\n" );
+		ImAppShowError( "Failed to initialize GLEW.\n" );
 		return NULL;
 	}
 #endif
@@ -294,10 +295,10 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 		pRenderer->fragmentShader = 0u;
 	}
 
-	if( pRenderer->pGlContext != NULL )
+	if( pRenderer->pSwapChain != NULL )
 	{
-		SDL_GL_DeleteContext( pRenderer->pGlContext );
-		pRenderer->pGlContext = NULL;
+		ImAppDestroyDeviceAndSwapChain( pRenderer->pSwapChain );
+		pRenderer->pSwapChain = NULL;
 	}
 
 	ImAppFree( pRenderer );
@@ -307,10 +308,15 @@ void ImAppRendererUpdate( ImAppRenderer* pRenderer )
 {
 	int width;
 	int height;
-	SDL_GL_GetDrawableSize( pRenderer->pSdlWindow, &width, &height );
+	ImAppWindowGetSize( &width, &height, pRenderer->pWindow );
 
 	if( width == pRenderer->width &&
 		height == pRenderer->height )
+	{
+		return;
+	}
+
+	if( !ImAppSwapChainResize( pRenderer->pSwapChain, width, height ) )
 	{
 		return;
 	}
@@ -412,10 +418,8 @@ void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkCon
 	glUseProgram( pRenderer->program );
 	glUniform1i( pRenderer->programUniformTexture, 0 );
 
-	int width;
-	int height;
-	SDL_GetWindowSize( pRenderer->pSdlWindow, &width, &height );
-
+	const int width		= pRenderer->width;
+	const int height	= pRenderer->height;
 	const GLfloat projectionMatrix[ 4 ][ 4 ] ={
 		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
 		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
@@ -434,7 +438,7 @@ void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkCon
 	glDisable( GL_BLEND );
 	glDisable( GL_SCISSOR_TEST );
 
-	SDL_GL_SwapWindow( pRenderer->pSdlWindow );
+	ImAppSwapChainPresent( pRenderer->pSwapChain );
 }
 
 static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height )

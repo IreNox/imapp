@@ -1,5 +1,8 @@
 #pragma once
 
+struct ImAppWindow;
+typedef struct ImAppWindow ImAppWindow;
+
 struct ImAppRenderer;
 typedef struct ImAppRenderer ImAppRenderer;
 
@@ -9,10 +12,7 @@ typedef struct ImAppRendererTexture ImAppRendererTexture;
 struct nk_context;
 struct nk_font;
 
-struct SDL_Window;
-typedef struct SDL_Window SDL_Window;
-
-ImAppRenderer*			ImAppRendererCreate( SDL_Window* pWindow );
+ImAppRenderer*			ImAppRendererCreate( ImAppWindow* pWindow );
 void					ImAppRendererDestroy( ImAppRenderer* pRenderer );
 
 void					ImAppRendererUpdate( ImAppRenderer* pRenderer );

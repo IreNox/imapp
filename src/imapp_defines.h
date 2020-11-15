@@ -100,6 +100,10 @@
 #	define IMAPP_PLATFORM_POSIX			TIKI_OFF
 #endif
 
+#if !defined( IMAPP_PLATFORM_SDL )
+#	define IMAPP_PLATFORM_SDL			TIKI_OFF
+#endif
+
 #if !defined( IMAPP_POINTER_32 )
 #	define IMAPP_POINTER_32				TIKI_OFF
 #endif
