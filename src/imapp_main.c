@@ -8,13 +8,15 @@
 #include <limits.h>
 
 static bool ImAppInitialize( ImApp* pImApp );
+static bool ImAppRecreateRenderer( ImApp* pImApp );
 static void ImAppCleanup( ImApp* pImApp );
 
-int ImAppMain( int argc, char* argv[] )
+int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
 {
 	ImApp* pImApp = IMAPP_NEW_ZERO( ImApp );
 
 	pImApp->running				= true;
+	pImApp->pPlatform			= pPlatform;
 	pImApp->context.pNkContext	= &pImApp->nkContext;
 
 	pImApp->parameters.tickIntervalMs		= 0;
@@ -32,14 +34,17 @@ int ImAppMain( int argc, char* argv[] )
 	int64_t lastTickValue = 0;
 	while( pImApp->running )
 	{
-		lastTickValue = ImAppWindowWaitForEvent( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
+		lastTickValue = ImAppWindowTick( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
+
+		pImApp->running &= ImAppWindowIsOpen( pImApp->pWindow );
 
 		nk_input_begin( &pImApp->nkContext );
 		ImAppInputApply( pImApp->pInput, &pImApp->nkContext );
 		nk_input_end( &pImApp->nkContext );
 
-		ImAppRendererUpdate( pImApp->pRenderer );
-		ImAppRendererGetTargetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pRenderer );
+		ImAppWindowGetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pWindow );
+		//pImApp->context.width /= 4u;
+		//pImApp->context.height /= 4u;
 
 		// UI
 		{
@@ -56,7 +61,14 @@ int ImAppMain( int argc, char* argv[] )
 			}
 		}
 
-		ImAppRendererDrawFrame( pImApp->pRenderer, &pImApp->nkContext );
+		ImAppRendererDraw( pImApp->pRenderer, &pImApp->nkContext, pImApp->context.width, pImApp->context.height );
+		if( !ImAppWindowPresent( pImApp->pWindow ) )
+		{
+			if( !ImAppRecreateRenderer( pImApp ) )
+			{
+				pImApp->running = false;
+			}
+		}
 	}
 
 	ImAppCleanup( pImApp );
@@ -68,34 +80,52 @@ static bool ImAppInitialize( ImApp* pImApp )
 	pImApp->pProgramContext = ImAppProgramInitialize( &pImApp->parameters );
 	if( pImApp->pProgramContext == NULL )
 	{
-		ImAppShowError( "Failed to initialize Program." );
+		ImAppShowError( pImApp->pPlatform, "Failed to initialize Program." );
 		return false;
 	}
 
-	pImApp->pWindow = ImAppWindowCreate( pImApp->parameters.pWindowTitle, 0, 0, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, ImAppWindowState_Default );
+	pImApp->pWindow = ImAppWindowCreate( pImApp->pPlatform, pImApp->parameters.pWindowTitle, 0, 0, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, ImAppWindowState_Default );
 	if( pImApp->pWindow == NULL )
 	{
-		ImAppShowError( "Failed to create Window." );
+		ImAppShowError( pImApp->pPlatform, "Failed to create Window." );
 		return false;
 	}
 
-	pImApp->pInput = ImAppInputCreate( pImApp->pWindow );
+	pImApp->pInput = ImAppInputCreate( pImApp->pPlatform, pImApp->pWindow );
 	if( pImApp->pInput == NULL )
 	{
-		ImAppShowError( "Failed to create Input." );
+		ImAppShowError( pImApp->pPlatform, "Failed to create Input." );
 		return false;
 	}
 
-	pImApp->pRenderer = ImAppRendererCreate( pImApp->pWindow );
+	pImApp->pRenderer = ImAppRendererCreate( pImApp->pPlatform );
 	if( pImApp->pRenderer == NULL )
 	{
-		ImAppShowError( "Failed to create Renderer." );
+		ImAppShowError( pImApp->pPlatform, "Failed to create Renderer." );
 		return false;
 	}
 
 	{
 		struct nk_font* pFont = ImAppRendererCreateDefaultFont( pImApp->pRenderer, &pImApp->nkContext );
 		nk_init_default( &pImApp->nkContext, &pFont->handle );
+	}
+
+	return true;
+}
+
+static bool ImAppRecreateRenderer( ImApp* pImApp )
+{
+	if( pImApp->pRenderer != NULL )
+	{
+		ImAppRendererDestroy( pImApp->pRenderer );
+		pImApp->pRenderer = NULL;
+	}
+
+	pImApp->pRenderer = ImAppRendererCreate( pImApp->pPlatform );
+	if( pImApp->pRenderer == NULL )
+	{
+		ImAppShowError( pImApp->pPlatform, "Failed to create Renderer." );
+		return false;
 	}
 
 	return true;

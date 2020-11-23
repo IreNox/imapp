@@ -3,12 +3,12 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
-struct ImAppPlatformState;
-typedef struct ImAppPlatformState ImAppPlatformState;
+struct ImAppPlatform;
+typedef struct ImAppPlatform ImAppPlatform;
 
-int						ImAppMain( /*ImAppPlatformState* pPlatformState,*/ int argc, char* argv[] );
+int						ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] );
 
-void					ImAppShowError( const char* pMessage );
+void					ImAppShowError( ImAppPlatform* pPlatform, const char* pMessage );
 
 //////////////////////////////////////////////////////////////////////////
 // Shared Libraries
@@ -22,6 +22,7 @@ void*					ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char*
 
 //////////////////////////////////////////////////////////////////////////
 // Window
+
 struct ImAppWindow;
 typedef struct ImAppWindow ImAppWindow;
 
@@ -32,27 +33,16 @@ typedef enum ImAppWindowState
 	ImAppWindowState_Minimized
 } ImAppWindowState;
 
-ImAppWindow*			ImAppWindowCreate( const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state );
+ImAppWindow*			ImAppWindowCreate( ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state );
 void					ImAppWindowDestroy( ImAppWindow* pWindow );
 
-int64_t					ImAppWindowWaitForEvent( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval );
+int64_t					ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval );
+bool					ImAppWindowPresent( ImAppWindow* pWindow );
 
 bool					ImAppWindowIsOpen( ImAppWindow* pWindow );
 void					ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow );
 void					ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow );
 ImAppWindowState		ImAppWindowGetState( ImAppWindow* pWindow );
-
-//////////////////////////////////////////////////////////////////////////
-// SwapChain
-
-struct ImAppSwapChain;
-typedef struct ImAppSwapChain ImAppSwapChain;
-
-ImAppSwapChain*			ImAppCreateDeviceAndSwapChain( ImAppWindow* pWindow );
-void					ImAppDestroyDeviceAndSwapChain( ImAppSwapChain* pSwapChain );
-
-bool					ImAppSwapChainResize( ImAppSwapChain* pSwapChain, int width, int height );
-void					ImAppSwapChainPresent( ImAppSwapChain* pSwapChain );
 
 //////////////////////////////////////////////////////////////////////////
 // Input
@@ -86,7 +76,7 @@ typedef union ImAppEvent
 struct ImAppInput;
 typedef struct ImAppInput ImAppInput;
 
-ImAppInput*				ImAppInputCreate( ImAppWindow* pWindow );
+ImAppInput*				ImAppInputCreate( ImAppPlatform* pPlatform, ImAppWindow* pWindow );
 void					ImAppInputDestroy( ImAppInput* pInput );
 
 void					ImAppInputApply( ImAppInput* pInput, struct nk_context* pNkContext );

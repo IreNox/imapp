@@ -7,22 +7,29 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
+struct ImAppPlatform
+{
+	int temp;
+};
+
 int SDL_main( int argc, char* argv[] )
 {
+	ImAppPlatform platform;
+
 	if( SDL_Init( SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER ) < 0 )
 	{
 		SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", "Failed to initialize SDL.", NULL );
 		return 1;
 	}
 
-	const int result = ImAppMain( argc, argv );
+	const int result = ImAppMain( &platform, argc, argv );
 
 	SDL_Quit();
 
 	return result;
 }
 
-void ImAppShowError( const char* pMessage )
+void ImAppShowError( ImAppPlatform* pPlatform, const char* pMessage )
 {
 	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
 }
@@ -51,11 +58,12 @@ void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFu
 struct ImAppWindow
 {
 	SDL_Window*			pSdlWindow;
+	SDL_GLContext		pGlContext;
 
 	bool				isOpen;
 };
 
-ImAppWindow* ImAppWindowCreate( const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppWindowCreate( ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
 	ImAppWindow* pWindow = IMAPP_NEW_ZERO( ImAppWindow );
 	if( pWindow == NULL )
@@ -93,6 +101,29 @@ ImAppWindow* ImAppWindowCreate( const char* pWindowTitle, int x, int y, int widt
 		return NULL;
 	}
 
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+#else
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+#endif
+
+	pWindow->pGlContext = SDL_GL_CreateContext( pWindow->pSdlWindow );
+	if( pWindow->pGlContext == NULL )
+	{
+		ImAppWindowDestroy( pWindow );
+		return NULL;
+	}
+
+	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
+	{
+		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+	}
+
 	pWindow->isOpen = true;
 
 	return pWindow;
@@ -100,6 +131,12 @@ ImAppWindow* ImAppWindowCreate( const char* pWindowTitle, int x, int y, int widt
 
 void ImAppWindowDestroy( ImAppWindow* pWindow )
 {
+	if( pWindow->pGlContext != NULL )
+	{
+		SDL_GL_DeleteContext( pWindow->pGlContext );
+		pWindow->pGlContext = NULL;
+	}
+
 	if( pWindow->pSdlWindow != NULL )
 	{
 		SDL_DestroyWindow( pWindow->pSdlWindow );
@@ -109,7 +146,7 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 	ImAppFree( pWindow );
 }
 
-int64_t ImAppWindowWaitForEvent( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
 {
 	const int64_t nextTick = (int64_t)SDL_GetTicks();
 
@@ -124,6 +161,12 @@ int64_t ImAppWindowWaitForEvent( ImAppWindow* pWindow, int64_t lastTickValue, in
 	SDL_WaitEventTimeout( NULL, (int)timeToWait );
 
 	return (int64_t)nextTick;
+}
+
+bool ImAppWindowPresent( ImAppWindow* pWindow )
+{
+	SDL_GL_SwapWindow( pWindow->pSdlWindow );
+	return true;
 }
 
 bool ImAppWindowIsOpen( ImAppWindow* pWindow )
@@ -157,71 +200,6 @@ ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 }
 
 //////////////////////////////////////////////////////////////////////////
-// SwapChain
-
-struct ImAppSwapChain
-{
-	ImAppWindow*	pWindow;
-	SDL_GLContext	pGlContext;
-};
-
-ImAppSwapChain* ImAppCreateDeviceAndSwapChain( ImAppWindow* pWindow )
-{
-	ImAppSwapChain* pSwapChain = IMAPP_NEW_ZERO( ImAppSwapChain );
-	if( pSwapChain == NULL )
-	{
-		return NULL;
-	}
-
-	pSwapChain->pWindow = pWindow;
-
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-#else
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
-#endif
-
-	pSwapChain->pGlContext = SDL_GL_CreateContext( pWindow->pSdlWindow );
-	if( pSwapChain->pGlContext == NULL )
-	{
-		ImAppDestroyDeviceAndSwapChain( pSwapChain );
-		return NULL;
-	}
-
-	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
-	{
-		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
-	}
-
-	return pSwapChain;
-}
-
-void ImAppDestroyDeviceAndSwapChain( ImAppSwapChain* pSwapChain )
-{
-	if( pSwapChain->pGlContext != NULL )
-	{
-		SDL_GL_DeleteContext( pSwapChain->pGlContext );
-		pSwapChain->pGlContext = NULL;
-	}
-
-	ImAppFree( pSwapChain );
-}
-
-bool ImAppSwapChainResize( ImAppSwapChain* pSwapChain, int width, int height )
-{
-	return true;
-}
-
-void ImAppSwapChainPresent( ImAppSwapChain* pSwapChain )
-{
-	SDL_GL_SwapWindow( pSwapChain->pWindow->pSdlWindow );
-}
-
-//////////////////////////////////////////////////////////////////////////
 // Input
 
 struct ImAppInput
@@ -231,7 +209,7 @@ struct ImAppInput
 	enum nk_keys	keyMapping[ SDL_NUM_SCANCODES ];
 };
 
-ImAppInput* ImAppInputCreate( ImAppWindow* pWindow )
+ImAppInput* ImAppInputCreate( ImAppPlatform* pPlatform, ImAppWindow* pWindow )
 {
 	ImAppInput* pInput = IMAPP_NEW_ZERO( ImAppInput );
 	if( pInput == NULL )

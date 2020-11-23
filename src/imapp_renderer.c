@@ -12,12 +12,6 @@
 
 struct ImAppRenderer
 {
-	ImAppWindow*				pWindow;
-	ImAppSwapChain*				pSwapChain;
-
-	int							width;
-	int							height;
-
 	GLuint						vertexShader;
 	GLuint						fragmentShader;
 
@@ -29,9 +23,10 @@ struct ImAppRenderer
 	GLuint						vertexBuffer;
 	GLuint						elementBuffer;
 
-	struct nk_font_atlas		fontAtlas;
-	struct nk_convert_config	convertConfig;
-	struct nk_buffer			commands;
+	bool						nkCreated;
+	struct nk_font_atlas		nkFontAtlas;
+	struct nk_convert_config	nkConvertConfig;
+	struct nk_buffer			nkCommands;
 };
 
 struct ImAppRendererTexture
@@ -47,8 +42,14 @@ struct ImAppRendererVertex
 };
 typedef struct ImAppRendererVertex ImAppRendererVertex;
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#	define IMAPP_GLSL_VERSION "#version 300 es\n"
+#else
+#	define IMAPP_GLSL_VERSION "#version 150\n"
+#endif
+
 static const char s_vertexShader[] =
-	"#version 150\n"
+	IMAPP_GLSL_VERSION
 	"uniform mat4 ProjectionMatrix;\n"
 	"in vec2 Position;\n"
 	"in vec2 TexCoord;\n"
@@ -62,22 +63,22 @@ static const char s_vertexShader[] =
 	"}\n";
 
 static const char s_fragmentShader[] =
-	"#version 150\n"
+	IMAPP_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
 	"in vec2 vtfUV;\n"
 	"in vec4 vtfColor;\n"
 	"out vec4 OutColor;\n"
 	"void main(){\n"
-	"	vec4 sample = texture(Texture, vtfUV.xy);"
-	"	OutColor = vtfColor * sample;\n"
+	"	vec4 texColor = texture(Texture, vtfUV.xy);"
+	"	OutColor = vtfColor * texColor;\n"
 	"}\n";
 
 static const struct nk_draw_vertex_layout_element s_aVertexLayout[] = {
 	{ NK_VERTEX_POSITION,	NK_FORMAT_FLOAT,	IMAPP_OFFSETOF( ImAppRendererVertex, position ) },
 	{ NK_VERTEX_TEXCOORD,	NK_FORMAT_FLOAT,	IMAPP_OFFSETOF( ImAppRendererVertex, uv ) },
 	{ NK_VERTEX_COLOR,		NK_FORMAT_R8G8B8A8,	IMAPP_OFFSETOF( ImAppRendererVertex, color ) },
-	{ NK_VERTEX_LAYOUT_END}
+	{ NK_VERTEX_LAYOUT_END }
 };
 
 #define IMAPP_MAX_VERTEX_COUNT	1024u
@@ -91,9 +92,9 @@ static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer );
 
 static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
-ImAppRenderer* ImAppRendererCreate( ImAppWindow* pWindow )
+ImAppRenderer* ImAppRendererCreate( ImAppPlatform* pPlatform )
 {
-	IMAPP_ASSERT( pWindow != NULL );
+	IMAPP_ASSERT( pPlatform != NULL );
 
 	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( ImAppRenderer );
 	if( pRenderer == NULL )
@@ -101,19 +102,10 @@ ImAppRenderer* ImAppRendererCreate( ImAppWindow* pWindow )
 		return NULL;
 	}
 
-	pRenderer->pWindow = pWindow;
-
-	pRenderer->pSwapChain = ImAppCreateDeviceAndSwapChain( pWindow );
-	if( pRenderer->pSwapChain == NULL )
-	{
-		ImAppRendererDestroy( pRenderer );
-		return NULL;
-	}
-
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
 	{
-		ImAppShowError( "Failed to initialize GLEW.\n" );
+		ImAppShowError( pPlatform, "Failed to initialize GLEW.\n" );
 		return NULL;
 	}
 #endif
@@ -130,18 +122,20 @@ ImAppRenderer* ImAppRendererCreate( ImAppWindow* pWindow )
 		return NULL;
 	}
 
-	nk_font_atlas_init_default( &pRenderer->fontAtlas );
-	nk_buffer_init_default( &pRenderer->commands );
+	nk_font_atlas_init_default( &pRenderer->nkFontAtlas );
+	nk_buffer_init_default( &pRenderer->nkCommands );
 
-	pRenderer->convertConfig.vertex_layout			= s_aVertexLayout;
-	pRenderer->convertConfig.vertex_size			= sizeof( ImAppRendererVertex );
-	pRenderer->convertConfig.vertex_alignment		= NK_ALIGNOF( ImAppRendererVertex );
-	pRenderer->convertConfig.circle_segment_count	= 22;
-	pRenderer->convertConfig.curve_segment_count	= 22;
-	pRenderer->convertConfig.arc_segment_count		= 22;
-	pRenderer->convertConfig.global_alpha			= 1.0f;
-	pRenderer->convertConfig.shape_AA				= NK_ANTI_ALIASING_ON;
-	pRenderer->convertConfig.line_AA				= NK_ANTI_ALIASING_ON;
+	pRenderer->nkConvertConfig.vertex_layout		= s_aVertexLayout;
+	pRenderer->nkConvertConfig.vertex_size			= sizeof( ImAppRendererVertex );
+	pRenderer->nkConvertConfig.vertex_alignment		= NK_ALIGNOF( ImAppRendererVertex );
+	pRenderer->nkConvertConfig.circle_segment_count	= 22;
+	pRenderer->nkConvertConfig.curve_segment_count	= 22;
+	pRenderer->nkConvertConfig.arc_segment_count	= 22;
+	pRenderer->nkConvertConfig.global_alpha			= 1.0f;
+	pRenderer->nkConvertConfig.shape_AA				= NK_ANTI_ALIASING_ON;
+	pRenderer->nkConvertConfig.line_AA				= NK_ANTI_ALIASING_ON;
+
+	pRenderer->nkCreated							= true;
 
 	return pRenderer;
 }
@@ -241,8 +235,11 @@ static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer )
 
 void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 {
-	nk_font_atlas_cleanup( &pRenderer->fontAtlas );
-	nk_buffer_free( &pRenderer->commands );
+	if( pRenderer->nkCreated )
+	{
+		nk_font_atlas_cleanup( &pRenderer->nkFontAtlas );
+		nk_buffer_free( &pRenderer->nkCommands );
+	}
 
 	if( pRenderer->vertexArray != 0u )
 	{
@@ -283,53 +280,20 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 		pRenderer->fragmentShader = 0u;
 	}
 
-	if( pRenderer->pSwapChain != NULL )
-	{
-		ImAppDestroyDeviceAndSwapChain( pRenderer->pSwapChain );
-		pRenderer->pSwapChain = NULL;
-	}
-
 	ImAppFree( pRenderer );
-}
-
-void ImAppRendererUpdate( ImAppRenderer* pRenderer )
-{
-	int width;
-	int height;
-	ImAppWindowGetSize( &width, &height, pRenderer->pWindow );
-
-	if( width == pRenderer->width &&
-		height == pRenderer->height )
-	{
-		return;
-	}
-
-	if( !ImAppSwapChainResize( pRenderer->pSwapChain, width, height ) )
-	{
-		return;
-	}
-
-	pRenderer->width = width;
-	pRenderer->height = height;
-}
-
-void ImAppRendererGetTargetSize( int* pWidth, int* pHeight, ImAppRenderer* pRenderer )
-{
-	*pWidth = pRenderer->width;
-	*pHeight = pRenderer->height;
 }
 
 struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
 {
-	nk_font_atlas_begin( &pRenderer->fontAtlas );
+	nk_font_atlas_begin( &pRenderer->nkFontAtlas );
 
-	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->fontAtlas, 13, 0 );
+	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->nkFontAtlas, 13, 0 );
 
 	int imageWidth;
 	int imageHeight;
-	const void* pImageData = nk_font_atlas_bake( &pRenderer->fontAtlas, &imageWidth, &imageHeight, NK_FONT_ATLAS_RGBA32 );
+	const void* pImageData = nk_font_atlas_bake( &pRenderer->nkFontAtlas, &imageWidth, &imageHeight, NK_FONT_ATLAS_RGBA32 );
 	ImAppRendererTexture* pTexture = ImAppRendererTextureCreateFromMemory( pRenderer, pImageData, imageWidth, imageHeight );
-	nk_font_atlas_end( &pRenderer->fontAtlas, nk_handle_ptr( pTexture ), &pRenderer->convertConfig.null );
+	nk_font_atlas_end( &pRenderer->nkFontAtlas, nk_handle_ptr( pTexture ), &pRenderer->nkConvertConfig.null );
 
 	return pFont;
 }
@@ -388,7 +352,7 @@ void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture
 	ImAppFree( pTexture );
 }
 
-void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
+void ImAppRendererDraw( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int width, int height )
 {
 	const float color[ 4u ] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	glClearColor( color[ 0u ], color[ 1u ], color[ 2u ], color[ 3u ] );
@@ -406,8 +370,6 @@ void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkCon
 	glUseProgram( pRenderer->program );
 	glUniform1i( pRenderer->programUniformTexture, 0 );
 
-	const int width		= pRenderer->width;
-	const int height	= pRenderer->height;
 	const GLfloat projectionMatrix[ 4 ][ 4 ] ={
 		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
 		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
@@ -425,8 +387,6 @@ void ImAppRendererDrawFrame( ImAppRenderer* pRenderer, struct nk_context* pNkCon
 	glBindVertexArray( 0 );
 	glDisable( GL_BLEND );
 	glDisable( GL_SCISSOR_TEST );
-
-	ImAppSwapChainPresent( pRenderer->pSwapChain );
 }
 
 static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height )
@@ -448,7 +408,7 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 			struct nk_buffer elementBuffer;
 			nk_buffer_init_fixed( &vertexBuffer, pVertexData, IMAPP_MAX_VERTEX_SIZE );
 			nk_buffer_init_fixed( &elementBuffer, pElementData, IMAPP_MAX_ELEMENT_SIZE );
-			nk_convert( pNkContext, &pRenderer->commands, &vertexBuffer, &elementBuffer, &pRenderer->convertConfig );
+			nk_convert( pNkContext, &pRenderer->nkCommands, &vertexBuffer, &elementBuffer, &pRenderer->nkConvertConfig );
 		}
 		glUnmapBuffer( GL_ARRAY_BUFFER );
 		glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
@@ -456,7 +416,7 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 
 	const nk_draw_index* pElementOffset = NULL;
 	const struct nk_draw_command* pCommand;
-	nk_draw_foreach( pCommand, pNkContext, &pRenderer->commands )
+	nk_draw_foreach( pCommand, pNkContext, &pRenderer->nkCommands )
 	{
 		if( pCommand->elem_count == 0u )
 		{
@@ -485,5 +445,5 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 	}
 
 	nk_clear( pNkContext );
-	nk_buffer_clear( &pRenderer->commands );
+	nk_buffer_clear( &pRenderer->nkCommands );
 }

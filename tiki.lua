@@ -16,7 +16,6 @@ module:add_files( "include/imapp/*.h" )
 module:add_files( "src/*.h" )
 module:add_files( "src/*.c" )
 
-module:add_files( 'src/android/*.h' )
 module:add_files( 'src/android/*.c' )
 module:add_files( 'src/windows/*.c' )
 module:add_files( 'src/sdl/*.c' )
@@ -37,8 +36,9 @@ if tiki.target_platform == Platforms.Windows then
 	module:add_library_file( "opengl32" )
 elseif tiki.target_platform == Platforms.Android then
 	module:add_library_file( "m" )
+	module:add_library_file( "EGL" )
 	module:add_library_file( "GLESv3" )
-	
+
 	module.import_func = function( project, solution )
 		kind( ProjectTypes.SharedLibrary )
 		

@@ -4,6 +4,9 @@
 
 #include <stdbool.h>
 
+struct ImAppPlatform;
+typedef struct ImAppPlatform ImAppPlatform;
+
 struct ImAppWindow;
 typedef struct ImAppWindow ImAppWindow;
 
@@ -19,11 +22,12 @@ struct ImApp
 	ImAppParameters		parameters;
 	bool				running;
 
-	void*				pProgramContext;
-
+	ImAppPlatform*		pPlatform;
 	ImAppWindow*		pWindow;
 	ImAppInput*			pInput;
 	ImAppRenderer*		pRenderer;
+
+	void*				pProgramContext;
 
 	struct nk_context	nkContext;
 };
