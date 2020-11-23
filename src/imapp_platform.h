@@ -3,7 +3,10 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
-int						ImAppMain( int argc, char* argv[] );
+struct ImAppPlatformState;
+typedef struct ImAppPlatformState ImAppPlatformState;
+
+int						ImAppMain( /*ImAppPlatformState* pPlatformState,*/ int argc, char* argv[] );
 
 void					ImAppShowError( const char* pMessage );
 

@@ -1,5 +1,7 @@
 #include "../imapp_platform.h"
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_SDL )
+
 #include <SDL.h>
 
 //////////////////////////////////////////////////////////////////////////
@@ -72,7 +74,7 @@ ImAppWindow* ImAppWindowCreate( const char* pWindowTitle, int x, int y, int widt
 	case ImAppWindowState_Minimized:
 		flags |= SDL_WINDOW_MINIMIZED;
 		break;
-	
+
 	case ImAppWindowState_Maximized:
 		flags |= SDL_WINDOW_MAXIMIZED;
 		break;
@@ -110,7 +112,7 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 int64_t ImAppWindowWaitForEvent( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
 {
 	const int64_t nextTick = (int64_t)SDL_GetTicks();
-	
+
 	int64_t timeToWait = tickInterval - (nextTick - lastTickValue);
 	timeToWait = timeToWait < 0 ? 0 : timeToWait;
 
@@ -172,6 +174,16 @@ ImAppSwapChain* ImAppCreateDeviceAndSwapChain( ImAppWindow* pWindow )
 	}
 
 	pSwapChain->pWindow = pWindow;
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+#else
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+#endif
 
 	pSwapChain->pGlContext = SDL_GL_CreateContext( pWindow->pSdlWindow );
 	if( pSwapChain->pGlContext == NULL )
@@ -328,3 +340,5 @@ void ImAppInputApply( ImAppInput* pInput, struct nk_context* pNkContext )
 		}
 	}
 }
+
+#endif

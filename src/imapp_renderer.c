@@ -10,8 +10,6 @@
 #	include <GLES3/gl3.h>
 #endif
 
-#include <SDL_vulkan.h>
-
 struct ImAppRenderer
 {
 	ImAppWindow*				pWindow;
@@ -104,16 +102,6 @@ ImAppRenderer* ImAppRendererCreate( ImAppWindow* pWindow )
 	}
 
 	pRenderer->pWindow = pWindow;
-
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-#else
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
-#endif
 
 	pRenderer->pSwapChain = ImAppCreateDeviceAndSwapChain( pWindow );
 	if( pRenderer->pSwapChain == NULL )

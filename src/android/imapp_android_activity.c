@@ -1,3 +1,5 @@
+#include "imapp_android_activity.h"
+
 #include "../imapp_defines.h"
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
@@ -6,25 +8,67 @@
 
 #include "../imapp_helper.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <unistd.h>
 
-struct ImAppAndroidContext
+typedef struct ImAppAndroid
 {
-	ANativeActivity*	pActivity;
+	ANativeActivity*		pActivity;
 
-	pthread_mutex_t		threadConditionMutex;
-	pthread_cond_t		threadCondition;
-	pthread_t			thread;
+	int						eventPipeRead;
+	int						eventPipeWrite;
 
-	bool				started;
-	bool				stoped;
-};
-typedef struct ImAppAndroidContext ImAppAndroidContext;
+	pthread_mutex_t			threadConditionMutex;
+	pthread_cond_t			threadCondition;
+	pthread_t				thread;
+
+	ALooper*				pLooper;
+	AInputQueue*			pInputQueue;
+
+	ImAppWindow				window;
+
+	bool					started;
+	bool					stoped;
+} ImAppAndroid;
+
+typedef enum ImAppAndroidLooperType
+{
+	ImAppAndroidEventType_Event
+} ImAppAndroidLooperType;
+
+typedef enum ImAppAndroidEventType
+{
+	ImAppAndroidEventType_Window,
+	ImAppAndroidEventType_Input,
+	ImAppAndroidEventType_Shutdown
+} ImAppAndroidEventType;
+
+typedef union ImAppAndroidEventData
+{
+	struct
+	{
+		ANativeWindow*		pWindow;
+	} window;
+	struct
+	{
+		AInputQueue*		pInputQueue;
+	} input;
+} ImAppAndroidEventData;
+
+typedef union ImAppAndroidEvent
+{
+	ImAppAndroidEventType	type;
+	ImAppAndroidEventData	data;
+} ImAppAndroidEvent;
 
 static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
-static void		ImAppAndroidDestroy( ImAppAndroidContext* pContext );
+static void		ImAppAndroidDestroy( ImAppAndroid* pAndroid );
 static void*	ImAppAndroidThreadEntryPoint( void* pArgument );
+
+static bool		ImAppAnroidEventPop( ImAppAndroidEvent* pTarget, ImAppAndroid* pAndroid );
+static void		ImAppAnroidEventPush( ImAppAndroid* pAndroid, const ImAppAndroidEvent* pEvent );
 
 static void		ImAppAndroidOnStart( ANativeActivity* pActivity );
 static void		ImAppAndroidOnPause( ANativeActivity* pActivity );
@@ -61,54 +105,90 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 
 static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
-	ImAppAndroidContext* pContext = IMAPP_NEW_ZERO( ImAppAndroidContext );
+	ImAppAndroid* pAndroid = IMAPP_NEW_ZERO( ImAppAndroid );
 
-	pContext->pActivity		= pActivity;
+	pAndroid->pActivity		= pActivity;
 
-	pthread_mutex_init( &pContext->threadConditionMutex, NULL );
-	pthread_cond_init( &pContext->threadCondition, NULL );
+	pthread_mutex_init( &pAndroid->threadConditionMutex, NULL );
+	pthread_cond_init( &pAndroid->threadCondition, NULL );
+
+	int eventPipe[ 2u ];
+	if( pipe( eventPipe ) )
+	{
+		ImAppTrace( "Could not create pipe: %s\n", strerror( errno ) );
+		ImAppFree( pAndroid );
+		return NULL;
+	}
+	pAndroid->eventPipeRead		= eventPipe[ 0u ];
+	pAndroid->eventPipeWrite	= eventPipe[ 1u ];
 
 	pthread_attr_t threadAttributes;
 	pthread_attr_init( &threadAttributes );
 	pthread_attr_setdetachstate( &threadAttributes, PTHREAD_CREATE_DETACHED );
-	pthread_create( &pContext->thread, &threadAttributes, ImAppAndroidThreadEntryPoint, pContext );
+	pthread_create( &pAndroid->thread, &threadAttributes, ImAppAndroidThreadEntryPoint, pAndroid );
 
-	return pContext;
+	return pAndroid;
 }
 
-static void ImAppAndroidDestroy( ImAppAndroidContext* pContext )
+static void ImAppAndroidDestroy( ImAppAndroid* pAndroid )
 {
-	pthread_mutex_lock( &pContext->threadConditionMutex );
-	//android_app_write_cmd( android_app, APP_CMD_DESTROY );
-	while( !pContext->stoped )
 	{
-		pthread_cond_wait( &pContext->threadCondition, &pContext->threadConditionMutex );
+		ImAppAndroidEvent androidEvent;
+		androidEvent.type = ImAppAndroidEventType_Shutdown;
+		ImAppAnroidEventPush( pAndroid, &androidEvent );
 	}
-	pthread_mutex_unlock( &pContext->threadConditionMutex );
 
-	pthread_cond_destroy( &pContext->threadCondition );
-	pthread_mutex_destroy( &pContext->threadConditionMutex );
+	pthread_mutex_lock( &pAndroid->threadConditionMutex );
+	while( !pAndroid->stoped )
+	{
+		pthread_cond_wait( &pAndroid->threadCondition, &pAndroid->threadConditionMutex );
+	}
+	pthread_mutex_unlock( &pAndroid->threadConditionMutex );
 
-	ImAppFree( pContext );
+	pthread_cond_destroy( &pAndroid->threadCondition );
+	pthread_mutex_destroy( &pAndroid->threadConditionMutex );
+
+	close( pAndroid->eventPipeWrite );
+	close( pAndroid->eventPipeRead );
+
+	ImAppFree( pAndroid );
 }
 
 static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 {
-	ImAppAndroidContext* pContext = (ImAppAndroidContext*)pArgument;
+	ImAppAndroid* pAndroid = (ImAppAndroid*)pArgument;
 
-	pthread_mutex_lock( &pContext->threadConditionMutex );
-	pContext->started = true;
-	pthread_cond_broadcast( &pContext->threadCondition );
-	pthread_mutex_unlock( &pContext->threadConditionMutex );
+	pAndroid->pLooper = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
+	ALooper_addFd( pAndroid->pLooper, pAndroid->eventPipeRead, ImAppAndroidEventType_Event, ALOOPER_EVENT_INPUT, NULL, pAndroid );
+
+	pthread_mutex_lock( &pAndroid->threadConditionMutex );
+	pAndroid->started = true;
+	pthread_cond_broadcast( &pAndroid->threadCondition );
+	pthread_mutex_unlock( &pAndroid->threadConditionMutex );
 
 	ImAppMain( 0, NULL );
 
-	pthread_mutex_lock( &pContext->threadConditionMutex );
-	pContext->stoped = true;
-	pthread_cond_broadcast( &pContext->threadCondition );
-	pthread_mutex_unlock( &pContext->threadConditionMutex );
+	pthread_mutex_lock( &pAndroid->threadConditionMutex );
+	pAndroid->stoped = true;
+	pthread_cond_broadcast( &pAndroid->threadCondition );
+	pthread_mutex_unlock( &pAndroid->threadConditionMutex );
 
 	return NULL;
+}
+
+static bool ImAppAnroidEventPop( ImAppAndroidEvent* pTarget, ImAppAndroid* pAndroid )
+{
+	const int bytesRead = read( pAndroid->eventPipeRead, pTarget, sizeof( *pTarget ) );
+	IMAPP_ASSERT( bytesRead == 0 || bytesRead == sizeof( *pTarget ) );
+	return bytesRead == sizeof( *pTarget );
+}
+
+static void ImAppAnroidEventPush( ImAppAndroid* pAndroid, const ImAppAndroidEvent* pEvent )
+{
+	if( write( pAndroid->eventPipeWrite, pEvent, sizeof( *pEvent ) ) != sizeof( *pEvent ) )
+	{
+		ImAppTrace( "Write to pipe failed. Error: %s\n", strerror( errno ) );
+	}
 }
 
 static void ImAppAndroidOnStart( ANativeActivity* pActivity )
@@ -139,8 +219,8 @@ static void ImAppAndroidOnDestroy( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Destroy: %p\n", pActivity );
 
-	ImAppAndroidContext* pContext = (ImAppAndroidContext*)pActivity->instance;
-	ImAppAndroidDestroy( pContext );
+	ImAppAndroid* pAndroid = (ImAppAndroid*)pActivity->instance;
+	ImAppAndroidDestroy( pAndroid );
 }
 
 static void ImAppAndroidOnLowMemory( ANativeActivity* pActivity )
@@ -151,29 +231,9 @@ static void ImAppAndroidOnLowMemory( ANativeActivity* pActivity )
 
 static void* ImAppAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* outLen )
 {
-	//struct android_app* android_app = (struct android_app*)pActivity->instance;
-	void* savedState = NULL;
-
-	//ImAppTrace( "SaveInstanceState: %p\n", pActivity );
-	//pthread_mutex_lock( &android_app->mutex );
-	//android_app->stateSaved = 0;
-	//android_app_write_cmd( android_app, APP_CMD_SAVE_STATE );
-	//while( !android_app->stateSaved )
-	//{
-	//	pthread_cond_wait( &android_app->cond, &android_app->mutex );
-	//}
-
-	//if( android_app->savedState != NULL )
-	//{
-	//	savedState = android_app->savedState;
-	//	*outLen = android_app->savedStateSize;
-	//	android_app->savedState = NULL;
-	//	android_app->savedStateSize = 0;
-	//}
-
-	//pthread_mutex_unlock( &android_app->mutex );
-
-	return savedState;
+	ImAppTrace( "SaveInstanceState: %p\n", pActivity );
+	*outLen = 0u;
+	return NULL;
 }
 
 static void ImAppAndroidOnConfigurationChanged( ANativeActivity* pActivity )

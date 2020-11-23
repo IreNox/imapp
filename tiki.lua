@@ -2,7 +2,7 @@
 
 local imapp_module = module
 
-local use_sdl = true
+local use_sdl = (tiki.target_platform == Platforms.Windows)
 
 local nuklear_module = Module:new( "nuklear" );
 nuklear_module.module_type = ModuleTypes.UnityCModule
@@ -16,16 +16,16 @@ module:add_files( "include/imapp/*.h" )
 module:add_files( "src/*.h" )
 module:add_files( "src/*.c" )
 
+module:add_files( 'src/android/*.h' )
 module:add_files( 'src/android/*.c' )
 module:add_files( 'src/windows/*.c' )
+module:add_files( 'src/sdl/*.c' )
 
 module:add_dependency( "nuklear" );
 
 module:add_external( "https://github.com/Immediate-Mode-UI/Nuklear.git" )
 
 if use_sdl then
-	module:add_files( 'src/sdl/*.c' )
-	
 	module:set_define( "IMAPP_PLATFORM_SDL", "2" );
 
 	module:add_external( "https://www.libsdl.org@2.0.12" )
@@ -37,6 +37,7 @@ if tiki.target_platform == Platforms.Windows then
 	module:add_library_file( "opengl32" )
 elseif tiki.target_platform == Platforms.Android then
 	module:add_library_file( "m" )
+	module:add_library_file( "GLESv3" )
 	
 	module.import_func = function( project, solution )
 		kind( ProjectTypes.SharedLibrary )
