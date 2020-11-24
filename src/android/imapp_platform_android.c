@@ -7,6 +7,7 @@
 #include <EGL/egl.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <jni.h>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -26,6 +27,9 @@ typedef struct ImAppPlatform
 
 	ALooper*				pLooper;
 	AInputQueue*			pInputQueue;
+
+	int						viewTop;
+	int						viewHeight;
 
 	bool					started;
 	bool					stoped;
@@ -80,6 +84,8 @@ static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, s
 static void		ImAppAndroidDestroy( ImAppPlatform* pPlatform );
 
 static void*	ImAppAndroidThreadEntryPoint( void* pArgument );
+
+static void		ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform );
 
 static bool		ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* pPlatform );
 static void		ImAppAndroidEventPush( ImAppPlatform* pPlatform, const ImAppAndroidEvent* pEvent );
@@ -195,6 +201,40 @@ static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 	pthread_mutex_unlock( &pPlatform->threadConditionMutex );
 
 	return NULL;
+}
+
+static void ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform )
+{
+	JNIEnv* pEnv = NULL;
+	(*pPlatform->pActivity->vm)->AttachCurrentThread( pPlatform->pActivity->vm, &pEnv, NULL );
+
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, pPlatform->pActivity->clazz );
+	jmethodID getWindowMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindow", "()Landroid/view/Window;" );
+
+	jobject window = (*pEnv)->CallObjectMethod( pEnv, pPlatform->pActivity->clazz, getWindowMethod );
+
+	jclass windowClass = (*pEnv)->GetObjectClass( pEnv, window );
+	jmethodID getDecorViewMethod = (*pEnv)->GetMethodID( pEnv, windowClass, "getDecorView", "()Landroid/view/View;" );
+
+	jobject view = (*pEnv)->CallObjectMethod( pEnv, window, getDecorViewMethod );
+
+	jclass viewClass = (*pEnv)->GetObjectClass( pEnv, view );
+	jmethodID getWindowVisibleDisplayFrameMethod = (*pEnv)->GetMethodID( pEnv, viewClass, "getWindowVisibleDisplayFrame", "(Landroid/graphics/Rect;)V" );
+
+	jclass rectClass = (*pEnv)->FindClass( pEnv, "android/graphics/Rect" );
+	jmethodID rectConstructor = (*pEnv)->GetMethodID( pEnv, rectClass, "<init>", "()V" );
+	jfieldID topField = (*pEnv)->GetFieldID( pEnv, rectClass, "top", "I" );
+	jfieldID bottomField = (*pEnv)->GetFieldID( pEnv, rectClass, "bottom", "I" );
+
+	jobject rect = (*pEnv)->NewObject( pEnv, rectClass, rectConstructor );
+
+	(*pEnv)->CallVoidMethod( pEnv, view, getWindowVisibleDisplayFrameMethod, rect );
+
+	const int viewBottom = (*pEnv)->GetIntField( pEnv, rect, bottomField );
+	pPlatform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
+	pPlatform->viewHeight	= viewBottom - pPlatform->viewTop;
+
+	(*pPlatform->pActivity->vm)->DetachCurrentThread( pPlatform->pActivity->vm );
 }
 
 static bool ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* pPlatform )
@@ -438,6 +478,8 @@ static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNati
 
 	pWindow->pNativeWindow = pNativeWindow;
 
+	ImAppAndroidGetViewBounds( pWindow->pPlatform );
+
 	return true;
 }
 
@@ -534,6 +576,14 @@ bool ImAppWindowPresent( ImAppWindow* pWindow )
 bool ImAppWindowIsOpen( ImAppWindow* pWindow )
 {
 	return pWindow->isOpen;
+}
+
+void ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )
+{
+	*pX			= 0u;
+	*pY			= pWindow->pPlatform->viewTop;
+	*pWidth		= pWindow->width;
+	*pHeight	= pWindow->pPlatform->viewHeight;
 }
 
 void ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow )

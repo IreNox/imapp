@@ -22,7 +22,7 @@ void ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext )
 {
 	struct nk_context* pNkContext = pImAppContext->pNkContext;
 
-	nk_begin( pNkContext, "Hello World", nk_recti( 0, 0, pImAppContext->width, pImAppContext->height ), NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE );
+	nk_begin( pNkContext, "Hello World", nk_recti( pImAppContext->x, pImAppContext->y, pImAppContext->width, pImAppContext->height ), NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE );
 
 	nk_layout_row_dynamic( pNkContext, 60.0f, 0 );
 	nk_layout_row_dynamic( pNkContext, 0.0f, 5 );

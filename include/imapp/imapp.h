@@ -54,6 +54,8 @@ struct ImAppContext
 {
 	struct nk_context*		pNkContext;
 
+	int						x;
+	int						y;
 	int						width;
 	int						height;
 };

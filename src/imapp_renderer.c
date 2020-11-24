@@ -27,11 +27,21 @@ struct ImAppRenderer
 	struct nk_font_atlas		nkFontAtlas;
 	struct nk_convert_config	nkConvertConfig;
 	struct nk_buffer			nkCommands;
+
+	ImAppRendererTexture*		pFirstTexture;
 };
 
 struct ImAppRendererTexture
 {
+	ImAppRendererTexture*		pNext;
+
 	GLuint						texture;
+
+	int							width;
+	int							height;
+
+	void*						pData;
+	size_t						size;
 };
 
 struct ImAppRendererVertex
@@ -86,11 +96,13 @@ static const struct nk_draw_vertex_layout_element s_aVertexLayout[] = {
 #define IMAPP_MAX_VERTEX_SIZE	sizeof( ImAppRendererVertex ) * IMAPP_MAX_VERTEX_COUNT
 #define IMAPP_MAX_ELEMENT_SIZE	sizeof( nk_draw_index ) * IMAPP_MAX_ELEMENT_COUNT
 
-static bool ImAppRendererInitializeShader( ImAppRenderer* pRenderer );
-static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode );
-static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer );
+static bool		ImAppRendererCompileShader( GLuint shader, const char* pShaderCode );
+static GLuint	ImAppRendererCreateTexture( const void* pData, int width, int height );
 
-static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
+static bool		ImAppRendererCreateResources( ImAppRenderer* pRenderer );
+static void		ImAppRendererDestroyResources( ImAppRenderer* pRenderer );
+
+static void		ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
 ImAppRenderer* ImAppRendererCreate( ImAppPlatform* pPlatform )
 {
@@ -110,13 +122,7 @@ ImAppRenderer* ImAppRendererCreate( ImAppPlatform* pPlatform )
 	}
 #endif
 
-	if( !ImAppRendererInitializeShader( pRenderer ) )
-	{
-		ImAppRendererDestroy( pRenderer );
-		return NULL;
-	}
-
-	if( !ImAppRendererInitializeBuffer( pRenderer ) )
+	if( !ImAppRendererCreateResources( pRenderer ) )
 	{
 		ImAppRendererDestroy( pRenderer );
 		return NULL;
@@ -140,8 +146,51 @@ ImAppRenderer* ImAppRendererCreate( ImAppPlatform* pPlatform )
 	return pRenderer;
 }
 
-static bool ImAppRendererInitializeShader( ImAppRenderer* pRenderer )
+void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 {
+	if( pRenderer->nkCreated )
+	{
+		nk_font_atlas_cleanup( &pRenderer->nkFontAtlas );
+		nk_buffer_free( &pRenderer->nkCommands );
+	}
+
+	while( pRenderer->pFirstTexture != NULL )
+	{
+		ImAppRendererTexture* pTexture = pRenderer->pFirstTexture;
+		pRenderer->pFirstTexture = pTexture->pNext;
+
+		ImAppRendererTextureDestroy( pRenderer, pTexture );
+	}
+
+	ImAppRendererDestroyResources( pRenderer );
+
+	ImAppFree( pRenderer );
+}
+
+static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
+{
+	glShaderSource( shader, 1, &pShaderCode, 0 );
+	glCompileShader( shader );
+
+	GLint shaderStatus;
+	glGetShaderiv( shader, GL_COMPILE_STATUS, &shaderStatus );
+
+	if( shaderStatus != GL_TRUE )
+	{
+		char buffer[ 2048u ];
+		GLsizei infoLength;
+		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
+
+		ImAppTrace( "[renderer] Failed to compile Shader. Error: %s\n", buffer );
+		return false;
+	}
+
+	return true;
+}
+
+static bool ImAppRendererCreateResources( ImAppRenderer* pRenderer )
+{
+	// Shader
 	pRenderer->vertexShader		= glCreateShader( GL_VERTEX_SHADER );
 	pRenderer->fragmentShader	= glCreateShader( GL_FRAGMENT_SHADER );
 	if( pRenderer->vertexShader == 0u ||
@@ -180,32 +229,7 @@ static bool ImAppRendererInitializeShader( ImAppRenderer* pRenderer )
 	pRenderer->programUniformProjection	= glGetUniformLocation( pRenderer->program, "ProjectionMatrix" );
 	pRenderer->programUniformTexture	= glGetUniformLocation( pRenderer->program, "Texture" );
 
-	return true;
-}
-
-static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
-{
-	glShaderSource( shader, 1, &pShaderCode, 0 );
-	glCompileShader( shader );
-
-	GLint shaderStatus;
-	glGetShaderiv( shader, GL_COMPILE_STATUS, &shaderStatus );
-
-	if( shaderStatus != GL_TRUE )
-	{
-		char buffer[ 2048u ];
-		GLsizei infoLength;
-		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
-
-		ImAppTrace( "[renderer] Failed to compile Shader. Error: %s\n", buffer );
-		return false;
-	}
-
-	return true;
-}
-
-static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer )
-{
+	// Buffer
 	const GLuint attributePosition	= (GLuint)glGetAttribLocation( pRenderer->program, "Position" );
 	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( pRenderer->program, "TexCoord" );
 	const GLuint attributeColor		= (GLuint)glGetAttribLocation( pRenderer->program, "Color" );
@@ -226,21 +250,15 @@ static bool ImAppRendererInitializeBuffer( ImAppRenderer* pRenderer )
 	size_t vertexPositionOffset	= IMAPP_OFFSETOF( ImAppRendererVertex, position );
 	size_t vertexUvOffset		= IMAPP_OFFSETOF( ImAppRendererVertex, uv );
 	size_t vertexColorOffset	= IMAPP_OFFSETOF( ImAppRendererVertex, color );
-	glVertexAttribPointer( attributePosition,	2, GL_FLOAT,			GL_FALSE,	vertexSize, (void*)vertexPositionOffset );
-	glVertexAttribPointer( attributeTexCoord,	2, GL_FLOAT,			GL_FALSE,	vertexSize, (void*)vertexUvOffset );
-	glVertexAttribPointer( attributeColor,		4, GL_UNSIGNED_BYTE,	GL_TRUE,	vertexSize, (void*)vertexColorOffset );
+	glVertexAttribPointer( attributePosition, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexPositionOffset );
+	glVertexAttribPointer( attributeTexCoord, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexUvOffset );
+	glVertexAttribPointer( attributeColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertexSize, (void*)vertexColorOffset );
 
 	return true;
 }
 
-void ImAppRendererDestroy( ImAppRenderer* pRenderer )
+static void ImAppRendererDestroyResources( ImAppRenderer* pRenderer )
 {
-	if( pRenderer->nkCreated )
-	{
-		nk_font_atlas_cleanup( &pRenderer->nkFontAtlas );
-		nk_buffer_free( &pRenderer->nkCommands );
-	}
-
 	if( pRenderer->vertexArray != 0u )
 	{
 		glDeleteVertexArrays( 1, &pRenderer->vertexArray );
@@ -279,15 +297,31 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 		glDeleteShader( pRenderer->fragmentShader );
 		pRenderer->fragmentShader = 0u;
 	}
+}
 
-	ImAppFree( pRenderer );
+bool ImAppRendererRecreateResources( ImAppRenderer* pRenderer )
+{
+	ImAppRendererDestroyResources( pRenderer );
+
+	if( !ImAppRendererCreateResources( pRenderer ) )
+	{
+		return false;
+	}
+
+	for( ImAppRendererTexture* pTexture = pRenderer->pFirstTexture; pTexture != NULL; pTexture = pTexture->pNext )
+	{
+		glDeleteTextures( 1u, &pTexture->texture );
+		pTexture->texture = ImAppRendererCreateTexture( pTexture->pData, pTexture->width, pTexture->height );
+	}
+
+	return true;
 }
 
 struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
 {
 	nk_font_atlas_begin( &pRenderer->nkFontAtlas );
 
-	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->nkFontAtlas, 13, 0 );
+	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->nkFontAtlas, 26, 0 );
 
 	int imageWidth;
 	int imageHeight;
@@ -296,6 +330,18 @@ struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct
 	nk_font_atlas_end( &pRenderer->nkFontAtlas, nk_handle_ptr( pTexture ), &pRenderer->nkConvertConfig.null );
 
 	return pFont;
+}
+
+static GLuint ImAppRendererCreateTexture( const void* pData, int width, int height )
+{
+	GLuint texture = 0;
+	glGenTextures( 1, &texture );
+	glBindTexture( GL_TEXTURE_2D, texture );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pData );
+
+	return texture;
 }
 
 ImAppRendererTexture* ImAppRendererTextureCreateFromFile( ImAppRenderer* pRenderer, const void* pFilename )
@@ -319,7 +365,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromFile( ImAppRenderer* pRender
 	return NULL;
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, size_t width, size_t height )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, int width, int height )
 {
 	ImAppRendererTexture* pTexture = IMAPP_NEW_ZERO( ImAppRendererTexture );
 	if( pTexture == NULL )
@@ -327,11 +373,23 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRend
 		return NULL;
 	}
 
-	glGenTextures( 1, &pTexture->texture );
-	glBindTexture( GL_TEXTURE_2D, pTexture->texture );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pData );
+	pTexture->width		= width;
+	pTexture->height	= height;
+	pTexture->size		= width * height * 4u;
+	pTexture->pData		= ImAppMalloc( pTexture->size );
+
+	if( pTexture->pData == NULL )
+	{
+		ImAppRendererTextureDestroy( pRenderer, pTexture );
+		return NULL;
+	}
+
+	memcpy( pTexture->pData, pData, pTexture->size );
+
+	pTexture->texture = ImAppRendererCreateTexture( pData, width, height );
+
+	pTexture->pNext = pRenderer->pFirstTexture;
+	pRenderer->pFirstTexture = pTexture;
 
 	return pTexture;
 }

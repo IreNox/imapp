@@ -174,6 +174,14 @@ bool ImAppWindowIsOpen( ImAppWindow* pWindow )
 	return pWindow->isOpen;
 }
 
+void ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )
+{
+	*pX = 0;
+	*pY = 0;
+
+	ImAppWindowGetSize( pWidth, pHeight, pWindow );
+}
+
 void ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow )
 {
 	SDL_GetWindowSize( pWindow->pSdlWindow, pWidth, pHeight );

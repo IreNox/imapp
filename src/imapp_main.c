@@ -8,7 +8,6 @@
 #include <limits.h>
 
 static bool ImAppInitialize( ImApp* pImApp );
-static bool ImAppRecreateRenderer( ImApp* pImApp );
 static void ImAppCleanup( ImApp* pImApp );
 
 int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
@@ -42,15 +41,13 @@ int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
 		ImAppInputApply( pImApp->pInput, &pImApp->nkContext );
 		nk_input_end( &pImApp->nkContext );
 
-		ImAppWindowGetSize( &pImApp->context.width, &pImApp->context.height, pImApp->pWindow );
-		//pImApp->context.width /= 4u;
-		//pImApp->context.height /= 4u;
+		ImAppWindowGetViewRect( &pImApp->context.x, &pImApp->context.y, &pImApp->context.width, &pImApp->context.height, pImApp->pWindow );
 
 		// UI
 		{
 			if( pImApp->parameters.defaultFullWindow )
 			{
-				nk_begin( &pImApp->nkContext, "Default", nk_recti( 0, 0, pImApp->context.width, pImApp->context.height ), NK_WINDOW_NO_SCROLLBAR );
+				nk_begin( &pImApp->nkContext, "Default", nk_recti( pImApp->context.x, pImApp->context.y, pImApp->context.width, pImApp->context.height ), NK_WINDOW_NO_SCROLLBAR );
 			}
 
 			ImAppProgramDoUi( &pImApp->context, pImApp->pProgramContext );
@@ -61,10 +58,14 @@ int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
 			}
 		}
 
-		ImAppRendererDraw( pImApp->pRenderer, &pImApp->nkContext, pImApp->context.width, pImApp->context.height );
+		int screenWidth;
+		int screenHeight;
+		ImAppWindowGetSize( &screenWidth, &screenHeight, pImApp->pWindow );
+
+		ImAppRendererDraw( pImApp->pRenderer, &pImApp->nkContext, screenWidth, screenHeight );
 		if( !ImAppWindowPresent( pImApp->pWindow ) )
 		{
-			if( !ImAppRecreateRenderer( pImApp ) )
+			if( !ImAppRendererRecreateResources( pImApp->pRenderer ) )
 			{
 				pImApp->running = false;
 			}
@@ -108,24 +109,6 @@ static bool ImAppInitialize( ImApp* pImApp )
 	{
 		struct nk_font* pFont = ImAppRendererCreateDefaultFont( pImApp->pRenderer, &pImApp->nkContext );
 		nk_init_default( &pImApp->nkContext, &pFont->handle );
-	}
-
-	return true;
-}
-
-static bool ImAppRecreateRenderer( ImApp* pImApp )
-{
-	if( pImApp->pRenderer != NULL )
-	{
-		ImAppRendererDestroy( pImApp->pRenderer );
-		pImApp->pRenderer = NULL;
-	}
-
-	pImApp->pRenderer = ImAppRendererCreate( pImApp->pPlatform );
-	if( pImApp->pRenderer == NULL )
-	{
-		ImAppShowError( pImApp->pPlatform, "Failed to create Renderer." );
-		return false;
 	}
 
 	return true;

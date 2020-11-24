@@ -40,6 +40,7 @@ int64_t					ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_
 bool					ImAppWindowPresent( ImAppWindow* pWindow );
 
 bool					ImAppWindowIsOpen( ImAppWindow* pWindow );
+void					ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow );
 void					ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow );
 void					ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow );
 ImAppWindowState		ImAppWindowGetState( ImAppWindow* pWindow );
