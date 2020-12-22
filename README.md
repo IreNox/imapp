@@ -5,17 +5,18 @@ A Framework to create your own Immediate Mode UI Application with just a few lin
 
 ## Features
 
+- [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear) integration
 - Android support
-- Simple Image loading
--  
+- Windows support
+- TODO: Linux support
+- TODO: Image loading
+- TODO: Resource packaging
 
 ## Example
 
 ```
 void* ImAppProgramInitialize( ImAppParameters* pParameters )
 {
-	pParameters->pWindowTitle = "MyApp";
-	
 	int* pProgramContext = malloc( sizeof( int ) );
 	*pProgramContext = 0;
 	return pProgramContext;
@@ -23,9 +24,9 @@ void* ImAppProgramInitialize( ImAppParameters* pParameters )
 
 void ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext )
 {
-	void* pCounter = (int*)pProgramContext;
+	int* pCounter = (int*)pProgramContext;
 
-	nk_layout_row_dynamic( pImAppContext->pNkContext, 0.0f, 2 );
+	nk_layout_row_dynamic( pImAppContext->pNkContext, 0.0f, 1 );
 	
 	char buffer[ 32 ];
 	sprintf( buffer, "Hello World %d", *pCounter );
@@ -58,6 +59,6 @@ To generate Visual Studio 2017 project files just execute: `premake5 --systemscr
 
 ## Used Libraries
 
-- [SDL](https://www.libsdl.org/)
 - [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
+- [SDL](https://www.libsdl.org/)
 - [tiki_build](https://github.com/IreNox/tiki_build)
