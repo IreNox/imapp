@@ -321,7 +321,7 @@ struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct
 {
 	nk_font_atlas_begin( &pRenderer->nkFontAtlas );
 
-	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->nkFontAtlas, 26, 0 );
+	struct nk_font* pFont = nk_font_atlas_add_default( &pRenderer->nkFontAtlas, 13, 0 );
 
 	int imageWidth;
 	int imageHeight;

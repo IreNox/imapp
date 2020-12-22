@@ -55,6 +55,12 @@ void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFu
 //////////////////////////////////////////////////////////////////////////
 // Window
 
+static enum nk_keys s_inputKeyMapping[ SDL_NUM_SCANCODES ] =
+{
+	0
+};
+static_assert( IMAPP_ARRAY_COUNT( s_inputKeyMapping ) == SDL_NUM_SCANCODES, "" );
+
 struct ImAppWindow
 {
 	SDL_Window*			pSdlWindow;
@@ -146,7 +152,7 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 	ImAppFree( pWindow );
 }
 
-int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval, struct nk_context* pNkContext )
 {
 	const int64_t nextTick = (int64_t)SDL_GetTicks();
 
@@ -159,6 +165,95 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 	}
 
 	SDL_WaitEventTimeout( NULL, (int)timeToWait );
+
+	SDL_Event sdlEvent;
+	while( SDL_PollEvent( &sdlEvent ) )
+	{
+		switch( sdlEvent.type )
+		{
+		case SDL_KEYDOWN:
+		case SDL_KEYUP:
+			{
+				const SDL_KeyboardEvent* pKeyEvent = &sdlEvent.key;
+
+				const enum nk_keys nkKey = s_inputKeyMapping[ pKeyEvent->keysym.scancode ];
+				if( nkKey != NK_KEY_NONE )
+				{
+					nk_input_key( pNkContext, nkKey, pKeyEvent->type == SDL_KEYDOWN );
+				}
+
+				if( pKeyEvent->state == SDL_PRESSED &&
+					pKeyEvent->keysym.sym >= ' ' &&
+					pKeyEvent->keysym.sym <= '~' )
+				{
+					nk_input_char( pNkContext, (char)pKeyEvent->keysym.sym );
+				}
+			}
+			break;
+
+		case SDL_TEXTEDITING:
+		case SDL_TEXTINPUT:
+			break;
+
+		case SDL_MOUSEMOTION:
+			{
+				const SDL_MouseMotionEvent* pMotionEvent = &sdlEvent.motion;
+				nk_input_motion( pNkContext, pMotionEvent->x, pMotionEvent->y );
+			}
+			break;
+
+		case SDL_MOUSEBUTTONDOWN:
+		case SDL_MOUSEBUTTONUP:
+			{
+				const SDL_MouseButtonEvent* pButtonEvent = &sdlEvent.button;
+
+				enum nk_buttons button;
+				if( pButtonEvent->button == SDL_BUTTON_LEFT &&
+					pButtonEvent->clicks == 2u )
+				{
+					button = NK_BUTTON_DOUBLE;
+				}
+				else if( pButtonEvent->button >= SDL_BUTTON_LEFT &&
+					pButtonEvent->button <= SDL_BUTTON_RIGHT )
+				{
+					button = (enum nk_buttons)(pButtonEvent->button - 1);
+				}
+				else
+				{
+					continue;
+				}
+
+				const nk_bool down = pButtonEvent->type == SDL_MOUSEBUTTONDOWN;
+				nk_input_button( pNkContext, button, pButtonEvent->x, pButtonEvent->y, down );
+			}
+			break;
+
+		case SDL_MOUSEWHEEL:
+			{
+				const SDL_MouseWheelEvent* pWheelEvent = &sdlEvent.wheel;
+				nk_input_scroll( pNkContext, nk_vec2i( pWheelEvent->x, pWheelEvent->y ) );
+			}
+			break;
+
+		case SDL_WINDOWEVENT:
+			{
+				const SDL_WindowEvent* pWindowEvent = &sdlEvent.window;
+				switch( pWindowEvent->event )
+				{
+				case SDL_WINDOWEVENT_CLOSE:
+					pWindow->isOpen = false;
+					break;
+
+				default:
+					break;
+				}
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	return (int64_t)nextTick;
 }
@@ -205,126 +300,6 @@ ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 	}
 
 	return ImAppWindowState_Default;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Input
-
-struct ImAppInput
-{
-	ImAppWindow*	pWindow;
-
-	enum nk_keys	keyMapping[ SDL_NUM_SCANCODES ];
-};
-
-ImAppInput* ImAppInputCreate( ImAppPlatform* pPlatform, ImAppWindow* pWindow )
-{
-	ImAppInput* pInput = IMAPP_NEW_ZERO( ImAppInput );
-	if( pInput == NULL )
-	{
-		return NULL;
-	}
-
-	pInput->pWindow = pWindow;
-
-	return pInput;
-}
-
-void ImAppInputDestroy( ImAppInput* pInput )
-{
-	ImAppFree( pInput );
-}
-
-void ImAppInputApply( ImAppInput* pInput, struct nk_context* pNkContext )
-{
-	SDL_Event sdlEvent;
-	while( SDL_PollEvent( &sdlEvent ) )
-	{
-		switch( sdlEvent.type )
-		{
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-			{
-				const SDL_KeyboardEvent* pKeyEvent = &sdlEvent.key;
-
-				const enum nk_keys nkKey = pInput->keyMapping[ pKeyEvent->keysym.scancode ];
-				if( nkKey != NK_KEY_NONE )
-				{
-					nk_input_key( pNkContext, nkKey, pKeyEvent->type == SDL_KEYDOWN );
-				}
-
-				if( pKeyEvent->state == SDL_PRESSED &&
-					pKeyEvent->keysym.sym >= ' ' &&
-					pKeyEvent->keysym.sym <= '~' )
-				{
-					nk_input_char( pNkContext, (char)pKeyEvent->keysym.sym );
-				}
-			}
-			break;
-
-		case SDL_TEXTEDITING:
-		case SDL_TEXTINPUT:
-			break;
-
-		case SDL_MOUSEMOTION:
-			{
-				const SDL_MouseMotionEvent* pMotionEvent = &sdlEvent.motion;
-				nk_input_motion( pNkContext, pMotionEvent->x, pMotionEvent->y );
-			}
-			break;
-
-		case SDL_MOUSEBUTTONDOWN:
-		case SDL_MOUSEBUTTONUP:
-			{
-				const SDL_MouseButtonEvent* pButtonEvent = &sdlEvent.button;
-
-				enum nk_buttons button;
-				if( pButtonEvent->button == SDL_BUTTON_LEFT &&
-					pButtonEvent->clicks == 2u )
-				{
-					button = NK_BUTTON_DOUBLE;
-				}
-				else if( pButtonEvent->button >= SDL_BUTTON_LEFT &&
-					pButtonEvent->button <= SDL_BUTTON_RIGHT )
-				{
-					button = (enum nk_buttons)(pButtonEvent->button - 1);
-				}
-				else
-				{
-					return;
-				}
-
-				const nk_bool down = pButtonEvent->type == SDL_MOUSEBUTTONDOWN;
-				nk_input_button( pNkContext, button, pButtonEvent->x, pButtonEvent->y, down );
-			}
-			break;
-
-		case SDL_MOUSEWHEEL:
-			{
-				const SDL_MouseWheelEvent* pWheelEvent = &sdlEvent.wheel;
-				nk_input_scroll( pNkContext, nk_vec2i( pWheelEvent->x, pWheelEvent->y ) );
-			}
-			break;
-
-		case SDL_WINDOWEVENT:
-			{
-				const SDL_WindowEvent* pWindowEvent = &sdlEvent.window;
-				switch( pWindowEvent->event )
-				{
-				case SDL_WINDOWEVENT_CLOSE:
-					pInput->pWindow->isOpen = false;
-					break;
-
-				default:
-					break;
-				}
-			}
-			break;
-
-		default:
-			break;
-		}
-	}
 }
 
 #endif

@@ -1,8 +1,9 @@
+#include "imapp_main.h"
+
 #include "imapp/imapp.h"
 
 #include "imapp_defines.h"
 #include "imapp_helper.h"
-#include "imapp_platform.h"
 #include "imapp_renderer.h"
 
 #include <limits.h>
@@ -33,13 +34,11 @@ int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
 	int64_t lastTickValue = 0;
 	while( pImApp->running )
 	{
-		lastTickValue = ImAppWindowTick( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
+		nk_input_begin( &pImApp->nkContext );
+		lastTickValue = ImAppWindowTick( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs, &pImApp->nkContext );
+		nk_input_end( &pImApp->nkContext );
 
 		pImApp->running &= ImAppWindowIsOpen( pImApp->pWindow );
-
-		nk_input_begin( &pImApp->nkContext );
-		ImAppInputApply( pImApp->pInput, &pImApp->nkContext );
-		nk_input_end( &pImApp->nkContext );
 
 		ImAppWindowGetViewRect( &pImApp->context.x, &pImApp->context.y, &pImApp->context.width, &pImApp->context.height, pImApp->pWindow );
 
@@ -92,13 +91,6 @@ static bool ImAppInitialize( ImApp* pImApp )
 		return false;
 	}
 
-	pImApp->pInput = ImAppInputCreate( pImApp->pPlatform, pImApp->pWindow );
-	if( pImApp->pInput == NULL )
-	{
-		ImAppShowError( pImApp->pPlatform, "Failed to create Input." );
-		return false;
-	}
-
 	pImApp->pRenderer = ImAppRendererCreate( pImApp->pPlatform );
 	if( pImApp->pRenderer == NULL )
 	{
@@ -126,12 +118,6 @@ static void ImAppCleanup( ImApp* pImApp )
 	{
 		ImAppRendererDestroy( pImApp->pRenderer );
 		pImApp->pRenderer = NULL;
-	}
-
-	if( pImApp->pInput != NULL )
-	{
-		ImAppInputDestroy( pImApp->pInput );
-		pImApp->pInput = NULL;
 	}
 
 	if( pImApp->pWindow != NULL )

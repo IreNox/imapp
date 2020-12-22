@@ -24,7 +24,6 @@ struct ImApp
 
 	ImAppPlatform*		pPlatform;
 	ImAppWindow*		pWindow;
-	ImAppInput*			pInput;
 	ImAppRenderer*		pRenderer;
 
 	void*				pProgramContext;

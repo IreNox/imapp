@@ -44,9 +44,9 @@ typedef enum ImAppAndroidLooperType
 
 typedef enum ImAppAndroidEventType
 {
-	ImAppAndroidEventType_State,
-	ImAppAndroidEventType_Window,
-	ImAppAndroidEventType_Input,
+	ImAppAndroidEventType_StateChanged,
+	ImAppAndroidEventType_WindowChanged,
+	ImAppAndroidEventType_InputChanged,
 	ImAppAndroidEventType_Shutdown
 } ImAppAndroidEventType;
 
@@ -200,6 +200,8 @@ static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 	pthread_cond_broadcast( &pPlatform->threadCondition );
 	pthread_mutex_unlock( &pPlatform->threadConditionMutex );
 
+	ANativeActivity_finish( pPlatform->pActivity );
+
 	return NULL;
 }
 
@@ -256,7 +258,7 @@ static void ImAppAndroidOnStart( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Start: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_State, .data.state.state = ImAppAndroidStateType_Start };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Start };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -264,7 +266,7 @@ static void ImAppAndroidOnPause( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Pause: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_State, .data.state.state = ImAppAndroidStateType_Pause };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Pause };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -272,7 +274,7 @@ static void ImAppAndroidOnResume( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Resume: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_State, .data.state.state = ImAppAndroidStateType_Resume };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Resume };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -280,7 +282,7 @@ static void ImAppAndroidOnStop( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Stop: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_State, .data.state.state = ImAppAndroidStateType_Stop };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Stop };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -321,7 +323,7 @@ static void ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANati
 {
 	ImAppTrace( "NativeWindowCreated: %p -- %p\n", pActivity, pWindow );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_Window, .data.window.pWindow = pWindow };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.pWindow = pWindow };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -329,7 +331,7 @@ static void ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANa
 {
 	ImAppTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, pWindow );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_Window, .data.window.pWindow = NULL };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.pWindow = NULL };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -337,7 +339,7 @@ static void ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQ
 {
 	ImAppTrace( "InputQueueCreated: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_Input, .data.input.pInputQueue = pInputQueue };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_InputChanged, .data.input.pInputQueue = pInputQueue };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -345,7 +347,7 @@ static void ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInpu
 {
 	ImAppTrace( "InputQueueDestroyed: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_Input, .data.input.pInputQueue = NULL };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_InputChanged, .data.input.pInputQueue = NULL };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -397,7 +399,10 @@ struct ImAppWindow
 static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNativeWindow );
 static void	ImAppWindowDestroyContext( ImAppWindow* pWindow );
 
-static void	ImAppWindowHandleEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pEvent );
+static void	ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
+static void	ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
+
+static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, struct nk_context* pNkContext, const AInputEvent* pInputEvent );
 
 ImAppWindow* ImAppWindowCreate( ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
@@ -416,7 +421,7 @@ ImAppWindow* ImAppWindowCreate( ImAppPlatform* pPlatform, const char* pWindowTit
 	while( pWindow->isOpen &&
 		pWindow->pNativeWindow == NULL )
 	{
-		ImAppWindowTick( pWindow, 0, 0 );
+		ImAppWindowTick( pWindow, 0, 0, NULL );
 	}
 
 	if( pWindow->pNativeWindow == NULL )
@@ -510,7 +515,7 @@ static void	ImAppWindowDestroyContext( ImAppWindow* pWindow )
 	pWindow->pNativeWindow = NULL;
 }
 
-int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval, struct nk_context* pNkContext )
 {
 	struct timespec currentTime;
 	clock_gettime( CLOCK_REALTIME, &currentTime );
@@ -519,10 +524,12 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 	const int64_t waitDuration		= tickInterval - (lastTickDuration < tickInterval ? lastTickDuration : tickInterval);
 
 	int timeoutValue = tickInterval == 0 ? -1 : (int)waitDuration;
+	int eventCount;
 	int eventType;
 	void* pUserData;
-	while( ALooper_pollAll( timeoutValue, NULL, &eventType, &pUserData ) >= 0 )
+	while( (eventType = ALooper_pollAll( timeoutValue, NULL, &eventCount, &pUserData )) >= 0 )
 	{
+		IMAPP_ASSERT( pUserData == pWindow->pPlatform );
 		timeoutValue = 0;
 
 		if( eventType == ImAppAndroidLooperType_Event )
@@ -530,35 +537,148 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 			ImAppAndroidEvent androidEvent;
 			if( ImAppAndroidEventPop( &androidEvent, pWindow->pPlatform ) )
 			{
-				ImAppWindowHandleEvent( pWindow, &androidEvent );
+				switch( androidEvent.type )
+				{
+				case ImAppAndroidEventType_WindowChanged:
+					ImAppWindowHandleWindowChangedEvent( pWindow, &androidEvent );
+					break;
+
+				case ImAppAndroidEventType_InputChanged:
+					ImAppWindowHandleInputChangedEvent( pWindow, &androidEvent );
+					break;
+
+				default:
+					break;
+				}
 			}
 		}
 		else if( eventType == ImAppAndroidLooperType_Input )
 		{
+			AInputEvent* pInputEvent = NULL;
+			while( AInputQueue_getEvent( pWindow->pPlatform->pInputQueue, &pInputEvent ) >= 0 )
+			{
+				if( AInputQueue_preDispatchEvent( pWindow->pPlatform->pInputQueue, pInputEvent ) )
+				{
+					continue;
+				}
 
+				bool handled = false;
+				if( pNkContext != NULL )
+				{
+					handled = ImAppWindowHandleInputEvent( pWindow, pNkContext, pInputEvent );
+				}
+
+				AInputQueue_finishEvent( pWindow->pPlatform->pInputQueue, pInputEvent, handled );
+			}
 		}
 	}
 
 	return currentTickValue;
 }
 
-static void ImAppWindowHandleEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pEvent )
+static void ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
 {
-	switch( pEvent->type )
+	ImAppWindowDestroyContext( pWindow );
+	pWindow->isOpen = ImAppWindowCreateContext( pWindow, pSystemEvent->data.window.pWindow );
+	pWindow->hasDeviceChange = true;
+}
+
+static void ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
+{
+	if( pWindow->pPlatform->pInputQueue != NULL )
 	{
-	case ImAppAndroidEventType_Window:
-		ImAppWindowDestroyContext( pWindow );
-		pWindow->isOpen = ImAppWindowCreateContext( pWindow, pEvent->data.window.pWindow );
-		pWindow->hasDeviceChange = true;
+		AInputQueue_detachLooper( pWindow->pPlatform->pInputQueue );
+	}
+
+	pWindow->pPlatform->pInputQueue = pSystemEvent->data.input.pInputQueue;
+
+	if( pWindow->pPlatform->pInputQueue != NULL )
+	{
+		AInputQueue_attachLooper( pWindow->pPlatform->pInputQueue, pWindow->pPlatform->pLooper, ImAppAndroidLooperType_Input, NULL, pWindow->pPlatform );
+	}
+}
+
+static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, struct nk_context* pNkContext, const AInputEvent* pInputEvent )
+{
+	const uint32_t eventType = AInputEvent_getType( pInputEvent );
+	switch( eventType )
+	{
+	case AINPUT_EVENT_TYPE_KEY:
+		{
+			// not implemented
+			const uint32_t keyAction = AKeyEvent_getAction( pInputEvent );
+			switch( keyAction )
+			{
+			case AKEY_EVENT_ACTION_DOWN:
+			case AKEY_EVENT_ACTION_UP:
+				{
+					//const int32_t scanCode = AKeyEvent_getScanCode( pInputEvent );
+					//const enum nk_keys nkKey = s_inputKeyMapping[ scanCode ];
+					//if( nkKey != NK_KEY_NONE )
+					//{
+					//	nk_input_key( pNkContext, nkKey, pKeyEvent->type == SDL_KEYDOWN );
+					//}
+
+					//if( pKeyEvent->state == SDL_PRESSED &&
+					//	pKeyEvent->keysym.sym >= ' ' &&
+					//	pKeyEvent->keysym.sym <= '~' )
+					//{
+					//	nk_input_char( pNkContext, (char)pKeyEvent->keysym.sym );
+					//}
+
+					//const nk_bool down = keyAction == AKEY_EVENT_ACTION_DOWN;
+					//nk_input_key( pNkContext, ..., down );
+				}
+				break;
+
+			case AKEY_EVENT_ACTION_MULTIPLE:
+				break;
+
+			default:
+				break;
+			}
+		}
 		break;
 
-	case ImAppAndroidLooperType_Input:
-		pWindow->pPlatform->pInputQueue = pEvent->data.input.pInputQueue;
+	case AINPUT_EVENT_TYPE_MOTION:
+		{
+			const uint32_t motionAction = AMotionEvent_getAction( pInputEvent );
+			switch( motionAction )
+			{
+			case AMOTION_EVENT_ACTION_DOWN:
+			case AMOTION_EVENT_ACTION_UP:
+			case AMOTION_EVENT_ACTION_CANCEL:
+			case AMOTION_EVENT_ACTION_MOVE:
+				{
+					const int x = (int)AMotionEvent_getX( pInputEvent, 0 );
+					const int y = (int)AMotionEvent_getY( pInputEvent, 0 );
+
+					if( motionAction == AMOTION_EVENT_ACTION_MOVE )
+					{
+						nk_input_motion( pNkContext, x, y );
+					}
+					else
+					{
+						const nk_bool down = motionAction == AMOTION_EVENT_ACTION_DOWN;
+						nk_input_motion( pNkContext, x, y );
+						nk_input_button( pNkContext, NK_BUTTON_LEFT, x, y, down );
+					}
+
+					return true;
+				}
+				break;
+
+			default:
+				break;
+			}
+		}
 		break;
 
 	default:
 		break;
 	}
+
+	return false;
 }
 
 bool ImAppWindowPresent( ImAppWindow* pWindow )
@@ -601,31 +721,6 @@ void ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow )
 ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 {
 	return ImAppWindowState_Maximized;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Input
-
-struct ImAppInput
-{
-
-};
-
-ImAppInput* ImAppInputCreate( ImAppPlatform* pPlatform, ImAppWindow* pWindow )
-{
-	ImAppInput* pInput = IMAPP_NEW_ZERO( ImAppInput );
-
-	return pInput;
-}
-
-void ImAppInputDestroy( ImAppInput* pInput )
-{
-	ImAppFree( pInput );
-}
-
-void ImAppInputApply( ImAppInput* pInput, struct nk_context* pNkContext )
-{
-
 }
 
 #endif
