@@ -2,9 +2,9 @@
 
 #include "imapp_private.h"
 
-void ImAppQuit( ImAppContext* pImAppContext )
+void ImAppQuit( ImAppContext* imAppContext )
 {
-	ImApp* pImApp = (ImApp*)pImAppContext;
+	ImApp* pImApp = (ImApp*)imAppContext;
 
 	pImApp->running = false;
 }

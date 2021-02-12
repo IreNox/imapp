@@ -1,6 +1,6 @@
 #include "imapp_renderer.h"
 
-#include "imapp_helper.h"
+#include "imapp_memory.h"
 
 #include <stdint.h>
 
@@ -12,6 +12,8 @@
 
 struct ImAppRenderer
 {
+	ImAppAllocator*				pAllocator;
+
 	GLuint						vertexShader;
 	GLuint						fragmentShader;
 
@@ -104,15 +106,17 @@ static void		ImAppRendererDestroyResources( ImAppRenderer* pRenderer );
 
 static void		ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
-ImAppRenderer* ImAppRendererCreate( ImAppPlatform* pPlatform )
+ImAppRenderer* ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform )
 {
 	IMAPP_ASSERT( pPlatform != NULL );
 
-	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( ImAppRenderer );
+	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( pAllocator, ImAppRenderer );
 	if( pRenderer == NULL )
 	{
 		return NULL;
 	}
+
+	pRenderer->pAllocator = pAllocator;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
@@ -164,7 +168,7 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 
 	ImAppRendererDestroyResources( pRenderer );
 
-	ImAppFree( pRenderer );
+	ImAppFree( pRenderer->pAllocator, pRenderer );
 }
 
 static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
@@ -367,7 +371,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromFile( ImAppRenderer* pRender
 
 ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, int width, int height )
 {
-	ImAppRendererTexture* pTexture = IMAPP_NEW_ZERO( ImAppRendererTexture );
+	ImAppRendererTexture* pTexture = IMAPP_NEW_ZERO( pRenderer->pAllocator, ImAppRendererTexture );
 	if( pTexture == NULL )
 	{
 		return NULL;
@@ -376,7 +380,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRend
 	pTexture->width		= width;
 	pTexture->height	= height;
 	pTexture->size		= width * height * 4u;
-	pTexture->pData		= ImAppMalloc( pTexture->size );
+	pTexture->pData		= ImAppMalloc( pRenderer->pAllocator, pTexture->size );
 
 	if( pTexture->pData == NULL )
 	{
@@ -407,7 +411,7 @@ void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture
 		pTexture->texture = 0u;
 	}
 
-	ImAppFree( pTexture );
+	ImAppFree( pRenderer->pAllocator, pTexture );
 }
 
 void ImAppRendererDraw( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int width, int height )

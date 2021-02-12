@@ -1,5 +1,4 @@
 # I'm App
-============
 
 A Framework to create your own Immediate Mode UI Application with just a few lines of code.
 
@@ -43,7 +42,7 @@ void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )
 
 ## Building
 
-[tiki_build](https://github.com/IreNox/tiki_build) is used to generate project files. To create your own Project put tiki_build and premake5 in the root of your repro and write a `premake5.lua` file:
+[tiki_build](https://github.com/IreNox/tiki_build) is used to generate project files. To create your own Project put premake_tb executable in the root of your repro and write a `premake5.lua` file:
 
 ```
 local project = Project:new( "my_imapp_program", ProjectTypes.WindowApplication );
@@ -55,7 +54,7 @@ project:add_external( "https://github.com/IreNox/imapp.git" )
 finalize_default_solution( project )
 ```
 
-To generate Visual Studio 2017 project files just execute: `premake5 --systemscript=tiki_build.lua --to=build vs2017`
+To generate Visual Studio 2017 project files just execute: `premake_tb --to=build vs2017`
 
 ## Used Libraries
 

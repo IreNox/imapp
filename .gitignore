@@ -1,3 +1,2 @@
-/premake5*
-/tiki_build.lua
+/premake_tb*
 build/

@@ -132,7 +132,7 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 
 static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
-	ImAppPlatform* pPlatform = IMAPP_NEW_ZERO( ImAppPlatform );
+	ImAppPlatform* pPlatform = IMAPP_NEW_ZERO( ImAppAllocatorGetDefault(), ImAppPlatform );
 
 	pPlatform->pActivity = pActivity;
 
@@ -143,7 +143,7 @@ static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, s
 	if( pipe( eventPipe ) )
 	{
 		ImAppTrace( "Could not create pipe: %s\n", strerror( errno ) );
-		ImAppFree( pPlatform );
+		ImAppFree( ImAppAllocatorGetDefault(), pPlatform );
 		return NULL;
 	}
 	pPlatform->eventPipeRead	= eventPipe[ 0u ];
@@ -178,7 +178,7 @@ static void ImAppAndroidDestroy( ImAppPlatform* pPlatform )
 	close( pPlatform->eventPipeWrite );
 	close( pPlatform->eventPipeRead );
 
-	ImAppFree( pPlatform );
+	ImAppFree( ImAppAllocatorGetDefault(), pPlatform );
 }
 
 static void* ImAppAndroidThreadEntryPoint( void* pArgument )
@@ -382,18 +382,20 @@ void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFu
 
 struct ImAppWindow
 {
-	ImAppPlatform*	pPlatform;
-	ANativeWindow*	pNativeWindow;
+	ImAppAllocator*		pAllocator;
+	ImAppPlatform*		pPlatform;
+	ImAppEventQueue*	pEventQueue;
 
-	bool			isOpen;
-	bool			hasDeviceChange;
+	ANativeWindow*		pNativeWindow;
+	bool				isOpen;
 
-	EGLDisplay		display;
-	EGLSurface		surface;
-	EGLContext		context;
+	EGLDisplay			display;
+	EGLSurface			surface;
+	EGLContext			context;
+	bool				hasDeviceChange;
 
-	int				width;
-	int				height;
+	int					width;
+	int					height;
 };
 
 static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNativeWindow );
@@ -402,26 +404,28 @@ static void	ImAppWindowDestroyContext( ImAppWindow* pWindow );
 static void	ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
 static void	ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
 
-static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, struct nk_context* pNkContext, const AInputEvent* pInputEvent );
+static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent* pInputEvent );
 
-ImAppWindow* ImAppWindowCreate( ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
-	ImAppWindow* pWindow = IMAPP_NEW_ZERO( ImAppWindow );
+	ImAppWindow* pWindow = IMAPP_NEW_ZERO( pAllocator, ImAppWindow );
 	if( pWindow == NULL )
 	{
 		return NULL;
 	}
 
-	pWindow->pPlatform	= pPlatform;
-	pWindow->isOpen		= true;
-	pWindow->display	= EGL_NO_DISPLAY;
-	pWindow->surface	= EGL_NO_SURFACE;
-	pWindow->context	= EGL_NO_CONTEXT;
+	pWindow->pAllocator		= pAllocator;
+	pWindow->pPlatform		= pPlatform;
+	pWindow->pEventQueue	= ImAppEventQueueCreate( pAllocator );
+	pWindow->isOpen			= true;
+	pWindow->display		= EGL_NO_DISPLAY;
+	pWindow->surface		= EGL_NO_SURFACE;
+	pWindow->context		= EGL_NO_CONTEXT;
 
 	while( pWindow->isOpen &&
 		pWindow->pNativeWindow == NULL )
 	{
-		ImAppWindowTick( pWindow, 0, 0, NULL );
+		ImAppWindowTick( pWindow, 0, 0 );
 	}
 
 	if( pWindow->pNativeWindow == NULL )
@@ -439,7 +443,13 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 {
 	ImAppWindowDestroyContext( pWindow );
 
-	ImAppFree( pWindow );
+	if( pWindow->pEventQueue != NULL )
+	{
+		ImAppEventQueueDestroy( pWindow->pEventQueue );
+		pWindow->pEventQueue = NULL;
+	}
+
+	ImAppFree( pWindow->pAllocator, pWindow );
 }
 
 static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNativeWindow )
@@ -515,7 +525,7 @@ static void	ImAppWindowDestroyContext( ImAppWindow* pWindow )
 	pWindow->pNativeWindow = NULL;
 }
 
-int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval, struct nk_context* pNkContext )
+int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
 {
 	struct timespec currentTime;
 	clock_gettime( CLOCK_REALTIME, &currentTime );
@@ -562,12 +572,7 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 					continue;
 				}
 
-				bool handled = false;
-				if( pNkContext != NULL )
-				{
-					handled = ImAppWindowHandleInputEvent( pWindow, pNkContext, pInputEvent );
-				}
-
+				const bool  handled = ImAppWindowHandleInputEvent( pWindow, pInputEvent );
 				AInputQueue_finishEvent( pWindow->pPlatform->pInputQueue, pInputEvent, handled );
 			}
 		}
@@ -598,7 +603,7 @@ static void ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAp
 	}
 }
 
-static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, struct nk_context* pNkContext, const AInputEvent* pInputEvent )
+static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent* pInputEvent )
 {
 	const uint32_t eventType = AInputEvent_getType( pInputEvent );
 	switch( eventType )
@@ -653,15 +658,14 @@ static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, struct nk_context
 					const int x = (int)AMotionEvent_getX( pInputEvent, 0 );
 					const int y = (int)AMotionEvent_getY( pInputEvent, 0 );
 
-					if( motionAction == AMOTION_EVENT_ACTION_MOVE )
+					const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = x, .y = y } };
+					ImAppEventQueuePush( pWindow->pEventQueue, &motionEvent );
+
+					if( motionAction != AMOTION_EVENT_ACTION_MOVE )
 					{
-						nk_input_motion( pNkContext, x, y );
-					}
-					else
-					{
-						const nk_bool down = motionAction == AMOTION_EVENT_ACTION_DOWN;
-						nk_input_motion( pNkContext, x, y );
-						nk_input_button( pNkContext, NK_BUTTON_LEFT, x, y, down );
+						const ImAppEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
+						const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImAppInputButton_Left, .repeateCount = 1 } };
+						ImAppEventQueuePush( pWindow->pEventQueue, &buttonEvent );
 					}
 
 					return true;
@@ -693,9 +697,9 @@ bool ImAppWindowPresent( ImAppWindow* pWindow )
 	return true;
 }
 
-bool ImAppWindowIsOpen( ImAppWindow* pWindow )
+ImAppEventQueue* ImAppWindowGetEventQueue( ImAppWindow* pWindow )
 {
-	return pWindow->isOpen;
+	return pWindow->pEventQueue;
 }
 
 void ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )

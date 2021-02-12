@@ -12,7 +12,7 @@ typedef struct ImAppRendererTexture ImAppRendererTexture;
 struct nk_context;
 struct nk_font;
 
-ImAppRenderer*			ImAppRendererCreate( ImAppPlatform* pPlatform );
+ImAppRenderer*			ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform );
 void					ImAppRendererDestroy( ImAppRenderer* pRenderer );
 
 bool					ImAppRendererRecreateResources( ImAppRenderer* pRenderer );

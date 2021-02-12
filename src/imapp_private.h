@@ -2,6 +2,7 @@
 
 #include "imapp/imapp.h"
 
+#include <stdint.h>
 #include <stdbool.h>
 
 struct ImAppPlatform;
@@ -20,7 +21,13 @@ struct ImApp
 {
 	ImAppContext		context;		// must be at offset 0
 	ImAppParameters		parameters;
+
 	bool				running;
+	uint8_t				inputMaskShift;
+	uint8_t				inputMaskControl;
+	uint8_t				inputMaskAlt;
+	uint32_t			inputModifiers;
+	uint32_t			inputDownMask;
 
 	ImAppPlatform*		pPlatform;
 	ImAppWindow*		pWindow;
