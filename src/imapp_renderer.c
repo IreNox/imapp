@@ -93,8 +93,8 @@ static const struct nk_draw_vertex_layout_element s_aVertexLayout[] = {
 	{ NK_VERTEX_LAYOUT_END }
 };
 
-#define IMAPP_MAX_VERTEX_COUNT	1024u
-#define IMAPP_MAX_ELEMENT_COUNT	2048u
+#define IMAPP_MAX_VERTEX_COUNT	8u * 1024u
+#define IMAPP_MAX_ELEMENT_COUNT	16u * 1024u
 #define IMAPP_MAX_VERTEX_SIZE	sizeof( ImAppRendererVertex ) * IMAPP_MAX_VERTEX_COUNT
 #define IMAPP_MAX_ELEMENT_SIZE	sizeof( nk_draw_index ) * IMAPP_MAX_ELEMENT_COUNT
 
@@ -470,7 +470,8 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 			struct nk_buffer elementBuffer;
 			nk_buffer_init_fixed( &vertexBuffer, pVertexData, IMAPP_MAX_VERTEX_SIZE );
 			nk_buffer_init_fixed( &elementBuffer, pElementData, IMAPP_MAX_ELEMENT_SIZE );
-			nk_convert( pNkContext, &pRenderer->nkCommands, &vertexBuffer, &elementBuffer, &pRenderer->nkConvertConfig );
+			const nk_flags result = nk_convert( pNkContext, &pRenderer->nkCommands, &vertexBuffer, &elementBuffer, &pRenderer->nkConvertConfig );
+			IMAPP_ASSERT( result == NK_CONVERT_SUCCESS );
 		}
 		glUnmapBuffer( GL_ARRAY_BUFFER );
 		glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
@@ -480,10 +481,7 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 	const struct nk_draw_command* pCommand;
 	nk_draw_foreach( pCommand, pNkContext, &pRenderer->nkCommands )
 	{
-		if( pCommand->elem_count == 0u )
-		{
-			continue;
-		}
+		IMAPP_ASSERT( pCommand->elem_count >= 0u );
 
 		ImAppRendererTexture* pTexture = (ImAppRendererTexture*)pCommand->texture.ptr;
 		if( pTexture == NULL )
