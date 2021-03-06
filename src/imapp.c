@@ -38,7 +38,7 @@ void ImAppImageFree( ImAppContext* imAppContext, ImAppImage* image )
 
 struct nk_image ImAppImageNuklear( ImAppImage* image )
 {
-	return nk_image_ptr( image->pTexture );
+	return nk_subimage_ptr( image->pTexture, image->width, image->height, nk_recti( 0, 0, image->width, image->height ) );
 }
 
 struct nk_image ImAppImageGet( ImAppContext* imAppContext, const char* resourceName, int defaultWidth, int defaultHeight, ImAppColor defaultColor )

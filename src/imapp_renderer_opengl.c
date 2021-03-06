@@ -38,6 +38,7 @@ struct ImAppRenderer
 
 struct ImAppRendererTexture
 {
+	ImAppRendererTexture*		pPrev;
 	ImAppRendererTexture*		pNext;
 
 	GLuint						texture;
@@ -172,8 +173,6 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 	while( pRenderer->pFirstTexture != NULL )
 	{
 		ImAppRendererTexture* pTexture = pRenderer->pFirstTexture;
-		pRenderer->pFirstTexture = pTexture->pNext;
-
 		ImAppRendererTextureDestroy( pRenderer, pTexture );
 	}
 
@@ -404,6 +403,11 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRend
 
 	pTexture->texture = ImAppRendererCreateTexture( pData, width, height );
 
+	if( pRenderer->pFirstTexture != NULL )
+	{
+		pRenderer->pFirstTexture->pPrev = pTexture;
+	}
+
 	pTexture->pNext = pRenderer->pFirstTexture;
 	pRenderer->pFirstTexture = pTexture;
 
@@ -421,6 +425,16 @@ void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture
 	{
 		glDeleteTextures( 1u, &pTexture->texture );
 		pTexture->texture = 0u;
+	}
+
+	if( pTexture->pPrev != NULL )
+	{
+		pTexture->pPrev->pNext = pTexture->pNext;
+	}
+
+	if( pTexture->pNext != NULL )
+	{
+		pTexture->pNext->pPrev = pTexture->pPrev;
 	}
 
 	if( pTexture == pRenderer->pFirstTexture )

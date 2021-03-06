@@ -464,8 +464,8 @@ ImAppResource ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllo
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	wchar_t* pTargetBuffer = pPlatform->resourcePath + pPlatform->resourceBasePathLength;
-	const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( pPlatform->resourcePath ) - pPlatform->resourceBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, pResourceName, -1, pTargetBuffer, targetLengthInCharacters );
+	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( pPlatform->resourcePath ) - pPlatform->resourceBasePathLength;
+	MultiByteToWideChar( CP_UTF8, 0, pResourceName, -1, pTargetBuffer, (int)targetLengthInCharacters );
 
 	while( *pTargetBuffer != L'\0' )
 	{
