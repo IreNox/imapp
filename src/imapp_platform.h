@@ -34,6 +34,9 @@ typedef enum ImAppWindowState ImAppWindowState;
 ImAppWindow*			ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state );
 void					ImAppWindowDestroy( ImAppWindow* pWindow );
 
+bool					ImAppWindowCreateGlContext( ImAppWindow* pWindow );
+void					ImAppWindowDestroyGlContext( ImAppWindow* pWindow );
+
 int64_t					ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval );
 bool					ImAppWindowPresent( ImAppWindow* pWindow );
 

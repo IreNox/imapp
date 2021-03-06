@@ -162,6 +162,26 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 	ImAppFree( pWindow );
 }
 
+//hDC=0; hRC=0;
+//PIXELFORMATDESCRIPTOR pfd;
+//int iFormat;
+//
+//hDC = GetDC( window );
+//ZeroMemory( &pfd, sizeof( pfd ) );
+//pfd.nSize = sizeof( pfd );
+//pfd.nVersion = 1;
+//pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+//pfd.iPixelType = PFD_TYPE_RGBA;
+//pfd.cColorBits = 32;
+//pfd.cAlphaBits = 8;
+//pfd.cDepthBits = 16;
+//pfd.iLayerType = PFD_MAIN_PLANE;
+//
+//iFormat = ChoosePixelFormat( hDC, &pfd );
+//SetPixelFormat( hDC, iFormat, &pfd );
+//hRC = wglCreateContext( hDC );
+//wglMakeCurrent( hDC, hRC );
+
 void ImAppWindowUpdate( ImAppWindow* pWindow )
 {
 	MSG message;

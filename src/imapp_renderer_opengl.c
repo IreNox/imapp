@@ -15,6 +15,7 @@
 struct ImAppRenderer
 {
 	ImAppAllocator*				pAllocator;
+	ImAppWindow*				pWindow;
 
 	GLuint						vertexShader;
 	GLuint						fragmentShader;
@@ -119,7 +120,14 @@ ImAppRenderer* ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* p
 		return NULL;
 	}
 
-	pRenderer->pAllocator = pAllocator;
+	pRenderer->pAllocator	= pAllocator;
+	pRenderer->pWindow		= pWindow;
+
+	if( !ImAppWindowCreateGlContext( pWindow ) )
+	{
+		ImAppRendererDestroy( pRenderer );
+		return NULL;
+	}
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
@@ -170,6 +178,7 @@ void ImAppRendererDestroy( ImAppRenderer* pRenderer )
 	}
 
 	ImAppRendererDestroyResources( pRenderer );
+	ImAppWindowDestroyGlContext( pRenderer->pWindow );
 
 	ImAppFree( pRenderer->pAllocator, pRenderer );
 }
@@ -424,6 +433,8 @@ void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture
 
 void ImAppRendererDraw( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int width, int height )
 {
+	glViewport( 0, 0, width, height );
+
 	const float color[ 4u ] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	glClearColor( color[ 0u ], color[ 1u ], color[ 2u ], color[ 3u ] );
 	glClear( GL_COLOR_BUFFER_BIT );

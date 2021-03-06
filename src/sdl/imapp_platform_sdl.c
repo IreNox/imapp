@@ -198,7 +198,7 @@ struct ImAppWindow
 	ImAppEventQueue*	pEventQueue;
 
 	SDL_Window*			pSdlWindow;
-	SDL_GLContext		pGlContext;
+	SDL_GLContext		glContext;
 };
 
 ImAppWindow* ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
@@ -242,39 +242,12 @@ ImAppWindow* ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlat
 		return NULL;
 	}
 
-
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-#else
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
-#endif
-
-	pWindow->pGlContext = SDL_GL_CreateContext( pWindow->pSdlWindow );
-	if( pWindow->pGlContext == NULL )
-	{
-		ImAppWindowDestroy( pWindow );
-		return NULL;
-	}
-
-	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
-	{
-		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
-	}
-
 	return pWindow;
 }
 
 void ImAppWindowDestroy( ImAppWindow* pWindow )
 {
-	if( pWindow->pGlContext != NULL )
-	{
-		SDL_GL_DeleteContext( pWindow->pGlContext );
-		pWindow->pGlContext = NULL;
-	}
+	IMAPP_ASSERT( pWindow->glContext == NULL );
 
 	if( pWindow->pSdlWindow != NULL )
 	{
@@ -289,6 +262,41 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 	}
 
 	ImAppFree( pWindow->pAllocator, pWindow );
+}
+
+bool ImAppWindowCreateGlContext( ImAppWindow* pWindow )
+{
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+#else
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+#endif
+
+	pWindow->glContext = SDL_GL_CreateContext( pWindow->pSdlWindow );
+	if( pWindow->glContext == NULL )
+	{
+		return false;
+	}
+
+	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
+	{
+		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+	}
+
+	return true;
+}
+
+void ImAppWindowDestroyGlContext( ImAppWindow* pWindow )
+{
+	if( pWindow->glContext != NULL )
+	{
+		SDL_GL_DeleteContext( pWindow->glContext );
+		pWindow->glContext = NULL;
+	}
 }
 
 int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )

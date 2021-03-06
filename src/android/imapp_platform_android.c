@@ -30,6 +30,8 @@ typedef struct ImAppPlatform
 	AInputQueue*			pInputQueue;
 
 	int						viewTop;
+	int						viewLeft;
+	int						viewWidth;
 	int						viewHeight;
 
 	bool					started;
@@ -47,6 +49,7 @@ typedef enum ImAppAndroidEventType
 {
 	ImAppAndroidEventType_StateChanged,
 	ImAppAndroidEventType_WindowChanged,
+	ImAppAndroidEventType_WindowResize,
 	ImAppAndroidEventType_InputChanged,
 	ImAppAndroidEventType_Shutdown
 } ImAppAndroidEventType;
@@ -102,6 +105,7 @@ static void		ImAppAndroidOnConfigurationChanged( ANativeActivity* pActivity );
 static void		ImAppAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused );
 static void		ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* pWindow );
 static void		ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* pWindow );
+static void		ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* pWindow );
 static void		ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 static void		ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 
@@ -125,6 +129,7 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 	pActivity->callbacks->onWindowFocusChanged		= ImAppAndroidOnWindowFocusChanged;
 	pActivity->callbacks->onNativeWindowCreated		= ImAppAndroidOnNativeWindowCreated;
 	pActivity->callbacks->onNativeWindowDestroyed	= ImAppAndroidOnNativeWindowDestroyed;
+	pActivity->callbacks->onNativeWindowResized		= ImAppAndroidOnNativeWindowResized;
 	pActivity->callbacks->onInputQueueCreated		= ImAppAndroidOnInputQueueCreated;
 	pActivity->callbacks->onInputQueueDestroyed		= ImAppAndroidOnInputQueueDestroyed;
 
@@ -227,14 +232,19 @@ static void ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform )
 	jclass rectClass = (*pEnv)->FindClass( pEnv, "android/graphics/Rect" );
 	jmethodID rectConstructor = (*pEnv)->GetMethodID( pEnv, rectClass, "<init>", "()V" );
 	jfieldID topField = (*pEnv)->GetFieldID( pEnv, rectClass, "top", "I" );
+	jfieldID leftField = (*pEnv)->GetFieldID( pEnv, rectClass, "left", "I" );
+	jfieldID rightField = (*pEnv)->GetFieldID( pEnv, rectClass, "right", "I" );
 	jfieldID bottomField = (*pEnv)->GetFieldID( pEnv, rectClass, "bottom", "I" );
 
 	jobject rect = (*pEnv)->NewObject( pEnv, rectClass, rectConstructor );
 
 	(*pEnv)->CallVoidMethod( pEnv, view, getWindowVisibleDisplayFrameMethod, rect );
 
+	const int viewRight = (*pEnv)->GetIntField( pEnv, rect, rightField );
 	const int viewBottom = (*pEnv)->GetIntField( pEnv, rect, bottomField );
 	pPlatform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
+	pPlatform->viewLeft		= (*pEnv)->GetIntField( pEnv, rect, leftField );
+	pPlatform->viewWidth	= viewRight - pPlatform->viewLeft;
 	pPlatform->viewHeight	= viewBottom - pPlatform->viewTop;
 
 	(*pPlatform->pActivity->vm)->DetachCurrentThread( pPlatform->pActivity->vm );
@@ -336,6 +346,14 @@ static void ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANa
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
+static void ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* pWindow )
+{
+	ImAppTrace( "NativeWindowResized: %p -- %p\n", pActivity, pWindow );
+
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowResize, .data.window.pWindow = pWindow };
+	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+}
+
 static void ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue )
 {
 	ImAppTrace( "InputQueueCreated: %p -- %p\n", pActivity, pInputQueue );
@@ -399,10 +417,8 @@ struct ImAppWindow
 	int					height;
 };
 
-static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNativeWindow );
-static void	ImAppWindowDestroyContext( ImAppWindow* pWindow );
-
 static void	ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
+static void	ImAppWindowHandleWindowResizeEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
 static void	ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
 
 static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent* pInputEvent );
@@ -442,7 +458,7 @@ ImAppWindow* ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlat
 
 void ImAppWindowDestroy( ImAppWindow* pWindow )
 {
-	ImAppWindowDestroyContext( pWindow );
+	IMAPP_ASSERT( pWindow->context == EGL_NO_CONTEXT );
 
 	if( pWindow->pEventQueue != NULL )
 	{
@@ -453,8 +469,11 @@ void ImAppWindowDestroy( ImAppWindow* pWindow )
 	ImAppFree( pWindow->pAllocator, pWindow );
 }
 
-static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNativeWindow )
+bool ImAppWindowCreateGlContext( ImAppWindow* pWindow )
 {
+	IMAPP_ASSERT( pWindow->pNativeWindow != NULL );
+	IMAPP_ASSERT( pWindow->display == EGL_NO_DISPLAY );
+
 	pWindow->display = eglGetDisplay( EGL_DEFAULT_DISPLAY );
 	eglInitialize( pWindow->display, NULL, NULL );
 
@@ -473,9 +492,9 @@ static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNati
 	EGLint format;
 	eglGetConfigAttrib( pWindow->display, config, EGL_NATIVE_VISUAL_ID, &format );
 
-	ANativeWindow_setBuffersGeometry( pNativeWindow, 0, 0, format );
+	ANativeWindow_setBuffersGeometry( pWindow->pNativeWindow, 0, 0, format );
 
-	pWindow->surface = eglCreateWindowSurface( pWindow->display, config, pNativeWindow, NULL );
+	pWindow->surface = eglCreateWindowSurface( pWindow->display, config, pWindow->pNativeWindow, NULL );
 
 	const EGLint contextAttributes[] = {
 		EGL_CONTEXT_CLIENT_VERSION,	2,
@@ -492,14 +511,12 @@ static bool	ImAppWindowCreateContext( ImAppWindow* pWindow, ANativeWindow* pNati
 	eglQuerySurface( pWindow->display, pWindow->surface, EGL_WIDTH, &pWindow->width );
 	eglQuerySurface( pWindow->display, pWindow->surface, EGL_HEIGHT, &pWindow->height );
 
-	pWindow->pNativeWindow = pNativeWindow;
-
 	ImAppAndroidGetViewBounds( pWindow->pPlatform );
 
 	return true;
 }
 
-static void	ImAppWindowDestroyContext( ImAppWindow* pWindow )
+void ImAppWindowDestroyGlContext( ImAppWindow* pWindow )
 {
 	if( pWindow->display == EGL_NO_DISPLAY )
 	{
@@ -562,6 +579,10 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 					ImAppWindowHandleWindowChangedEvent( pWindow, &androidEvent );
 					break;
 
+				case ImAppAndroidEventType_WindowResize:
+					ImAppWindowHandleWindowResizeEvent( pWindow, &androidEvent );
+					break;
+
 				case ImAppAndroidEventType_InputChanged:
 					ImAppWindowHandleInputChangedEvent( pWindow, &androidEvent );
 					break;
@@ -592,9 +613,26 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 
 static void ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
 {
-	ImAppWindowDestroyContext( pWindow );
-	pWindow->isOpen = ImAppWindowCreateContext( pWindow, pSystemEvent->data.window.pWindow );
+	if( pWindow->context == EGL_NO_CONTEXT )
+	{
+		pWindow->pNativeWindow = pSystemEvent->data.window.pWindow;
+		return;
+	}
+
+	ImAppWindowDestroyGlContext( pWindow );
+	pWindow->pNativeWindow = pSystemEvent->data.window.pWindow;
+	pWindow->isOpen = ImAppWindowCreateGlContext( pWindow );
 	pWindow->hasDeviceChange = true;
+}
+
+static void	ImAppWindowHandleWindowResizeEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
+{
+	IMAPP_ASSERT( pWindow->pNativeWindow == pSystemEvent->data.window.pWindow );
+
+	pWindow->width	= ANativeWindow_getWidth( pWindow->pNativeWindow );
+	pWindow->height	= ANativeWindow_getHeight( pWindow->pNativeWindow );
+
+	ImAppAndroidGetViewBounds( pWindow->pPlatform );
 }
 
 static void ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
@@ -713,9 +751,9 @@ ImAppEventQueue* ImAppWindowGetEventQueue( ImAppWindow* pWindow )
 
 void ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )
 {
-	*pX			= 0u;
+	*pX			= 0u; //pWindow->pPlatform->viewLeft;
 	*pY			= pWindow->pPlatform->viewTop;
-	*pWidth		= pWindow->width;
+	*pWidth		= pWindow->pPlatform->viewWidth;
 	*pHeight	= pWindow->pPlatform->viewHeight;
 }
 
