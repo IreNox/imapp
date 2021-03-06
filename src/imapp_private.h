@@ -17,24 +17,28 @@ typedef struct ImAppInput ImAppInput;
 struct ImAppRenderer;
 typedef struct ImAppRenderer ImAppRenderer;
 
+struct ImAppImageStorage;
+typedef struct ImAppImageStorage ImAppImageStorage;
+
 struct ImApp
 {
-	ImAppContext		context;		// must be at offset 0
-	ImAppParameters		parameters;
+	ImAppContext			context;		// must be at offset 0
+	ImAppParameters			parameters;
 
-	bool				running;
-	uint8_t				inputMaskShift;
-	uint8_t				inputMaskControl;
-	uint8_t				inputMaskAlt;
-	uint32_t			inputModifiers;
-	uint32_t			inputDownMask;
+	bool					running;
+	uint8_t					inputMaskShift;
+	uint8_t					inputMaskControl;
+	uint8_t					inputMaskAlt;
+	uint32_t				inputModifiers;
+	uint32_t				inputDownMask;
 
-	ImAppPlatform*		pPlatform;
-	ImAppWindow*		pWindow;
-	ImAppRenderer*		pRenderer;
+	ImAppPlatform*			pPlatform;
+	ImAppWindow*			pWindow;
+	ImAppRenderer*			pRenderer;
+	ImAppImageStorage*		pImages;
 
-	void*				pProgramContext;
+	void*					pProgramContext;
 
-	struct nk_context	nkContext;
+	struct nk_context		nkContext;
 };
 typedef struct ImApp ImApp;

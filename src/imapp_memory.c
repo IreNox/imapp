@@ -32,13 +32,18 @@ void* ImAppMalloc( ImAppAllocator* pAllocator, size_t size )
 void* ImAppMallocZero( ImAppAllocator* pAllocator, size_t size )
 {
 	void* pMemory = ImAppMalloc( pAllocator, size );
-	memset( pMemory, 0, size );
+	ImAppMemoryZero( pMemory, size );
 	return pMemory;
 }
 
 void ImAppFree( ImAppAllocator* pAllocator, void* pMemory )
 {
 	pAllocator->freeFunc( pMemory, pAllocator->userData );
+}
+
+void ImAppMemoryZero( void* pMemory, size_t size )
+{
+	memset( pMemory, 0, size );
 }
 
 ImAppAllocator* ImAppAllocatorGetDefault()

@@ -1,4 +1,4 @@
--- https/github.com/Immediate-Mode-UI\Nuklear.git
+-- https/github.com/Immediate-Mode-UI/Nuklear.git
 
 module:add_include_dir( "." )
 

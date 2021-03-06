@@ -1,14 +1,14 @@
 #pragma once
 
-#define TIKI_ON 				2
-#define TIKI_OFF				1
+#define TIKI_ON 				1
+#define TIKI_OFF				0
 
-#define IMAPP_ENABLED( value )	( ( 0 + value ) == 2 )
-#define IMAPP_DISABLED( value )	( ( 0 + value ) != 2 )
+#define IMAPP_ENABLED( value )	( ( 1 + value ) == 2 )
+#define IMAPP_DISABLED( value )	( ( 1 + value ) != 2 )
 
 #define IMAPP_IF( expr )		((expr) ? TIKI_ON : TIKI_OFF)
 
-#if defined( _WIN32 ) // Windows
+#if defined( _WIN32 )
 #	define IMAPP_PLATFORM_WINDOWS		TIKI_ON
 #	if defined( _WIN64 )
 #		define IMAPP_POINTER_64			TIKI_ON
@@ -117,8 +117,6 @@
 #	define IMAPP_DEBUG					TIKI_OFF
 #endif
 
-#define IMAPP_USE_INLINE				TIKI_ON
-
 #if IMAPP_ENABLED( IMAPP_COMPILER_MSVC )
 #	define IMAPP_HAS_BREAK				TIKI_ON
 #	define IMAPP_BREAK __debugbreak()
@@ -147,6 +145,8 @@
 #	define IMAPP_ALIGN_PREFIX( var )
 #	define IMAPP_ALIGN_POSTFIX( var )		__attribute__( ( aligned( var ) ) )
 #	define IMAPP_ALIGNOF( type )			__alignof__( type )
+#else
+#	error Platform not supported
 #endif
 
 #if IMAPP_ENABLED( IMAPP_COMPILER_GCC ) || IMAPP_ENABLED( IMAPP_COMPILER_CLANG )
@@ -154,6 +154,8 @@
 #else
 #	define IMAPP_OFFSETOF( type, member )	((size_t)(&((type*)0)->member))
 #endif
+
+#define IMAPP_USE_INLINE				TIKI_ON
 
 #if IMAPP_ENABLED( IMAPP_USE_INLINE )
 #	if IMAPP_ENABLED( IMAPP_COMPILER_MSVC )
@@ -165,7 +167,7 @@
 #		define IMAPP_FORCE_INLINE			inline __attribute__((always_inline))
 #		define IMAPP_NO_INLINE				__attribute__((noinline))
 #	else
-#		error Platform not suuported
+#		error Platform not supported
 #	endif
 #else
 #	define IMAPP_INLINE

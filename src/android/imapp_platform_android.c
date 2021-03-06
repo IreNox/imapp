@@ -2,6 +2,7 @@
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 
+#include <android/asset_manager.h>
 #include <android/native_activity.h>
 
 #include <EGL/egl.h>
@@ -527,11 +528,19 @@ static void	ImAppWindowDestroyContext( ImAppWindow* pWindow )
 
 int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
 {
-	struct timespec currentTime;
-	clock_gettime( CLOCK_REALTIME, &currentTime );
-	const int64_t currentTickValue	= (currentTime.tv_sec * 1000) + (currentTime.tv_nsec / 100000);
-	const int64_t lastTickDuration	= currentTickValue - lastTickValue;
-	const int64_t waitDuration		= tickInterval - (lastTickDuration < tickInterval ? lastTickDuration : tickInterval);
+	int waitDuration;
+	int64_t currentTickValue;
+	{
+		struct timespec currentTime;
+		clock_gettime( CLOCK_REALTIME, &currentTime );
+
+		const int64_t currentSeconds		= currentTime.tv_sec;
+		const int64_t currentNanoSeconds	= currentTime.tv_nsec;
+		currentTickValue					= (currentSeconds * 1000ll) + (currentNanoSeconds / 1000000ll);
+		const int64_t lastTickDuration		= currentTickValue - lastTickValue;
+		waitDuration						= (int)(tickInterval - (lastTickDuration < tickInterval ? lastTickDuration : tickInterval));
+		IMAPP_ASSERT( waitDuration <= tickInterval );
+	}
 
 	int timeoutValue = tickInterval == 0 ? -1 : (int)waitDuration;
 	int eventCount;
@@ -725,6 +734,30 @@ void ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow )
 ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 {
 	return ImAppWindowState_Maximized;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Resources
+
+ImAppResource ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllocator, const char* pResourceName )
+{
+	AAsset* pAsset = AAssetManager_open( pPlatform->pActivity->assetManager, pResourceName, AASSET_MODE_BUFFER );
+	if( pAsset == NULL )
+	{
+		const ImAppResource result = { NULL, 0u };
+		return result;
+	}
+
+	const size_t size = AAsset_getLength64( pAsset );
+	void* pData = ImAppMalloc( pAllocator, size );
+
+	const void* pSourceData = AAsset_getBuffer( pAsset );
+	memcpy( pData, pSourceData, size );
+
+	AAsset_close( pAsset );
+
+	const ImAppResource result = { pData, size };
+	return result;
 }
 
 #endif

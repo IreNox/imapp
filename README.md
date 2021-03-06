@@ -5,10 +5,10 @@ A Framework to create your own Immediate Mode UI Application with just a few lin
 ## Features
 
 - [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear) integration
-- Android support
+- Android support(without Java)
 - Windows support
+- Image loading(PNG only)
 - TODO: Linux support
-- TODO: Image loading
 - TODO: Resource packaging
 
 ## Example

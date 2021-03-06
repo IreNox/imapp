@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stddef.h>
+#include <stdint.h>
 
 #if defined(__ANDROID__)
 #	define NK_SIZE_TYPE size_t
@@ -23,6 +23,12 @@ extern "C"
 
 typedef struct ImAppParameters ImAppParameters;
 typedef struct ImAppContext ImAppContext;
+typedef struct ImAppImage ImAppImage;
+
+typedef uint32_t ImAppColor;
+
+typedef void*(*ImAppAllocatorMallocFunc)(size_t size, void* userData);
+typedef void( *ImAppAllocatorFreeFunc )(void* memory, void* userData);
 
 //////////////////////////////////////////////////////////////////////////
 // These function must be implemented to create a ImApp Program:
@@ -44,9 +50,32 @@ void						ImAppQuit( ImAppContext* imAppContext );
 //////////////////////////////////////////////////////////////////////////
 // Image
 
-struct nk_image				ImAppImageLoadResource( ImAppContext* imAppContext, const char* resourceName );
-struct nk_image				ImAppImageLoadFromMemory( ImAppContext* imAppContext, const void* imageData, size_t imageDataSize );
-void						ImAppImageFree( ImAppContext* imAppContext, struct nk_image image );
+// Blocking Image 
+ImAppImage*					ImAppImageLoadResource( ImAppContext* imAppContext, const char* resourceName );
+ImAppImage*					ImAppImageLoadFromMemory( ImAppContext* imAppContext, const void* imageData, size_t imageDataSize, int width, int height );
+void						ImAppImageFree( ImAppContext* imAppContext, ImAppImage* image );
+
+struct nk_image				ImAppImageNuklear( ImAppImage* image );
+
+// Loads async and returns the Image Resource. While the Image is loading returns an default image with given attributes.
+struct nk_image				ImAppImageGet( ImAppContext* imAppContext, const char* resourceName, int defaultWidth, int defaultHeight, ImAppColor defaultColor );
+
+// Loads blocking and returns the given Image Resource.
+struct nk_image				ImAppImageGetBlocking( ImAppContext* imAppContext, const char* resourceName );
+
+//////////////////////////////////////////////////////////////////////////
+// Color
+
+uint8_t						ImAppColorGetR( ImAppColor color );
+uint8_t						ImAppColorGetG( ImAppColor color );
+uint8_t						ImAppColorGetB( ImAppColor color );
+uint8_t						ImAppColorGetA( ImAppColor color );
+
+ImAppColor					ImAppColorSetRGB( uint8_t r, uint8_t g, uint8_t b );
+ImAppColor					ImAppColorSetRGBA( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+
+ImAppColor					ImAppColorSetFloatRGB( float r, float g, float b );				// Floats between 0.0 and 1.0
+ImAppColor					ImAppColorSetFloatRGBA( float r, float g, float b, float a );	// Floats between 0.0 and 1.0
 
 //////////////////////////////////////////////////////////////////////////
 // Input
@@ -176,7 +205,7 @@ enum ImAppInputModifier
 
 struct ImAppInputShortcut
 {
-	unsigned		modifierMask;	// ImAppInputModifier
+	unsigned		modifierMask;	// Flags of ImAppInputModifier
 	ImAppInputKey	key;
 	enum nk_keys	nkKey;
 };
@@ -184,9 +213,6 @@ typedef struct ImAppInputShortcut ImAppInputShortcut;
 
 //////////////////////////////////////////////////////////////////////////
 // Types
-
-typedef void*(*ImAppAllocatorMallocFunc)( size_t size, void* userData );
-typedef void(*ImAppAllocatorFreeFunc)( void* memory, void* userData );
 
 struct ImAppAllocator
 {
@@ -205,6 +231,7 @@ struct ImAppParameters
 
 	int							tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 	bool						defaultFullWindow;	// Opens a default Window over the full size. Default: true
+
 
 	const ImAppInputShortcut*	shortcuts;
 	size_t						shortcutsLength;

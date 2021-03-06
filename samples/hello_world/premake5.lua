@@ -1,4 +1,4 @@
--- examples/hello_world
+-- samples/hello_world
 
 local project = Project:new( "imapp_hello_world", ProjectTypes.WindowApplication )
 

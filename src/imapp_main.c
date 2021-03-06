@@ -41,6 +41,8 @@ int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
 	{
 		lastTickValue = ImAppWindowTick( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
 
+		ImAppImageStorageUpdate( pImApp->pImages );
+
 		nk_input_begin( &pImApp->nkContext );
 		ImAppHandleEvents( pImApp );
 		nk_input_end( &pImApp->nkContext );
@@ -146,10 +148,17 @@ static bool ImAppInitialize( ImApp* pImApp )
 		return false;
 	}
 
-	pImApp->pRenderer = ImAppRendererCreate( &pImApp->parameters.allocator, pImApp->pPlatform );
+	pImApp->pRenderer = ImAppRendererCreate( &pImApp->parameters.allocator, pImApp->pPlatform, pImApp->pWindow );
 	if( pImApp->pRenderer == NULL )
 	{
 		ImAppShowError( pImApp->pPlatform, "Failed to create Renderer." );
+		return false;
+	}
+
+	pImApp->pImages = ImAppImageStorageCreate( &pImApp->parameters.allocator, pImApp->pPlatform, pImApp->pRenderer );
+	if( pImApp->pImages == NULL )
+	{
+		ImAppShowError( pImApp->pPlatform, "Failed to create Image Storage." );
 		return false;
 	}
 
@@ -167,6 +176,12 @@ static void ImAppCleanup( ImApp* pImApp )
 	{
 		ImAppProgramShutdown( &pImApp->context, pImApp->pProgramContext );
 		pImApp->pProgramContext = NULL;
+	}
+
+	if( pImApp->pImages != NULL )
+	{
+		ImAppImageStorageDestroy( pImApp->pImages );
+		pImApp->pImages = NULL;
 	}
 
 	if( pImApp->pRenderer != NULL )

@@ -10,6 +10,11 @@
 struct ImAppPlatform
 {
 	ImAppInputKey	inputKeyMapping[ SDL_NUM_SCANCODES ];
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+	wchar_t			resourcePath[ MAX_PATH ];
+	size_t			resourceBasePathLength;
+#endif
 };
 
 int SDL_main( int argc, char* argv[] )
@@ -132,6 +137,26 @@ int SDL_main( int argc, char* argv[] )
 
 		platform.inputKeyMapping[ scanCode ] = keyValue;
 	}
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+	GetModuleFileNameW( NULL, platform.resourcePath, IMAPP_ARRAY_COUNT( platform.resourcePath ) );
+	{
+		wchar_t* pTargetPath = wcsrchr( platform.resourcePath, L'\\' );
+		if( pTargetPath == NULL )
+		{
+			pTargetPath = platform.resourcePath;
+		}
+		else
+		{
+			pTargetPath++;
+		}
+		platform.resourceBasePathLength = (pTargetPath - platform.resourcePath);
+
+		const wchar_t assetsPath[] = L"assets\\";
+		wcscpy_s( pTargetPath, IMAPP_ARRAY_COUNT( platform.resourcePath ) - platform.resourceBasePathLength, assetsPath );
+		platform.resourceBasePathLength += IMAPP_ARRAY_COUNT( assetsPath ) - 1u;
+	}
+#endif
 
 	const int result = ImAppMain( &platform, argc, argv );
 
@@ -424,5 +449,53 @@ ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 	return ImAppWindowState_Default;
 }
 
-#endif
+//////////////////////////////////////////////////////////////////////////
+// Resources
 
+ImAppResource ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllocator, const char* pResourceName )
+{
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+	wchar_t* pTargetBuffer = pPlatform->resourcePath + pPlatform->resourceBasePathLength;
+	const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( pPlatform->resourcePath ) - pPlatform->resourceBasePathLength;
+	MultiByteToWideChar( CP_UTF8, 0, pResourceName, -1, pTargetBuffer, targetLengthInCharacters );
+
+	while( *pTargetBuffer != L'\0' )
+	{
+		if( *pTargetBuffer == L'/' )
+		{
+			*pTargetBuffer = L'\\';
+		}
+		pTargetBuffer++;
+	}
+
+	const HANDLE fileHandle = CreateFileW( pPlatform->resourcePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if( fileHandle == INVALID_HANDLE_VALUE )
+	{
+		const ImAppResource result = { NULL, 0u };
+		return result;
+	}
+
+	LARGE_INTEGER fileSize;
+	GetFileSizeEx( fileHandle, &fileSize );
+
+	void* pMemory = ImAppMalloc( pAllocator, (size_t)fileSize.QuadPart );
+
+	DWORD bytesRead = 0u;
+	const BOOL readResult = ReadFile( fileHandle, pMemory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
+	CloseHandle( fileHandle );
+
+	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
+	{
+		ImAppFree( pAllocator, pMemory );
+		const ImAppResource result = { NULL, 0u };
+		return result;
+	}
+
+	const ImAppResource result = { pMemory, (size_t)fileSize.QuadPart };
+	return result;
+#else
+#	error Not imeplemented
+#endif
+}
+
+#endif

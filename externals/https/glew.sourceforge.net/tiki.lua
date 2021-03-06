@@ -27,22 +27,26 @@ if not os.isfile( download_path ) then
 	end
 end
 
-local glew_project = Project:new( "glew", ProjectTypes.StaticLibrary )
+local glew_module = module
+if tiki.use_lib then
+	local glew_project = Project:new( "GLEW", ProjectTypes.StaticLibrary )
+	glew_module = glew_project.module
 
-glew_project.module.module_type = ModuleTypes.FilesModule
+	module.import_func = function( project, solution )
+		project:add_project_dependency( glew_project )	
+		solution:add_project( glew_project )
+	end
+end
 
-glew_project:add_include_dir( version_name .. "/include" )
+glew_module.module_type = ModuleTypes.FilesModule
 
-glew_project:add_files( version_name .. "/include/GL/*.h" )
-glew_project:add_files( version_name .. "/src/*.c" )
+glew_module:add_include_dir( version_name .. "/include" )
 
-glew_project:set_define( "GLEW_STATIC" )
+glew_module:add_files( version_name .. "/include/GL/*.h" )
+glew_module:add_files( version_name .. "/src/glew.c" )
+
+glew_module:set_define( "GLEW_STATIC" )
 
 module:add_include_dir( version_name .. "/include" )
 
 module:set_define( "GLEW_STATIC" )
-
-module.import_func = function( project, solution )
-	project:add_project_dependency( glew_project )	
-	solution:add_project( glew_project )
-end

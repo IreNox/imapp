@@ -27,18 +27,23 @@ if not os.isfile( download_path ) then
 	end
 end
 
-local sdl_project = Project:new( "sdl", ProjectTypes.StaticLibrary )
+local sdl_module = module
+local sdl_project = nil
+if tiki.use_lib then
+	sdl_project = Project:new( "SDL", ProjectTypes.StaticLibrary )
+	sdk_module = sdl_project.module
+end
 
-sdl_project.module.module_type = ModuleTypes.FilesModule
+sdl_module.module_type = ModuleTypes.FilesModule
 
-sdl_project:add_include_dir( version_name .. "/include" )
+sdl_module:add_include_dir( version_name .. "/include" )
 
-sdl_project:add_files( version_name .. "/include/*.h" )
-sdl_project:add_files( version_name .. "/src/*.h" )
-sdl_project:add_files( version_name .. "/src/*.c" )
+sdl_module:add_files( version_name .. "/include/*.h" )
+sdl_module:add_files( version_name .. "/src/*.h" )
+sdl_module:add_files( version_name .. "/src/*.c" )
 
 if tiki.target_platform == Platforms.Android then
-	sdl_project:set_define( "GL_GLEXT_PROTOTYPES" )
+	sdl_module:set_define( "GL_GLEXT_PROTOTYPES" )
 end
 
 sdl_modules = {
@@ -76,7 +81,7 @@ sdl_modules[ "main" ].platforms[ Platforms.Windows ]		= { windows	= { header = f
 sdl_modules[ "power" ].platforms[ Platforms.Windows ]		= { windows	= { header = false,	source = true } }
 sdl_modules[ "render" ].platforms[ Platforms.Windows ]		= { direct3d = { header = true, source = true }, opengl = { header = true, source = true }, opengles2 = { header = true, source = true }, software = { header = true, source = true } }
 sdl_modules[ "sensor" ].platforms[ Platforms.Windows ]		= { dummy	= { header = true,	source = true } }
-sdl_modules[ "thread" ].platforms[ Platforms.Windows ]		= { windows	= { header = true,	source = true }, generic = { header = true, source = true } }
+sdl_modules[ "thread" ].platforms[ Platforms.Windows ]		= { windows	= { header = true,	source = true } }
 sdl_modules[ "timer" ].platforms[ Platforms.Windows ]		= { windows	= { header = false,	source = true } }
 sdl_modules[ "video" ].platforms[ Platforms.Windows ]		= { windows	= { header = true,	source = true }, dummy = { header = true, source = true }, yuv2rgb = { header = true, source = true } }
 
@@ -99,11 +104,11 @@ for module_name, module_data in pairs( sdl_modules ) do
 	local module_path = version_name .. "/src/" .. module_name
 
 	if module_data.header then
-		sdl_project:add_files( module_path .. "/*.h" )
+		sdl_module:add_files( module_path .. "/*.h" )
 	end
 
 	if module_data.source then
-		sdl_project:add_files( module_path .. "/*.c" )
+		sdl_module:add_files( module_path .. "/*.c" )
 	end
 
 	local module_platform = module_data.platforms[ tiki.target_platform ]
@@ -112,24 +117,30 @@ for module_name, module_data in pairs( sdl_modules ) do
 			local platform_path = module_path .. "/" .. platform_name
 
 			if platform_data.header then
-				sdl_project:add_files( platform_path .. "/*.h" )
+				sdl_module:add_files( platform_path .. "/*.h" )
 			end
 
 			if platform_data.source then
-				sdl_project:add_files( platform_path .. "/*.c" )
+				sdl_module:add_files( platform_path .. "/*.c" )
 			end
 
 			if platform_data.source_cpp then
-				sdl_project:add_files( platform_path .. "/*.cpp" )
+				sdl_module:add_files( platform_path .. "/*.cpp" )
 			end
 		end
 	end
 end
 
+if tiki.target_platform == Platforms.Windows then
+	sdl_module:add_files( version_name .. "/src/thread/generic/SDL_syscond.c" )
+end
+
 module:add_include_dir( version_name .. "/include" )
 
 module.import_func = function( project, solution )
-	project:add_project_dependency( sdl_project )
+	if tiki.use_lib then
+		project:add_project_dependency( sdl_project )
+	end
 	
 	if tiki.target_platform == Platforms.Windows then
 		project:add_library_file( "imm32" )
@@ -142,5 +153,7 @@ module.import_func = function( project, solution )
 		project:add_library_file( "OpenSLES" )
 	end
 	
-	solution:add_project( sdl_project )
+	if tiki.use_lib then
+		solution:add_project( sdl_project )
+	end
 end

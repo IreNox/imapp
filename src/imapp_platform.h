@@ -43,3 +43,15 @@ void					ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, Im
 void					ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow );
 void					ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow );
 ImAppWindowState		ImAppWindowGetState( ImAppWindow* pWindow );
+
+//////////////////////////////////////////////////////////////////////////
+// Resources
+
+struct ImAppResource
+{
+	const void*			pData;
+	size_t				size;
+};
+typedef struct ImAppResource ImAppResource;
+
+ImAppResource			ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllocator, const char* pResourceName );

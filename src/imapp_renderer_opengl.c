@@ -1,5 +1,7 @@
 #include "imapp_renderer.h"
 
+#if IMAPP_ENABLED( IMAPP_RENDERER_OPENGL )
+
 #include "imapp_memory.h"
 
 #include <stdint.h>
@@ -106,9 +108,10 @@ static void		ImAppRendererDestroyResources( ImAppRenderer* pRenderer );
 
 static void		ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_context* pNkContext, int height );
 
-ImAppRenderer* ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform )
+ImAppRenderer* ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, ImAppWindow* pWindow )
 {
 	IMAPP_ASSERT( pPlatform != NULL );
+	IMAPP_ASSERT( pWindow != NULL );
 
 	ImAppRenderer* pRenderer = IMAPP_NEW_ZERO( pAllocator, ImAppRenderer );
 	if( pRenderer == NULL )
@@ -411,6 +414,11 @@ void ImAppRendererTextureDestroy( ImAppRenderer* pRenderer, ImAppRendererTexture
 		pTexture->texture = 0u;
 	}
 
+	if( pTexture == pRenderer->pFirstTexture )
+	{
+		pRenderer->pFirstTexture = pTexture->pNext;
+	}
+
 	ImAppFree( pRenderer->pAllocator, pTexture );
 }
 
@@ -507,3 +515,5 @@ static void ImAppRendererDrawNuklear( ImAppRenderer* pRenderer, struct nk_contex
 	nk_clear( pNkContext );
 	nk_buffer_clear( &pRenderer->nkCommands );
 }
+
+#endif
