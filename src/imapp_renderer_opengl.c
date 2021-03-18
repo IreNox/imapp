@@ -144,8 +144,9 @@ ImAppRenderer* ImAppRendererCreate( ImAppAllocator* pAllocator, ImAppPlatform* p
 		return NULL;
 	}
 
-	nk_font_atlas_init_default( &pRenderer->nkFontAtlas );
-	nk_buffer_init_default( &pRenderer->nkCommands );
+	struct nk_allocator allocator = ImAppAllocatorGetNuklear( pRenderer->pAllocator );
+	nk_font_atlas_init( &pRenderer->nkFontAtlas, &allocator );
+	nk_buffer_init( &pRenderer->nkCommands, &allocator, 4u * 1024u );
 
 	pRenderer->nkConvertConfig.vertex_layout		= s_aVertexLayout;
 	pRenderer->nkConvertConfig.vertex_size			= sizeof( ImAppRendererVertex );
@@ -332,7 +333,7 @@ bool ImAppRendererRecreateResources( ImAppRenderer* pRenderer )
 	return true;
 }
 
-struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext )
+struct nk_font* ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer )
 {
 	nk_font_atlas_begin( &pRenderer->nkFontAtlas );
 

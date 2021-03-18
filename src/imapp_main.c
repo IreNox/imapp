@@ -163,8 +163,9 @@ static bool ImAppInitialize( ImApp* pImApp )
 	}
 
 	{
-		struct nk_font* pFont = ImAppRendererCreateDefaultFont( pImApp->pRenderer, &pImApp->nkContext );
-		nk_init_default( &pImApp->nkContext, &pFont->handle );
+		struct nk_allocator allocator	= ImAppAllocatorGetNuklear( &pImApp->parameters.allocator );
+		struct nk_font* pFont			= ImAppRendererCreateDefaultFont( pImApp->pRenderer );
+		nk_init( &pImApp->nkContext, &allocator, &pFont->handle );
 	}
 
 	return true;

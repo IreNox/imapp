@@ -7,12 +7,14 @@
 
 #define IMAPP_ZERO( value ) ImAppMemoryZero( &value, sizeof( value ) )
 
-void*			ImAppMalloc( ImAppAllocator* pAllocator, size_t size );
-void*			ImAppMallocZero( ImAppAllocator* pAllocator, size_t size );
-void			ImAppFree( ImAppAllocator* pAllocator, void* pMemory );
+void*				ImAppMalloc( ImAppAllocator* pAllocator, size_t size );
+void*				ImAppMallocZero( ImAppAllocator* pAllocator, size_t size );
+void				ImAppFree( ImAppAllocator* pAllocator, void* pMemory );
 
-void			ImAppMemoryZero( void* pMemory, size_t size );
+void				ImAppMemoryZero( void* pMemory, size_t size );
 
-ImAppAllocator*	ImAppAllocatorGetDefault();
+ImAppAllocator*		ImAppAllocatorGetDefault();
 
-void			ImAppTrace( const char* pFormat, ... );
+struct nk_allocator	ImAppAllocatorGetNuklear( ImAppAllocator* pAllocator );
+
+void				ImAppTrace( const char* pFormat, ... );

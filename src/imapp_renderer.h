@@ -36,7 +36,7 @@ void					ImAppRendererDestroy( ImAppRenderer* pRenderer );
 
 bool					ImAppRendererRecreateResources( ImAppRenderer* pRenderer );
 
-struct nk_font*			ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer, struct nk_context* pNkContext );
+struct nk_font*			ImAppRendererCreateDefaultFont( ImAppRenderer* pRenderer );
 
 ImAppRendererTexture*	ImAppRendererTextureCreateFromFile( ImAppRenderer* pRenderer, const void* pFilename );
 ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* pRenderer, const void* pData, int width, int height );

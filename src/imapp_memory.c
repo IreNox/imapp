@@ -14,8 +14,11 @@
 #	include <android/log.h>
 #endif
 
-void*	ImAppAllocatorDefaultMalloc( size_t size, void* pUserData );
-void	ImAppAllocatorDefaultFree( void* pMemory, void* pUserData );
+static void*	ImAppAllocatorDefaultMalloc( size_t size, void* pUserData );
+static void		ImAppAllocatorDefaultFree( void* pMemory, void* pUserData );
+
+static void*	ImAppNkAlloc( nk_handle userHandle, void* pOldMemory, nk_size size );
+static void		ImAppNkFree( nk_handle userHandle, void* pMemory );
 
 static ImAppAllocator s_defaultAllocator =
 {
@@ -51,6 +54,16 @@ ImAppAllocator* ImAppAllocatorGetDefault()
 	return &s_defaultAllocator;
 }
 
+struct nk_allocator ImAppAllocatorGetNuklear( ImAppAllocator* pAllocator )
+{
+	struct nk_allocator nkAllocator;
+	nkAllocator.alloc		= ImAppNkAlloc;
+	nkAllocator.free		= ImAppNkFree;
+	nkAllocator.userdata	= nk_handle_ptr( pAllocator );
+
+	return nkAllocator;
+}
+
 void* ImAppAllocatorDefaultMalloc( size_t size, void* pUserData )
 {
 	return malloc( size );
@@ -59,6 +72,18 @@ void* ImAppAllocatorDefaultMalloc( size_t size, void* pUserData )
 void ImAppAllocatorDefaultFree( void* pMemory, void* pUserData )
 {
 	free( pMemory );
+}
+
+static void* ImAppNkAlloc( nk_handle userHandle, void* pOldMemory, nk_size size )
+{
+	ImAppAllocator* pAllocator = (ImAppAllocator*)userHandle.ptr;
+	return ImAppMalloc( pAllocator, size );
+}
+
+static void ImAppNkFree( nk_handle userHandle, void* pMemory )
+{
+	ImAppAllocator* pAllocator= (ImAppAllocator*)userHandle.ptr;
+	ImAppFree( pAllocator, pMemory );
 }
 
 void ImAppTrace( const char* pFormat, ... )

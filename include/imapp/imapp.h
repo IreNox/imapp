@@ -9,7 +9,6 @@
 #endif
 
 #define NK_INCLUDE_STANDARD_BOOL
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
@@ -28,7 +27,7 @@ typedef struct ImAppImage ImAppImage;
 typedef uint32_t ImAppColor;
 
 typedef void*(*ImAppAllocatorMallocFunc)(size_t size, void* userData);
-typedef void( *ImAppAllocatorFreeFunc )(void* memory, void* userData);
+typedef void(*ImAppAllocatorFreeFunc)(void* memory, void* userData);
 
 //////////////////////////////////////////////////////////////////////////
 // These function must be implemented to create a ImApp Program:
