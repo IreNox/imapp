@@ -24,7 +24,7 @@ module:add_files( 'src/sdl/*.c' )
 module:add_dependency( "nuklear" );
 
 module:add_external( "https://github.com/Immediate-Mode-UI/Nuklear.git" )
-module:add_external( "https://github.com/KhronosGroup/Vulkan-Headers.git" )
+module:add_external( "https://github.com/KhronosGroup/Vulkan-Headers.git@sdk-1.2.189" )
 module:add_external( "https://github.com/lvandeve/lodepng.git" )
 
 if tiki.use_sdl then
