@@ -24,17 +24,16 @@ module:add_files( 'src/sdl/*.c' )
 module:add_dependency( "nuklear" );
 
 module:add_external( "https://github.com/Immediate-Mode-UI/Nuklear.git" )
-module:add_external( "https://github.com/KhronosGroup/Vulkan-Headers.git@sdk-1.2.189" )
 module:add_external( "https://github.com/lvandeve/lodepng.git" )
 
 if tiki.use_sdl then
 	module:set_define( "IMAPP_PLATFORM_SDL", "1" );
 
-	module:add_external( "https://www.libsdl.org@2.0.12" )
+	module:add_external( "https://github.com/libsdl-org/SDL@2.28.3" )
 end
 
 if tiki.target_platform == Platforms.Windows then
-	module:add_external( "https://glew.sourceforge.net/@2.1.0" )
+	module:add_external( "https://github.com/nigels-com/glew@2.2.0" )
 
 	module:add_library_file( "opengl32" )
 	
