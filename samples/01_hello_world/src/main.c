@@ -4,21 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct ProgramContext
+struct ImAppTestProgramContext
 {
 	int		tickIndex;
 	char	nameBuffer[ 128u ];
 };
 
-void* ImAppProgramInitialize( ImAppParameters* pParameters )
+void* ImAppProgramInitialize( ImAppParameters* parameters )
 {
-	pParameters->tickIntervalMs		= 15;
-	pParameters->defaultFullWindow	= false;
-	pParameters->windowTitle		= "Hello World";
-	pParameters->windowWidth		= 400;
-	pParameters->windowHeight		= 250;
+	parameters->tickIntervalMs		= 15;
+	parameters->defaultFullWindow	= false;
+	parameters->windowTitle			= "Hello World";
+	parameters->windowWidth			= 400;
+	parameters->windowHeight		= 250;
 
-	ProgramContext* pContext = (ProgramContext*)malloc( sizeof( ProgramContext ) );
+	ImAppTestProgramContext* pContext = (ImAppTestProgramContext*)malloc( sizeof( ImAppTestProgramContext ) );
 	pContext->tickIndex = 0u;
 	strcpy( pContext->nameBuffer, "World" );
 
@@ -27,7 +27,7 @@ void* ImAppProgramInitialize( ImAppParameters* pParameters )
 
 void ImAppProgramDoUi( ImAppContext* pImAppContext, void* pProgramContext )
 {
-	ProgramContext* pContext = (ProgramContext*)pProgramContext;
+	ImAppTestProgramContext* pContext = (ImAppTestProgramContext*)pProgramContext;
 	struct nk_context* pNkContext = pImAppContext->nkContext;
 
 	if( nk_begin( pNkContext, "Hello World", nk_recti( pImAppContext->x, pImAppContext->y, pImAppContext->width, pImAppContext->height ), NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE ) )

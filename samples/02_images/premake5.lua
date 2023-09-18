@@ -1,6 +1,6 @@
--- samples/images
+-- samples/03_images
 
-local project = Project:new( "imapp_images", ProjectTypes.WindowApplication )
+local project = Project:new( ProjectTypes.WindowApplication )
 
 project:add_files( 'src/*.c' )
 
