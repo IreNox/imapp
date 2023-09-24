@@ -1,4 +1,4 @@
--- https/github.com/lvandeve/lodepng.git
+-- https://github.com/lvandeve/lodepng.git
 
 local lodepng_module = module
 if tiki.use_lib then

@@ -3,13 +3,7 @@
 local imapp_path = module.config.base_path
 
 tiki.use_sdl = (tiki.target_platform == Platforms.Windows)
-tiki.use_lib = false
-
-local nuklear_module = Module:new( "nuklear" );
-nuklear_module.module_type = ModuleTypes.UnityCModule
-nuklear_module:add_files( 'src/nuklear/*.c')
-
-module.module_type = ModuleTypes.UnityCModule
+--tiki.use_lib = false
 
 module:add_include_dir( "include" )
 
@@ -21,10 +15,8 @@ module:add_files( 'src/android/*.c' )
 module:add_files( 'src/windows/*.c' )
 module:add_files( 'src/sdl/*.c' )
 
-module:add_dependency( "nuklear" );
-
-module:add_external( "https://github.com/Immediate-Mode-UI/Nuklear.git" )
-module:add_external( "https://github.com/lvandeve/lodepng.git" )
+module:add_external( "local://third_party/imui" )
+module:add_external( "local://third_party/lodepng" )
 
 if tiki.use_sdl then
 	module:set_define( "IMAPP_PLATFORM_SDL", "1" );
