@@ -138,6 +138,11 @@ void ImAppResourceStorageUpdate( ImAppResourceStorage* storage )
 	}
 }
 
+bool ImAppResourceStorageRecreateEverything( ImAppResourceStorage* storage )
+{
+	return false;
+}
+
 ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, ImUiStringView resourceName, bool autoFree )
 {
 	bool isNew;
@@ -185,7 +190,7 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 		return NULL;
 	}
 
-	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height );
+	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
 	free( pixelData );
 
 	if( texture == NULL )
@@ -208,7 +213,7 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 
 ImAppImage* ImAppResourceStorageImageCreateFromMemory( ImAppResourceStorage* storage, const void* pixelData, int width, int height )
 {
-	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height );
+	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
 	if( texture == NULL )
 	{
 		return NULL;
@@ -264,7 +269,7 @@ ImUiFont* ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStr
 		return false;
 	}
 
-	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, textureData, width, height );
+	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, textureData, width, height, ImAppRendererFormat_R8, ImAppRendererShading_Font );
 	free( textureData );
 
 	if( !texture )

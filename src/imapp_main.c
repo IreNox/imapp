@@ -83,17 +83,9 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 			ImUiFrame* frame		= ImUiBegin( imapp->context.imui, lastTickValue / 1000.0f );
 			ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
 			ImUiWindow* window		= ImUiWindowBegin( surface, ImUiStringViewCreate( "default" ), ImUiRectCreateSize( 0.0f, 0.0f, size ), 0u );
-			//if( imapp->parameters.defaultFullWindow )
-			//{
-			//	nk_begin( &imapp->nkContext, "Default", nk_recti( imapp->context.x, imapp->context.y, imapp->context.width, imapp->context.height ), NK_WINDOW_NO_SCROLLBAR );
-			//}
 
-			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext	, window );
+			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, window );
 
-			//if( imapp->parameters.defaultFullWindow )
-			//{
-			//	nk_end( &imapp->nkContext );
-			//}
 			ImUiWindowEnd( window );
 			drawData = ImUiSurfaceEnd( surface );
 			ImUiEnd( frame );
@@ -106,6 +98,13 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 			if( !ImAppRendererRecreateResources( imapp->renderer ) )
 			{
 				imapp->running = false;
+				break;
+			}
+
+			if( !ImAppResourceStorageRecreateEverything( imapp->resources ) )
+			{
+				imapp->running = false;
+				break;
 			}
 		}
 	}
@@ -191,7 +190,8 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 	memset( &uiParameters, 0, sizeof( uiParameters ) );
 
 	uiParameters.allocator		= imapp->allocator;
-	uiParameters.vertexType		= ImUiVertexType_VertexList;
+	uiParameters.vertexType		= ImUiVertexType_IndexedVertexList;
+	uiParameters.vertexFormat	= ImAppRendererGetVertexFormat();
 
 	imapp->context.imui = ImUiCreate( &uiParameters );
 	if( !imapp->context.imui )

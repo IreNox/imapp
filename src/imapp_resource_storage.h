@@ -20,6 +20,7 @@ ImAppResourceStorage*		ImAppResourceStorageCreate( ImUiAllocator* allocator, ImA
 void						ImAppResourceStorageDestroy( ImAppResourceStorage* storage );
 
 void						ImAppResourceStorageUpdate( ImAppResourceStorage* storage );
+bool						ImAppResourceStorageRecreateEverything( ImAppResourceStorage* storage );
 
 ImAppImage*					ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, ImUiStringView resourceName, bool autoFree );
 ImAppImage*					ImAppResourceStorageImageCreateFromMemory( ImAppResourceStorage* storage, const void* pPixelData, int width, int height );
