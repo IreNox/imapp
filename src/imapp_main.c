@@ -1,208 +1,265 @@
 #include "imapp_main.h"
 
-#include "imapp/imapp.h"
-
-#include "imapp_defines.h"
-#include "imapp_memory.h"
+#include "imapp_event.h"
+#include "imapp_event_queue.h"
+#include "imapp_resource_storage.h"
+#include "imapp_internal.h"
+#include "imapp_platform.h"
 #include "imapp_renderer.h"
 
 #include <limits.h>
+#include <string.h>
 
-static void		ImAppFillDefaultParameters( ImAppParameters* pParameters );
-static bool		ImAppInitialize( ImApp* pImApp );
-static void		ImAppCleanup( ImApp* pImApp );
-static void		ImAppHandleEvents( ImApp* pImApp );
-static void		ImAppUpdateInputModifer( ImApp* pImApp, const ImAppEvent* pEvent, ImAppInputKey key1, ImAppInputKey key2, uint8_t* pMask, uint32_t modifierFlag );
-static void		ImAppUpdateInputModiferFlag( ImApp* pImApp, uint8_t* pTargetMask, uint8_t maskChange, bool set, uint32_t modifierFlag );
+static void		ImAppFillDefaultParameters( ImAppParameters* parameters );
+static bool		ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters );
+static void		ImAppCleanup( ImAppInternal* imapp );
+static void		ImAppHandleEvents( ImAppInternal* imapp );
+static void		ImAppUpdateInputModifer( ImAppInternal* imapp, const ImAppEvent* pEvent, ImUiInputKey key1, ImUiInputKey key2, uint8_t* pMask, uint32_t modifierFlag );
+static void		ImAppUpdateInputModiferFlag( ImAppInternal* imapp, uint8_t* pTargetMask, uint8_t maskChange, bool set, uint32_t modifierFlag );
 
-int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] )
+int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 {
-	ImApp* pImApp = NULL;
+	ImAppInternal* imapp = NULL;
+	int tickIntervalMs = 0;
 	{
-		ImAppParameters parameters = { 0 };
+		void* programContext = NULL;
+		ImAppParameters parameters;
 		ImAppFillDefaultParameters( &parameters );
 
-		pImApp = IMAPP_NEW_ZERO( &parameters.allocator, ImApp );
-
-		pImApp->running				= true;
-		pImApp->pPlatform			= pPlatform;
-		pImApp->context.nkContext	= &pImApp->nkContext;
-		pImApp->parameters			= parameters;
-
-		if( !ImAppInitialize( pImApp ) )
+		programContext = ImAppProgramInitialize( &parameters, argc, argv );
+		if( programContext == NULL )
 		{
-			ImAppCleanup( pImApp );
+			ImAppPlatformShowError( platform, "Failed to initialize Program." );
+			return 1;
+		}
+
+		ImUiAllocator allocator;
+		ImUiMemoryAllocatorPrepare( &allocator, &parameters.allocator );
+
+		imapp = IMUI_MEMORY_NEW_ZERO( &allocator, ImAppInternal );
+		if( !imapp )
+		{
+			ImAppPlatformShowError( platform, "Failed to create ImApp." );
+			return 1;
+		}
+
+		ImUiMemoryAllocatorPrepare( &imapp->allocator, &allocator );
+
+		imapp->running			= true;
+		imapp->platform			= platform;
+		imapp->programContext	= programContext;
+
+		if( !ImAppPlatformInitialize( platform, &imapp->allocator ) )
+		{
+			ImAppPlatformShowError( imapp->platform, "Failed to initialize Platform." );
+			ImAppCleanup( imapp );
+			return 1;
+		}
+
+		if( !ImAppInitialize( imapp, &parameters ) )
+		{
+			ImAppCleanup( imapp );
+			return 1;
+		}
+
+		tickIntervalMs = parameters.tickIntervalMs;
+	}
+
+	int64_t lastTickValue = 0;
+	while( imapp->running )
+	{
+		lastTickValue = ImAppPlatformWindowTick( imapp->window, lastTickValue, tickIntervalMs );
+
+		ImAppResourceStorageUpdate( imapp->resources );
+		ImAppHandleEvents( imapp );
+
+		ImAppPlatformWindowGetViewRect( &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height, imapp->window );
+
+		// UI
+		const ImUiDrawData* drawData = NULL;
+		{
+			const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
+
+			ImUiFrame* frame		= ImUiBegin( imapp->context.imui, lastTickValue / 1000.0f );
+			ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
+			ImUiWindow* window		= ImUiWindowBegin( surface, ImUiStringViewCreate( "default" ), ImUiRectCreateSize( 0.0f, 0.0f, size ), 0u );
+			//if( imapp->parameters.defaultFullWindow )
+			//{
+			//	nk_begin( &imapp->nkContext, "Default", nk_recti( imapp->context.x, imapp->context.y, imapp->context.width, imapp->context.height ), NK_WINDOW_NO_SCROLLBAR );
+			//}
+
+			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext	, window );
+
+			//if( imapp->parameters.defaultFullWindow )
+			//{
+			//	nk_end( &imapp->nkContext );
+			//}
+			ImUiWindowEnd( window );
+			drawData = ImUiSurfaceEnd( surface );
+			ImUiEnd( frame );
+		}
+
+		ImAppRendererDraw( imapp->renderer, imapp->window, drawData );
+
+		if( !ImAppPlatformWindowPresent( imapp->window ) )
+		{
+			if( !ImAppRendererRecreateResources( imapp->renderer ) )
+			{
+				imapp->running = false;
+			}
+		}
+	}
+
+	ImAppCleanup( imapp );
+	return 0;
+}
+
+//static const ImAppInputShortcut s_inputShortcuts[] =
+//{
+//	{ 0u,													ImUiInputKey_LeftShift,	NK_KEY_SHIFT },
+//	{ 0u,													ImUiInputKey_RightShift,	NK_KEY_SHIFT },
+//	{ 0u,													ImUiInputKey_LeftControl,	NK_KEY_CTRL },
+//	{ 0u,													ImUiInputKey_RightControl,	NK_KEY_CTRL },
+//	{ 0u,													ImUiInputKey_Delete,		NK_KEY_DEL },
+//	{ 0u,													ImUiInputKey_Enter,		NK_KEY_ENTER },
+//	{ 0u,													ImUiInputKey_Tab,			NK_KEY_TAB },
+//	{ 0u,													ImUiInputKey_Backspace,	NK_KEY_BACKSPACE },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_C,			NK_KEY_COPY },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_X,			NK_KEY_CUT },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_V,			NK_KEY_PASTE },
+//	{ 0u,													ImUiInputKey_Up,			NK_KEY_UP },
+//	{ 0u,													ImUiInputKey_Down,			NK_KEY_DOWN },
+//	{ 0u,													ImUiInputKey_Left,			NK_KEY_LEFT },
+//	{ 0u,													ImUiInputKey_Right,		NK_KEY_RIGHT },
+//																						/* Shortcuts: text field */
+//	{ 0u,													ImUiInputKey_Insert,		NK_KEY_TEXT_INSERT_MODE },
+//	{ 0u,													ImUiInputKey_None,			NK_KEY_TEXT_REPLACE_MODE },
+//	{ 0u,													ImUiInputKey_None,			NK_KEY_TEXT_RESET_MODE },
+//	{ 0u,													ImUiInputKey_Home,			NK_KEY_TEXT_LINE_START },
+//	{ 0u,													ImUiInputKey_End,			NK_KEY_TEXT_LINE_END },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Home,			NK_KEY_TEXT_START },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_End,			NK_KEY_TEXT_END },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Z,			NK_KEY_TEXT_UNDO },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Y,			NK_KEY_TEXT_REDO },
+//	{ ImAppInputModifier_Ctrl | ImAppInputModifier_Shift,	ImUiInputKey_Z,			NK_KEY_TEXT_REDO },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_A,			NK_KEY_TEXT_SELECT_ALL },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Left,			NK_KEY_TEXT_WORD_LEFT },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Right,		NK_KEY_TEXT_WORD_RIGHT },
+//																						/* Shortcuts: scrollbar */
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Home,			NK_KEY_SCROLL_START },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_End,			NK_KEY_SCROLL_END },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Down,			NK_KEY_SCROLL_DOWN },
+//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Up,			NK_KEY_SCROLL_UP },
+//};
+
+static void ImAppFillDefaultParameters( ImAppParameters* parameters )
+{
+	memset( parameters, 0, sizeof( *parameters ) );
+
+	parameters->tickIntervalMs		= 0;
+	parameters->defaultFontName		= ImUiStringViewCreate( "arial.ttf" );
+	parameters->defaultFontSize		= 16.0f;
+	parameters->windowEnable		= true;
+	parameters->windowTitle			= "I'm App";
+	parameters->windowWidth			= 1280;
+	parameters->windowHeight		= 720;
+	//pParameters->shortcuts				= s_inputShortcuts;
+	//pParameters->shortcutsLength		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
+}
+
+static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters )
+{
+	if( parameters->windowEnable )
+	{
+		imapp->window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, 0, 0, parameters->windowWidth, parameters->windowHeight, ImAppWindowState_Default );
+		if( !imapp->window )
+		{
+			ImAppPlatformShowError( imapp->platform, "Failed to create Window." );
+			ImAppCleanup( imapp );
 			return 1;
 		}
 	}
 
-	int64_t lastTickValue = 0;
-	while( pImApp->running )
+	imapp->renderer = ImAppRendererCreate( &imapp->allocator, imapp->platform, imapp->window );
+	if( imapp->renderer == NULL )
 	{
-		lastTickValue = ImAppWindowTick( pImApp->pWindow, lastTickValue, pImApp->parameters.tickIntervalMs );
-
-		ImAppImageStorageUpdate( pImApp->pImages );
-
-		nk_input_begin( &pImApp->nkContext );
-		ImAppHandleEvents( pImApp );
-		nk_input_end( &pImApp->nkContext );
-
-		ImAppWindowGetViewRect( &pImApp->context.x, &pImApp->context.y, &pImApp->context.width, &pImApp->context.height, pImApp->pWindow );
-
-		// UI
-		{
-			if( pImApp->parameters.defaultFullWindow )
-			{
-				nk_begin( &pImApp->nkContext, "Default", nk_recti( pImApp->context.x, pImApp->context.y, pImApp->context.width, pImApp->context.height ), NK_WINDOW_NO_SCROLLBAR );
-			}
-
-			ImAppProgramDoUi( &pImApp->context, pImApp->pProgramContext );
-
-			if( pImApp->parameters.defaultFullWindow )
-			{
-				nk_end( &pImApp->nkContext );
-			}
-		}
-
-		int screenWidth;
-		int screenHeight;
-		ImAppWindowGetSize( &screenWidth, &screenHeight, pImApp->pWindow );
-
-		ImAppRendererDraw( pImApp->pRenderer, &pImApp->nkContext, screenWidth, screenHeight );
-		if( !ImAppWindowPresent( pImApp->pWindow ) )
-		{
-			if( !ImAppRendererRecreateResources( pImApp->pRenderer ) )
-			{
-				pImApp->running = false;
-			}
-		}
-	}
-
-	ImAppCleanup( pImApp );
-	return 0;
-}
-
-static const ImAppInputShortcut s_inputShortcuts[] =
-{
-	{ 0u,													ImAppInputKey_LeftShift,	NK_KEY_SHIFT },
-	{ 0u,													ImAppInputKey_RightShift,	NK_KEY_SHIFT },
-	{ 0u,													ImAppInputKey_LeftControl,	NK_KEY_CTRL },
-	{ 0u,													ImAppInputKey_RightControl,	NK_KEY_CTRL },
-	{ 0u,													ImAppInputKey_Delete,		NK_KEY_DEL },
-	{ 0u,													ImAppInputKey_Enter,		NK_KEY_ENTER },
-	{ 0u,													ImAppInputKey_Tab,			NK_KEY_TAB },
-	{ 0u,													ImAppInputKey_Backspace,	NK_KEY_BACKSPACE },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_C,			NK_KEY_COPY },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_X,			NK_KEY_CUT },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_V,			NK_KEY_PASTE },
-	{ 0u,													ImAppInputKey_Up,			NK_KEY_UP },
-	{ 0u,													ImAppInputKey_Down,			NK_KEY_DOWN },
-	{ 0u,													ImAppInputKey_Left,			NK_KEY_LEFT },
-	{ 0u,													ImAppInputKey_Right,		NK_KEY_RIGHT },
-																						/* Shortcuts: text field */
-	{ 0u,													ImAppInputKey_Insert,		NK_KEY_TEXT_INSERT_MODE },
-	{ 0u,													ImAppInputKey_None,			NK_KEY_TEXT_REPLACE_MODE },
-	{ 0u,													ImAppInputKey_None,			NK_KEY_TEXT_RESET_MODE },
-	{ 0u,													ImAppInputKey_Home,			NK_KEY_TEXT_LINE_START },
-	{ 0u,													ImAppInputKey_End,			NK_KEY_TEXT_LINE_END },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Home,			NK_KEY_TEXT_START },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_End,			NK_KEY_TEXT_END },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Z,			NK_KEY_TEXT_UNDO },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Y,			NK_KEY_TEXT_REDO },
-	{ ImAppInputModifier_Ctrl | ImAppInputModifier_Shift,	ImAppInputKey_Z,			NK_KEY_TEXT_REDO },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_A,			NK_KEY_TEXT_SELECT_ALL },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Left,			NK_KEY_TEXT_WORD_LEFT },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Right,		NK_KEY_TEXT_WORD_RIGHT },
-																						/* Shortcuts: scrollbar */
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Home,			NK_KEY_SCROLL_START },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_End,			NK_KEY_SCROLL_END },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Down,			NK_KEY_SCROLL_DOWN },
-	{ ImAppInputModifier_Ctrl,								ImAppInputKey_Up,			NK_KEY_SCROLL_UP },
-};
-
-static void ImAppFillDefaultParameters( ImAppParameters* pParameters )
-{
-	pParameters->allocator				= *ImAppAllocatorGetDefault();
-	pParameters->tickIntervalMs			= 0;
-	pParameters->defaultFullWindow		= true;
-	pParameters->windowTitle			= "I'm App";
-	pParameters->windowWidth			= 1280;
-	pParameters->windowHeight			= 720;
-	pParameters->shortcuts				= s_inputShortcuts;
-	pParameters->shortcutsLength		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
-}
-
-static bool ImAppInitialize( ImApp* pImApp )
-{
-	pImApp->pProgramContext = ImAppProgramInitialize( &pImApp->parameters );
-	if( pImApp->pProgramContext == NULL )
-	{
-		ImAppShowError( pImApp->pPlatform, "Failed to initialize Program." );
+		ImAppPlatformShowError( imapp->platform, "Failed to create Renderer." );
 		return false;
 	}
 
-	pImApp->pWindow = ImAppWindowCreate( &pImApp->parameters.allocator, pImApp->pPlatform, pImApp->parameters.windowTitle, 0, 0, pImApp->parameters.windowWidth, pImApp->parameters.windowHeight, ImAppWindowState_Default );
-	if( pImApp->pWindow == NULL )
+	ImUiParameters uiParameters;
+	memset( &uiParameters, 0, sizeof( uiParameters ) );
+
+	uiParameters.allocator		= imapp->allocator;
+	uiParameters.vertexType		= ImUiVertexType_VertexList;
+
+	imapp->context.imui = ImUiCreate( &uiParameters );
+	if( !imapp->context.imui )
 	{
-		ImAppShowError( pImApp->pPlatform, "Failed to create Window." );
+		ImAppPlatformShowError( imapp->platform, "Failed to create ImUi." );
 		return false;
 	}
 
-	pImApp->pRenderer = ImAppRendererCreate( &pImApp->parameters.allocator, pImApp->pPlatform, pImApp->pWindow );
-	if( pImApp->pRenderer == NULL )
+	imapp->resources = ImAppResourceStorageCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->context.imui );
+	if( imapp->resources == NULL )
 	{
-		ImAppShowError( pImApp->pPlatform, "Failed to create Renderer." );
+		ImAppPlatformShowError( imapp->platform, "Failed to create Image Storage." );
 		return false;
 	}
 
-	pImApp->pImages = ImAppImageStorageCreate( &pImApp->parameters.allocator, pImApp->pPlatform, pImApp->pRenderer );
-	if( pImApp->pImages == NULL )
+	if( parameters->defaultFontName.length > 0u )
 	{
-		ImAppShowError( pImApp->pPlatform, "Failed to create Image Storage." );
-		return false;
+		imapp->defaultFont = ImAppResourceStorageFontCreate( imapp->resources, parameters->defaultFontName, parameters->defaultFontSize );
+
+		ImUiToolboxConfig toolboxConfig;
+		ImUiToolboxFillDefaultConfig( &toolboxConfig, imapp->defaultFont );
+		ImUiToolboxSetConfig( &toolboxConfig );
 	}
 
-	{
-		struct nk_allocator allocator	= ImAppAllocatorGetNuklear( &pImApp->parameters.allocator );
-		struct nk_font* pFont			= ImAppRendererCreateDefaultFont( pImApp->pRenderer );
-		nk_init( &pImApp->nkContext, &allocator, &pFont->handle );
-	}
+	//{
+	//	struct nk_allocator allocator	= ImAppAllocatorGetNuklear( &imapp->parameters.allocator );
+	//	struct nk_font* pFont			= ImAppRendererCreateDefaultFont( imapp->renderer );
+	//	nk_init( &imapp->nkContext, &allocator, &pFont->handle );
+	//}
 
 	return true;
 }
 
-static void ImAppCleanup( ImApp* pImApp )
+static void ImAppCleanup( ImAppInternal* imapp )
 {
-	if( pImApp->pProgramContext != NULL )
+	if( imapp->programContext != NULL )
 	{
-		ImAppProgramShutdown( &pImApp->context, pImApp->pProgramContext );
-		pImApp->pProgramContext = NULL;
+		ImAppProgramShutdown( &imapp->context, imapp->programContext );
+		imapp->programContext = NULL;
 	}
 
-	if( pImApp->pImages != NULL )
+	if( imapp->resources != NULL )
 	{
-		ImAppImageStorageDestroy( pImApp->pImages );
-		pImApp->pImages = NULL;
+		ImAppResourceStorageDestroy( imapp->resources );
+		imapp->resources = NULL;
 	}
 
-	if( pImApp->pRenderer != NULL )
+	if( imapp->renderer != NULL )
 	{
-		ImAppRendererDestroy( pImApp->pRenderer );
-		pImApp->pRenderer = NULL;
+		ImAppRendererDestroy( imapp->renderer );
+		imapp->renderer = NULL;
 	}
 
-	if( pImApp->pWindow != NULL )
+	if( imapp->window != NULL )
 	{
-		ImAppWindowDestroy( pImApp->pWindow );
-		pImApp->pWindow = NULL;
+		ImAppPlatformWindowDestroy( imapp->window );
+		imapp->window = NULL;
 	}
 
-	ImAppFree( &pImApp->parameters.allocator, pImApp );
+	ImAppPlatformShutdown( imapp->platform );
+
+	ImUiMemoryFree( &imapp->allocator, imapp );
 }
 
-static void ImAppHandleEvents( ImApp* pImApp )
+static void ImAppHandleEvents( ImAppInternal* imapp )
 {
-	ImAppEventQueue* pEventQueue = ImAppWindowGetEventQueue( pImApp->pWindow );
+	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( imapp->window );
+	ImUiInput* input = ImUiInputBegin( imapp->context.imui );
 
 	ImAppEvent windowEvent;
 	while( ImAppEventQueuePop( pEventQueue, &windowEvent ) )
@@ -210,102 +267,109 @@ static void ImAppHandleEvents( ImApp* pImApp )
 		switch( windowEvent.type )
 		{
 		case ImAppEventType_WindowClose:
-			pImApp->running = false;
+			imapp->running = false;
 			break;
 
 		case ImAppEventType_KeyDown:
-		case ImAppEventType_KeyUp:
-			{
-				const bool down = windowEvent.type == ImAppEventType_KeyDown;
-
-				ImAppUpdateInputModifer( pImApp, &windowEvent, ImAppInputKey_LeftShift, ImAppInputKey_RightShift, &pImApp->inputMaskShift, ImAppInputModifier_Shift );
-				ImAppUpdateInputModifer( pImApp, &windowEvent, ImAppInputKey_LeftControl, ImAppInputKey_RightControl, &pImApp->inputMaskControl, ImAppInputModifier_Ctrl );
-				ImAppUpdateInputModifer( pImApp, &windowEvent, ImAppInputKey_LeftAlt, ImAppInputKey_None, &pImApp->inputMaskAlt, ImAppInputModifier_Alt );
-
-				if( windowEvent.key.key == ImAppInputKey_RightAlt )
-				{
-					const uint8_t mask = 0x4u;
-					ImAppUpdateInputModiferFlag( pImApp, &pImApp->inputMaskControl, mask, down, ImAppInputModifier_Ctrl );
-					ImAppUpdateInputModiferFlag( pImApp, &pImApp->inputMaskAlt, mask, down, ImAppInputModifier_Alt );
-				}
-
-				for( size_t i = 0u; i < pImApp->parameters.shortcutsLength; ++i )
-				{
-					const ImAppInputShortcut* pShortcut = &pImApp->parameters.shortcuts[ i ];
-					const uint32_t nkMask	= 1u << pShortcut->nkKey;
-					const bool nkDown		= (pImApp->inputDownMask & nkMask) != 0u;
-					if( pShortcut->key != windowEvent.key.key )
-					{
-						continue;
-					}
-
-					if( pShortcut->modifierMask != pImApp->inputModifiers || !down )
-					{
-						continue;
-					}
-
-					if( !down && !nkDown )
-					{
-						continue;
-					}
-
-					nk_input_key( &pImApp->nkContext, pShortcut->nkKey, down );
-
-					if( down )
-					{
-						pImApp->inputDownMask |= nkMask;
-					}
-					else
-					{
-						pImApp->inputDownMask &= ~nkMask;
-					}
-				}
-			}
+			ImUiInputPushKeyDown( input, windowEvent.key.key );
 			break;
 
+		case ImAppEventType_KeyUp:
+			ImUiInputPushKeyUp( input, windowEvent.key.key );
+			break;
+
+			//{
+			//	const bool down = windowEvent.type == ImAppEventType_KeyDown;
+
+			//	ImAppUpdateInputModifer( imapp, &windowEvent, ImUiInputKey_LeftShift, ImUiInputKey_RightShift, &imapp->inputMaskShift, ImAppInputModifier_Shift );
+			//	ImAppUpdateInputModifer( imapp, &windowEvent, ImUiInputKey_LeftControl, ImUiInputKey_RightControl, &imapp->inputMaskControl, ImAppInputModifier_Ctrl );
+			//	ImAppUpdateInputModifer( imapp, &windowEvent, ImUiInputKey_LeftAlt, ImUiInputKey_None, &imapp->inputMaskAlt, ImAppInputModifier_Alt );
+
+			//	//if( windowEvent.key.key == ImUiInputKey_RightAlt )
+			//	//{
+			//	//	const uint8_t mask = 0x4u;
+			//	//	ImAppUpdateInputModiferFlag( imapp, &imapp->inputMaskControl, mask, down, ImAppInputModifier_Ctrl );
+			//	//	ImAppUpdateInputModiferFlag( imapp, &imapp->inputMaskAlt, mask, down, ImAppInputModifier_Alt );
+			//	//}
+
+			//	//for( size_t i = 0u; i < imapp->parameters.shortcutsLength; ++i )
+			//	//{
+			//	//	const ImAppInputShortcut* pShortcut = &imapp->parameters.shortcuts[ i ];
+			//	//	const uint32_t nkMask	= 1u << pShortcut->nkKey;
+			//	//	const bool nkDown		= (imapp->inputDownMask & nkMask) != 0u;
+			//	//	if( pShortcut->key != windowEvent.key.key )
+			//	//	{
+			//	//		continue;
+			//	//	}
+
+			//	//	if( pShortcut->modifierMask != imapp->inputModifiers || !down )
+			//	//	{
+			//	//		continue;
+			//	//	}
+
+			//	//	if( !down && !nkDown )
+			//	//	{
+			//	//		continue;
+			//	//	}
+
+			//	//	imuiinputpush
+			//	//	nk_input_key( &imapp->nkContext, pShortcut->nkKey, down );
+
+			//	//	if( down )
+			//	//	{
+			//	//		imapp->inputDownMask |= nkMask;
+			//	//	}
+			//	//	else
+			//	//	{
+			//	//		imapp->inputDownMask &= ~nkMask;
+			//	//	}
+			//	//}
+			//}
+			//break;
+
 		case ImAppEventType_Character:
-			nk_input_char( &pImApp->nkContext, windowEvent.character.character );
+			ImUiInputPushTextChar( input, windowEvent.character.character );
 			break;
 
 		case ImAppEventType_Motion:
-			nk_input_motion( &pImApp->nkContext, windowEvent.motion.x, windowEvent.motion.y );
+			ImUiInputPushMouseMove( input, (float)windowEvent.motion.x, (float)windowEvent.motion.y );
 			break;
 
 		case ImAppEventType_ButtonDown:
+			ImUiInputPushMouseDown( input, windowEvent.button.button );
+			break;
+
 		case ImAppEventType_ButtonUp:
-			{
-				enum nk_buttons button;
-				if( windowEvent.button.button == ImAppInputButton_Left &&
-					windowEvent.button.repeateCount == 2u )
-				{
-					button = NK_BUTTON_DOUBLE;
-				}
-				else
-				{
-					switch( windowEvent.button.button )
-					{
-					case ImAppInputButton_Left:		button = NK_BUTTON_LEFT; break;
-					case ImAppInputButton_Middle:	button = NK_BUTTON_MIDDLE; break;
-					case ImAppInputButton_Right:	button = NK_BUTTON_RIGHT; break;
+			ImUiInputPushMouseUp( input, windowEvent.button.button );
+			//{
+			//	ImUiInputMouseButton button;
+			//	switch( windowEvent.button.button )
+			//	{
+			//	case ImAppInputButton_Left:		button = ImUiInputMouseButton_Left; break;
+			//	case ImAppInputButton_Middle:	button = ImUiInputMouseButton_Middle; break;
+			//	case ImAppInputButton_Right:	button = ImUiInputMouseButton_Right; break;
+			//	case ImAppInputButton_Middle:	button = ImUiInputMouseButton_Middle; break;
+			//	case ImAppInputButton_Right:	button = ImUiInputMouseButton_Right; break;
 
-					default:
-						continue;
-					}
-				}
+			//	default:
+			//		continue;
+			//	}
 
-				const nk_bool down = windowEvent.type == ImAppEventType_ButtonDown;
-				nk_input_button( &pImApp->nkContext, button, windowEvent.button.x, windowEvent.button.y, down );
-			}
+			//	const nk_bool down = windowEvent.type == ImAppEventType_ButtonDown;
+			//	nk_input_button( &imapp->nkContext, button, windowEvent.button.x, windowEvent.button.y, down );
+			//}
 			break;
 
 		case ImAppEventType_Scroll:
-			nk_input_scroll( &pImApp->nkContext, nk_vec2i( windowEvent.scroll.x, windowEvent.scroll.y ) );
+			ImUiInputPushMouseScroll( input, (float)windowEvent.scroll.x, (float)windowEvent.scroll.y );
 			break;
 		}
 	}
+
+	ImUiInputEnd( imapp->context.imui );
 }
 
-static void ImAppUpdateInputModifer( ImApp* pImApp, const ImAppEvent* pEvent, ImAppInputKey key1, ImAppInputKey key2, uint8_t* pMask, uint32_t modifierFlag )
+static void ImAppUpdateInputModifer( ImAppInternal* imapp, const ImAppEvent* pEvent, ImUiInputKey key1, ImUiInputKey key2, uint8_t* pMask, uint32_t modifierFlag )
 {
 	if( pEvent->key.key != key1 &&
 		pEvent->key.key != key2 )
@@ -315,10 +379,10 @@ static void ImAppUpdateInputModifer( ImApp* pImApp, const ImAppEvent* pEvent, Im
 
 	const uint8_t mask = pEvent->key.key == key1 ? 0x1u : 0x2u;
 	const bool set = pEvent->type == ImAppEventType_KeyDown;
-	ImAppUpdateInputModiferFlag( pImApp, pMask, mask, set, modifierFlag );
+	ImAppUpdateInputModiferFlag( imapp, pMask, mask, set, modifierFlag );
 }
 
-static void ImAppUpdateInputModiferFlag( ImApp* pImApp, uint8_t* pTargetMask, uint8_t maskChange, bool set, uint32_t modifierFlag )
+static void ImAppUpdateInputModiferFlag( ImAppInternal* imapp, uint8_t* pTargetMask, uint8_t maskChange, bool set, uint32_t modifierFlag )
 {
 	if( set )
 	{
@@ -331,10 +395,10 @@ static void ImAppUpdateInputModiferFlag( ImApp* pImApp, uint8_t* pTargetMask, ui
 
 	if( *pTargetMask )
 	{
-		pImApp->inputModifiers |= modifierFlag;
+		imapp->inputModifiers |= modifierFlag;
 	}
 	else
 	{
-		pImApp->inputModifiers &= ~modifierFlag;
+		imapp->inputModifiers &= ~modifierFlag;
 	}
 }

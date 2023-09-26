@@ -6,7 +6,7 @@
 
 typedef struct ImAppEventQueue ImAppEventQueue;
 
-ImAppEventQueue*	ImAppEventQueueCreate( ImAppAllocator* pAllocator );
+ImAppEventQueue*	ImAppEventQueueCreate( ImUiAllocator* pAllocator );
 void				ImAppEventQueueDestroy( ImAppEventQueue* pQueue );
 
 void				ImAppEventQueuePush( ImAppEventQueue* pQueue, const ImAppEvent* pEvent );

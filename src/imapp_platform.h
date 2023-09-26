@@ -1,60 +1,57 @@
 #pragma once
 
+#include "imapp_internal.h"
+#include "imapp_main.h"
+
 //////////////////////////////////////////////////////////////////////////
 // Core
 
-struct ImAppPlatform;
 typedef struct ImAppPlatform ImAppPlatform;
 
-void					ImAppShowError( ImAppPlatform* pPlatform, const char* pMessage );
+bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator );
+void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
-//////////////////////////////////////////////////////////////////////////
-// Shared Libraries
-
-struct ImAppSharedLib;
-typedef struct ImAppSharedLib* ImAppSharedLibHandle;
-
-ImAppSharedLibHandle	ImAppSharedLibOpen( const char* pSharedLibName );
-void					ImAppSharedLibClose( ImAppSharedLibHandle libHandle );
-void*					ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFunctionName );
+void					ImAppPlatformShowError( ImAppPlatform* platform, const char* pMessage );
 
 //////////////////////////////////////////////////////////////////////////
 // Window
 
+typedef struct ImAppEventQueue ImAppEventQueue;
 typedef struct ImAppWindow ImAppWindow;
 
+typedef enum ImAppWindowState ImAppWindowState;
 enum ImAppWindowState
 {
 	ImAppWindowState_Default,
 	ImAppWindowState_Maximized,
 	ImAppWindowState_Minimized
 };
-typedef enum ImAppWindowState ImAppWindowState;
 
-ImAppWindow*			ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state );
-void					ImAppWindowDestroy( ImAppWindow* pWindow );
+ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state );
+void					ImAppPlatformWindowDestroy( ImAppWindow* window );
 
-bool					ImAppWindowCreateGlContext( ImAppWindow* pWindow );
-void					ImAppWindowDestroyGlContext( ImAppWindow* pWindow );
+bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );
+void					ImAppPlatformWindowDestroyGlContext( ImAppWindow* window );
 
-int64_t					ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval );
-bool					ImAppWindowPresent( ImAppWindow* pWindow );
+int64_t					ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval );
+bool					ImAppPlatformWindowPresent( ImAppWindow* window );
 
-ImAppEventQueue*		ImAppWindowGetEventQueue( ImAppWindow* pWindow );
+ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
 
-void					ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow );
-void					ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow );
-void					ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow );
-ImAppWindowState		ImAppWindowGetState( ImAppWindow* pWindow );
+void					ImAppPlatformWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* window );
+void					ImAppPlatformWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* window );
+void					ImAppPlatformWindowGetPosition( int* pX, int* pY, ImAppWindow* window );
+ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-struct ImAppResource
+typedef struct ImAppBlob ImAppBlob;
+struct ImAppBlob
 {
-	const void*			pData;
+	const void*			data;
 	size_t				size;
 };
-typedef struct ImAppResource ImAppResource;
 
-ImAppResource			ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllocator, const char* pResourceName );
+ImAppBlob				ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView resourceName );
+ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, ImUiStringView resourceName );

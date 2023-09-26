@@ -1,6 +1,6 @@
 #include "imapp_event_queue.h"
 
-#include "imapp_memory.h"
+#include "imapp_internal.h"
 
 #define IMAPP_EVENT_QUEUE_CHUNK_SIZE 32
 
@@ -17,14 +17,14 @@ struct ImAppEventQueueChunk
 
 struct ImAppEventQueue
 {
-	ImAppAllocator*			pAllocator;
+	ImUiAllocator*			pAllocator;
 
 	ImAppEventQueueChunk*	pCurrentChunk;
 };
 
-ImAppEventQueue* ImAppEventQueueCreate( ImAppAllocator* pAllocator )
+ImAppEventQueue* ImAppEventQueueCreate( ImUiAllocator* pAllocator )
 {
-	ImAppEventQueue* pQueue = IMAPP_NEW_ZERO( pAllocator, ImAppEventQueue );
+	ImAppEventQueue* pQueue = IMUI_MEMORY_NEW_ZERO( pAllocator, ImAppEventQueue );
 	pQueue->pAllocator = pAllocator;
 
 	return pQueue;
@@ -36,11 +36,11 @@ void ImAppEventQueueDestroy( ImAppEventQueue* pQueue )
 	while( pChunk != NULL )
 	{
 		ImAppEventQueueChunk* pNextChunk = pChunk->pNext;
-		ImAppFree( pQueue->pAllocator, pChunk );
+		ImUiMemoryFree( pQueue->pAllocator, pChunk );
 		pChunk = pNextChunk;
 	}
 
-	ImAppFree( pQueue->pAllocator, pQueue );
+	ImUiMemoryFree( pQueue->pAllocator, pQueue );
 }
 
 void ImAppEventQueuePush( ImAppEventQueue* pQueue, const ImAppEvent* pEvent )
@@ -48,7 +48,7 @@ void ImAppEventQueuePush( ImAppEventQueue* pQueue, const ImAppEvent* pEvent )
 	if( pQueue->pCurrentChunk == NULL ||
 		pQueue->pCurrentChunk->length == IMAPP_EVENT_QUEUE_CHUNK_SIZE )
 	{
-		ImAppEventQueueChunk* pNewChunk = IMAPP_NEW_ZERO( pQueue->pAllocator, ImAppEventQueueChunk );
+		ImAppEventQueueChunk* pNewChunk = IMUI_MEMORY_NEW_ZERO( pQueue->pAllocator, ImAppEventQueueChunk );
 
 		pNewChunk->pNext = pQueue->pCurrentChunk;
 		pQueue->pCurrentChunk = pNewChunk;
@@ -79,7 +79,7 @@ bool ImAppEventQueuePop( ImAppEventQueue* pQueue, ImAppEvent* pEvent )
 	if( pChunk->length == 0u )
 	{
 		pQueue->pCurrentChunk = pChunk->pNext;
-		ImAppFree( pQueue->pAllocator, pChunk );
+		ImUiMemoryFree( pQueue->pAllocator, pChunk );
 	}
 
 	return true;

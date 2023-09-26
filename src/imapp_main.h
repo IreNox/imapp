@@ -1,5 +1,5 @@
 #pragma once
 
-#include "imapp_platform.h"
+typedef struct ImAppPlatform ImAppPlatform;
 
 int		ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] );
