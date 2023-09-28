@@ -1,8 +1,11 @@
 [submodule "third_party/imui"]
-	path = third_party/imui
+	path = submodules/imui
 	url = https://github.com/IreNox/imui.git
 	branch = master
 [submodule "third_party/lodepng"]
-	path = third_party/lodepng
+	path = submodules/lodepng
 	url = https://github.com/lvandeve/lodepng.git
 	branch = master
+[submodule "submodules/tiki_core"]
+	path = submodules/tiki_core
+	url = https://github.com/IreNox/tiki_core.git
