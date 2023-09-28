@@ -7,6 +7,8 @@
 #include "imui/imui_toolbox.h"
 
 #ifdef __cplusplus
+#	include "imui/imui_cpp.h"
+
 extern "C"
 {
 #endif
@@ -35,7 +37,7 @@ struct ImAppParameters
 	int							windowHeight;		// Default: 720
 };
 
-typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImUiWindow* window );
+typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImUiSurface* surface );
 
 //////////////////////////////////////////////////////////////////////////
 // Program entry points
@@ -45,7 +47,7 @@ typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, 
 void*						ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] );
 
 // Called for every tick to build the UI.
-void						ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiWindow* window );
+void						ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface );
 
 // Called before shutdown. Free the Program Context here.
 void						ImAppProgramShutdown( ImAppContext* imapp, void* programContext );

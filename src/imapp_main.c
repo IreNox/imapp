@@ -82,11 +82,9 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 
 			ImUiFrame* frame		= ImUiBegin( imapp->context.imui, lastTickValue / 1000.0f );
 			ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
-			ImUiWindow* window		= ImUiWindowBegin( surface, ImUiStringViewCreate( "default" ), ImUiRectCreateSize( 0.0f, 0.0f, size ), 0u );
 
-			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, window );
+			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
 
-			ImUiWindowEnd( window );
 			drawData = ImUiSurfaceEnd( surface );
 			ImUiEnd( frame );
 		}
