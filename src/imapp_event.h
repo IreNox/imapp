@@ -27,6 +27,7 @@ struct ImAppInputKeyEvent
 {
 	ImAppEventType			type;
 	ImUiInputKey			key;
+	bool					repeat;
 };
 
 typedef struct ImAppInputCharacterEvent ImAppInputCharacterEvent;

@@ -270,6 +270,11 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 
 		case ImAppEventType_KeyDown:
 			ImUiInputPushKeyDown( input, windowEvent.key.key );
+
+			if( windowEvent.key.repeat )
+			{
+				ImUiInputPushKeyRepeat( input, windowEvent.key.key );
+			}
 			break;
 
 		case ImAppEventType_KeyUp:

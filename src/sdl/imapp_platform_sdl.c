@@ -302,16 +302,16 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 	return true;
 }
 
-void ImAppPlatformWindowDestroyGlContext( ImAppWindow* pWindow )
+void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 {
-	if( pWindow->glContext != NULL )
+	if( window->glContext != NULL )
 	{
-		SDL_GL_DeleteContext( pWindow->glContext );
-		pWindow->glContext = NULL;
+		SDL_GL_DeleteContext( window->glContext );
+		window->glContext = NULL;
 	}
 }
 
-int64_t ImAppPlatformWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval )
 {
 	const int64_t nextTick = (int64_t)SDL_GetTicks64();
 
@@ -333,46 +333,47 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, in
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
 			{
-				const SDL_KeyboardEvent* pKeyEvent = &sdlEvent.key;
+				const SDL_KeyboardEvent* sdlKeyEvent = &sdlEvent.key;
 
-				const ImUiInputKey mappedKey = pWindow->platform->inputKeyMapping[ pKeyEvent->keysym.scancode ];
+				const ImUiInputKey mappedKey = window->platform->inputKeyMapping[ sdlKeyEvent->keysym.scancode ];
 				if( mappedKey != ImUiInputKey_None )
 				{
-					const ImAppEventType eventType	= pKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
-					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey } };
-					ImAppEventQueuePush( pWindow->eventQueue, &keyEvent );
+					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+					const bool repeate				= sdlKeyEvent->repeat != 0;
+					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
+					ImAppEventQueuePush( window->eventQueue, &keyEvent );
 				}
 			}
 			break;
 
 		case SDL_TEXTINPUT:
 			{
-				const SDL_TextInputEvent* pTextInputEvent = &sdlEvent.text;
+				const SDL_TextInputEvent* textInputEvent = &sdlEvent.text;
 
-				for( const char* pText = pTextInputEvent->text; *pText != '\0'; ++pText )
+				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
 				{
 					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
-					ImAppEventQueuePush( pWindow->eventQueue, &charEvent );
+					ImAppEventQueuePush( window->eventQueue, &charEvent );
 				}
 			}
 			break;
 
 		case SDL_MOUSEMOTION:
 			{
-				const SDL_MouseMotionEvent* pMotionEvent = &sdlEvent.motion;
+				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
 
-				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = pMotionEvent->x, .y = pMotionEvent->y } };
-				ImAppEventQueuePush( pWindow->eventQueue, &motionEvent );
+				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
+				ImAppEventQueuePush( window->eventQueue, &motionEvent );
 			}
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 			{
-				const SDL_MouseButtonEvent* pButtonEvent = &sdlEvent.button;
+				const SDL_MouseButtonEvent* sdlButtonEvent = &sdlEvent.button;
 
 				ImUiInputMouseButton button;
-				switch( pButtonEvent->button )
+				switch( sdlButtonEvent->button )
 				{
 				case SDL_BUTTON_LEFT:	button = ImUiInputMouseButton_Left; break;
 				case SDL_BUTTON_MIDDLE:	button = ImUiInputMouseButton_Middle; break;
@@ -384,30 +385,30 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, in
 					continue;
 				}
 
-				const ImAppEventType eventType	= pButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = pButtonEvent->x, .y = pButtonEvent->y, .button = button, .repeateCount = pButtonEvent->clicks } };
-				ImAppEventQueuePush( pWindow->eventQueue, &buttonEvent );
+				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
+				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
+				ImAppEventQueuePush( window->eventQueue, &buttonEvent );
 			}
 			break;
 
 		case SDL_MOUSEWHEEL:
 			{
-				const SDL_MouseWheelEvent* pWheelEvent = &sdlEvent.wheel;
+				const SDL_MouseWheelEvent* wheelEvent = &sdlEvent.wheel;
 
-				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = pWheelEvent->x, .y = pWheelEvent->y } };
-				ImAppEventQueuePush( pWindow->eventQueue, &scrollEvent );
+				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = wheelEvent->x, .y = wheelEvent->y } };
+				ImAppEventQueuePush( window->eventQueue, &scrollEvent );
 			}
 			break;
 
 		case SDL_WINDOWEVENT:
 			{
-				const SDL_WindowEvent* pWindowEvent = &sdlEvent.window;
-				switch( pWindowEvent->event )
+				const SDL_WindowEvent* windowEvent = &sdlEvent.window;
+				switch( windowEvent->event )
 				{
 				case SDL_WINDOWEVENT_CLOSE:
 					{
 						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
-						ImAppEventQueuePush( pWindow->eventQueue, &closeEvent );
+						ImAppEventQueuePush( window->eventQueue, &closeEvent );
 					}
 					break;
 

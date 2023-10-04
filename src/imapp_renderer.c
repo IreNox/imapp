@@ -448,7 +448,6 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawDa
 	bool lastAlphaBlend = true;
 	GLuint lastProgramHandle = 0;
 
-	GLint offset = 0;
 	const uint32_t* elementOffset = NULL;
 	for( size_t i = 0u; i < drawData->commandCount; ++i )
 	{
@@ -504,8 +503,8 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawDa
 			(GLint)(command->clipRect.size.height)
 		);
 
-		glDrawElements( GL_TRIANGLES, (GLsizei)command->count, GL_UNSIGNED_INT, elementOffset );
+		const GLenum topology = (command->topology == ImUiDrawTopology_LineList ? GL_LINES : GL_TRIANGLES);
+		glDrawElements( topology, (GLsizei)command->count, GL_UNSIGNED_INT, elementOffset );
 		elementOffset += command->count;
-		offset += (GLint)command->count;
 	}
 }
