@@ -12,7 +12,7 @@ if tiki.use_lib then
 end
 
 -- kind of a hack to compile it as C and not C++
-lodepng_module.module_type = ModuleTypes.UnityCModule
+lodepng_module.module_type = ModuleTypes.UnityModule
 
 lodepng_module:add_files( 'lodepng.h' )
 lodepng_module:add_files( 'lodepng.cpp' )
