@@ -4,8 +4,10 @@
 #include "imapp_platform.h"
 #include "imapp_renderer.h"
 
-#include <lodepng.h>
+#include <spng/spng.h>
+
 #include <stdlib.h>
+#include <string.h>
 
 typedef enum ImAppResourceState ImAppResourceState;
 enum ImAppResourceState
@@ -23,7 +25,7 @@ struct ImAppResource
 
 	ImAppResource*		prevResource;
 	ImAppResource*		nextResource;
-	ImAppResourceState		state;
+	ImAppResourceState	state;
 
 	char				resourceName[ 1u ];
 };
@@ -145,8 +147,10 @@ bool ImAppResourceStorageRecreateEverything( ImAppResourceStorage* storage )
 
 ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, ImUiStringView resourceName, bool autoFree )
 {
+	const ImUiStringView* resourceNameKey = &resourceName;
+
 	bool isNew;
-	ImAppResource** mapImage = (ImAppResource**)ImUiHashMapInsertNew( &storage->imageMap, &resourceName, &isNew );
+	ImAppResource** mapImage = (ImAppResource**)ImUiHashMapInsertNew( &storage->imageMap, &resourceNameKey, &isNew );
 	if( !mapImage )
 	{
 		return NULL;
@@ -178,19 +182,35 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 		return NULL;
 	}
 
-	uint8_t* pixelData;
-	unsigned width;
-	unsigned height;
-	const unsigned pngResult = lodepng_decode_memory( &pixelData, &width, &height, (const unsigned char*)imageBlob.data, imageBlob.size, LCT_RGBA, 8u );
-	ImUiMemoryFree( storage->allocator, imageBlob.data );
+	spng_ctx* spng = spng_ctx_new( 0 );
+	spng_set_png_buffer( spng, imageBlob.data, imageBlob.size );
 
-	if( pngResult != 0 )
+	size_t pixelDataSize;
+	spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
+
+	struct spng_ihdr ihdr;
+	spng_get_ihdr( spng, &ihdr );
+
+	void* pixelData = ImUiMemoryAlloc( storage->allocator, pixelDataSize );
+	if( !pixelData )
 	{
+		spng_ctx_free( spng );
 		ImUiHashMapRemove( &storage->imageMap, &resourceName );
 		return NULL;
 	}
 
-	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
+	const int pngResult = spng_decode_image( spng, pixelData, pixelDataSize, SPNG_FMT_RGBA8, 0 );
+	ImUiMemoryFree( storage->allocator, imageBlob.data );
+	spng_ctx_free( spng );
+
+	if( pngResult != 0 )
+	{
+		ImUiMemoryFree( storage->allocator, pixelData );
+		ImUiHashMapRemove( &storage->imageMap, &resourceName );
+		return NULL;
+	}
+
+	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, ihdr.width, ihdr.height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
 	free( pixelData );
 
 	if( texture == NULL )
@@ -202,12 +222,13 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 	ImAppResource* image = (ImAppResource*)ImUiMemoryAllocZero( storage->allocator, IMUI_OFFSETOF( ImAppResource, resourceName ) + resourceName.length + 1u );
 	image->image.resourceName	= ImUiStringViewCreateLength( image->resourceName, resourceName.length );
 	image->image.pTexture		= texture;
-	image->image.size			= ImUiSizeCreate( (float)width, (float)height );
+	image->image.size			= ImUiSizeCreate( (float)ihdr.width, (float)ihdr.height );
 
 	memcpy( image->resourceName, resourceName.data, resourceName.length );
 
 	ImAppResourceStorageChangeState( storage, image, autoFree ? ImAppImageState_Managed : ImAppImageState_Default );
 
+	*mapImage = image;
 	return &image->image;
 }
 

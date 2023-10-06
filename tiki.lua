@@ -16,7 +16,7 @@ module:add_files( 'src/windows/*.c' )
 module:add_files( 'src/sdl/*.c' )
 
 module:add_external( "local://submodules/imui" )
-module:add_external( "local://submodules/lodepng" )
+module:add_external( "local://submodules/libspng" )
 
 if tiki.use_sdl then
 	module:set_define( "IMAPP_PLATFORM_SDL", "1" );
