@@ -111,7 +111,7 @@
 #	define IMAPP_POINTER_64				TIKI_OFF
 #endif
 
-#ifdef _DEBUG
+#if defined( _DEBUG ) || defined( __DEBUG__ )
 #	define IMAPP_DEBUG					TIKI_ON
 #else
 #	define IMAPP_DEBUG					TIKI_OFF
@@ -134,8 +134,6 @@
 #	define IMAPP_ASSERT( expr )
 #	define IMAPP_VERIFY( expr ) expr
 #endif
-
-#define IMAPP_ARRAY_COUNT( arr ) ( sizeof( arr ) / sizeof( *arr ) )
 
 #if IMAPP_ENABLED( IMAPP_COMPILER_MSVC )
 #	define IMAPP_ALIGN_PREFIX( var )		__declspec( align( var ) )
@@ -176,5 +174,7 @@
 #endif
 
 #define IMAPP_STATIC_ASSERT( expr ) static_assert( ( expr ), #expr )
+
+#define IMAPP_ARRAY_COUNT( arr ) ( sizeof( arr ) / sizeof( *arr ) )
 
 #define IMAPP_USE( var ) (void)var

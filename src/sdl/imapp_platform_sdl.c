@@ -151,24 +151,6 @@ int SDL_main( int argc, char* argv[] )
 	}
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	GetModuleFileNameW( NULL, platform.resourcePath, IMAPP_ARRAY_COUNT( platform.resourcePath ) );
-	{
-		wchar_t* pTargetPath = wcsrchr( platform.resourcePath, L'\\' );
-		if( pTargetPath == NULL )
-		{
-			pTargetPath = platform.resourcePath;
-		}
-		else
-		{
-			pTargetPath++;
-		}
-		platform.resourceBasePathLength = (pTargetPath - platform.resourcePath);
-
-		const wchar_t assetsPath[] = L"assets\\";
-		wcscpy_s( pTargetPath, IMAPP_ARRAY_COUNT( platform.resourcePath ) - platform.resourceBasePathLength, assetsPath );
-		platform.resourceBasePathLength += IMAPP_ARRAY_COUNT( assetsPath ) - 1u;
-	}
-
 	platform.fontBasePathLength = GetWindowsDirectoryW( platform.fontPath, IMAPP_ARRAY_COUNT( platform.fontPath ) );
 	{
 		const wchar_t fontsPath[] = L"\\Fonts\\";
@@ -184,9 +166,69 @@ int SDL_main( int argc, char* argv[] )
 	return result;
 }
 
-bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator )
+bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
+
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+	const char* sourcePath = resourcePath;
+	if( sourcePath && strstr( sourcePath, "./" ) == sourcePath )
+	{
+		GetModuleFileNameW( NULL, platform->resourcePath, IMAPP_ARRAY_COUNT( platform->resourcePath ) );
+		sourcePath += 2u;
+	}
+	{
+		wchar_t* pTargetPath = wcsrchr( platform->resourcePath, L'\\' );
+		if( pTargetPath == NULL )
+		{
+			pTargetPath = platform->resourcePath;
+		}
+		else
+		{
+			pTargetPath++;
+		}
+		platform->resourceBasePathLength = (pTargetPath - platform->resourcePath);
+
+//#if IMAPP_ENABLED( IMAPP_DEBUG )
+//		const wchar_t assetsPath[] = L"..\\..\\..\\..\\assets\\";
+//#else
+//		const wchar_t assetsPath[] = L"assets\\";
+//#endif
+		//wcscpy_s( pTargetPath, IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength, sourcePath );
+
+		const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - (int)platform->resourceBasePathLength;
+		const int convertResult = MultiByteToWideChar( CP_UTF8, 0u, sourcePath, -1, pTargetPath, targetLengthInCharacters );
+		if( !convertResult )
+		{
+			ImAppTrace( "Error: Failed to convert resource path!\n" );
+			return false;
+		}
+
+		for( size_t i = 0; i < convertResult - 1; ++i )
+		{
+			if( pTargetPath[ i ] == L'/' )
+			{
+				pTargetPath[ i ] = L'\\';
+			}
+		}
+
+		platform->resourceBasePathLength += (size_t)convertResult - 1;
+
+		if( platform->resourcePath[ platform->resourceBasePathLength - 1u ] != L'/' )
+		{
+			if( platform->resourceBasePathLength == IMAPP_ARRAY_COUNT( platform->resourcePath ) )
+			{
+				ImAppTrace( "Error: Resource path exceeds limit!\n" );
+				return false;
+			}
+
+			platform->resourcePath[ platform->resourceBasePathLength ] = L'\\';
+			platform->resourceBasePathLength++;
+		}
+	}
+#endif
+
 	return true;
 }
 
@@ -245,7 +287,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	flags |= SDL_WINDOW_RESIZABLE;
 #endif
 
-	window->sdlWindow = SDL_CreateWindow( windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags );
+	window->sdlWindow = SDL_CreateWindow( windowTitle, SDL_WINDOWPOS_UNDEFINED_DISPLAY( 2 ), SDL_WINDOWPOS_UNDEFINED_DISPLAY( 2 ), width, height, flags );
 	if( window->sdlWindow == NULL )
 	{
 		SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", "Failed to create Window.", NULL );

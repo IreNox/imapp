@@ -8,7 +8,7 @@
 
 typedef struct ImAppPlatform ImAppPlatform;
 
-bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator );
+bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* pMessage );

@@ -24,8 +24,10 @@ struct ImAppParameters
 
 	int							tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 
-	ImUiStringView				defaultFontName;
-	float						defaultFontSize;
+	const char*					resourcePath;		// Path where resources loaded from. use ./ for relative to executable. default: {exe_dir}/assets
+
+	const char*					defaultFontName;	// default: arial.ttf;
+	float						defaultFontSize;	// default: 16
 
 	//const ImAppInputShortcut*	shortcuts;
 	//size_t						shortcutsLength;
