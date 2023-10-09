@@ -27,7 +27,9 @@ namespace imapp
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
 	{
-		doState( surface );
+		m_package.updateFileData( surface.getTime() );
+
+		doPopupState( surface );
 
 		UiToolboxWindow window( surface, "main", surface.getRect(), 1 );
 
@@ -75,6 +77,8 @@ namespace imapp
 
 						window.label( (RtStr)resource.getName() );
 					}
+
+					m_selecedResource = list.getSelectedIndex();
 				}
 
 				{
@@ -85,14 +89,14 @@ namespace imapp
 					plusButton.setStretch( UiSize::Horizontal );
 					if( plusButton.end() )
 					{
-						m_state = State::New;
+						m_popupState = PopupState::New;
 					}
 
 					UiToolboxButtonLabel minusButton( window, "-" );
 					minusButton.setStretch( UiSize::Horizontal );
 					if( minusButton.end() )
 					{
-						m_state = State::DeleteConfirm;
+						m_popupState = PopupState::DeleteConfirm;
 					}
 				}
 			}
@@ -100,41 +104,42 @@ namespace imapp
 			{
 				UiWidget viewWidget( window );
 				viewWidget.setStretch( UiSize::One );
+				viewWidget.setLayoutVertical();
 
-				const ImUiTexture image = ImAppImageGetBlocking( imapp, IMUI_STR( "test.png" ) );
-				viewWidget.drawWidgetTexture( image );
+				doView( window );
+				//const ImUiTexture image = ImAppImageGetBlocking( imapp, IMUI_STR( "test.png" ) );
+				//viewWidget.drawWidgetTexture( image );
 			}
 		}
 
 	}
 
-	void ResourceTool::doState( UiSurface& surface )
+	void ResourceTool::doPopupState( UiSurface& surface )
 	{
-		switch( m_state )
+		switch( m_popupState )
 		{
-		case ResourceTool::State::Home:
+		case ResourceTool::PopupState::Home:
 			break;
 
-		case ResourceTool::State::New:
-			doStateNew( surface );
+		case ResourceTool::PopupState::New:
+			doPupupStateNew( surface );
 			break;
 
-		case ResourceTool::State::DeleteConfirm:
-			doStateDeleteConfirm( surface );
+		case ResourceTool::PopupState::DeleteConfirm:
+			doPopupStateDeleteConfirm( surface );
 			break;
 
-		case ResourceTool::State::Error:
-			doStateError( surface );
+		case ResourceTool::PopupState::Error:
+			doPopupStateError( surface );
 			break;
 		}
 	}
 
-	void ResourceTool::doStateNew( UiSurface& surface )
+	void ResourceTool::doPupupStateNew( UiSurface& surface )
 	{
 		UiToolboxPopup popup( surface );
 
 		UiStringView name;
-		UiStringView path;
 		size_t typeIndex;
 		{
 			UiWidgetLayoutVertical layout( popup );
@@ -149,9 +154,6 @@ namespace imapp
 			// HACK: really ugly but works. need a was to convert to UiStringView in a proper way.
 			typeIndex = popup.dropDown( (const UiStringView*)items.getData(), items.getLength() );
 			popup.spacer( 1.0f, 4.0f );
-
-			popup.label( "Path:" );
-			path = popup.textEditState( 128u );
 		}
 
 		bool ok = true;
@@ -165,31 +167,26 @@ namespace imapp
 			popup.label( "No type set!" );
 			ok = false;
 		}
-		if( path.isEmpty() )
-		{
-			popup.label( "No path set!" );
-			ok = false;
-		}
 
 		const UiStringView buttons[] = { "Ok", "Cancel" };
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex == 0u && ok )
 		{
-			m_package.addResource( (RtStr)name, (ResourceType)typeIndex, (RtStr)path );
-			m_state = State::Home;
+			m_package.addResource( (RtStr)name, (ResourceType)typeIndex );
+			m_popupState = PopupState::Home;
 		}
 		else if( buttonIndex == 1u )
 		{
-			m_state = State::Home;
+			m_popupState = PopupState::Home;
 		}
 	}
 
-	void ResourceTool::doStateDeleteConfirm( UiSurface& surface )
+	void ResourceTool::doPopupStateDeleteConfirm( UiSurface& surface )
 	{
 
 	}
 
-	void ResourceTool::doStateError( UiSurface& surface )
+	void ResourceTool::doPopupStateError( UiSurface& surface )
 	{
 		UiToolboxPopup popup( surface );
 
@@ -204,8 +201,73 @@ namespace imapp
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex == 0u )
 		{
-			m_state = State::Home;
+			m_popupState = PopupState::Home;
 		}
+	}
+
+	void ResourceTool::doView( UiToolboxWindow& window )
+	{
+		if( m_selecedResource >= m_package.getResourceCount() )
+		{
+			window.label( "No resource selected." );
+			return;
+		}
+
+		Resource& resource = m_package.getResource( m_selecedResource );
+
+		window.label( "Name:" );
+		{
+			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
+			pathLayout.setStretch( UiSize::Horizontal );
+
+			const RtStr newName = window.textEditState( 256u, (RtStr)resource.getName() );
+			if( newName != resource.getName() &&
+				window.buttonLabel( "Change" ) )
+			{
+				resource.setName( newName );
+			}
+		}
+
+		switch( resource.getType() )
+		{
+		case ResourceType::Image:
+			doViewImage( window, resource );
+			break;
+
+		case ResourceType::Skin:
+			doViewSkin( window, resource );
+			break;
+
+		case ResourceType::Config:
+			doViewConfig( window, resource );
+			break;
+		}
+	}
+
+	void ResourceTool::doViewImage( UiToolboxWindow& window, Resource& resource )
+	{
+		window.label( "Path:" );
+		{
+			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
+			pathLayout.setStretch( UiSize::Horizontal );
+
+			const RtStr newPath = window.textEditState( 256u, (RtStr)resource.getImageSourcePath() );
+			if( newPath != resource.getImageSourcePath() &&
+				window.buttonLabel( "Change" ) )
+			{
+				resource.setImageSourcePath( newPath );
+			}
+		}
+	}
+
+	void ResourceTool::doViewSkin( UiToolboxWindow& window, Resource& resource )
+	{
+
+	}
+
+	void ResourceTool::doViewConfig( UiToolboxWindow& window, Resource& resource )
+	{
+
 	}
 
 	void ResourceTool::showError( const char* format, ... )
@@ -215,6 +277,6 @@ namespace imapp
 		m_errorMessage = DynamicString::formatArgs( format, args );
 		va_end( args );
 
-		m_state = State::Error;
+		m_popupState = PopupState::Error;
 	}
 }

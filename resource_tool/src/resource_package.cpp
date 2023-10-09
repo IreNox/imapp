@@ -14,7 +14,7 @@ namespace imapp
 	{
 	}
 
-	bool ResourcePackage::load( const RtStr& filename )
+	bool ResourcePackage::load( const StringView& filename )
 	{
 		m_path = filename;
 
@@ -57,7 +57,7 @@ namespace imapp
 		return saveAs( m_path );
 	}
 
-	bool ResourcePackage::saveAs( const RtStr& filename )
+	bool ResourcePackage::saveAs( const StringView& filename )
 	{
 		XMLElement* rootNode = findOrCreateElement( &m_xml, "res_pak" );
 
@@ -70,18 +70,23 @@ namespace imapp
 
 		for( Resource& resource : m_resources )
 		{
-			if( !resource.serialize( resourcesNode ) )
-			{
-				return false;
-			}
+			resource.serialize( resourcesNode );
 		}
 
 		return m_xml.SaveFile( filename.getData() );
 	}
 
-	void ResourcePackage::addResource( const StringView& name, ResourceType type, const StringView& sourceFilename )
+	void ResourcePackage::updateFileData( float time )
 	{
-		Resource resource( name, type, sourceFilename );
+		for( Resource& resource : m_resources )
+		{
+			resource.updateFileData( time );
+		}
+	}
+
+	void ResourcePackage::addResource( const StringView& name, ResourceType type )
+	{
+		Resource resource( name, type );
 		m_resources.pushBack( resource );
 	}
 

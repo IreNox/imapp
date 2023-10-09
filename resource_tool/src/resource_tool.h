@@ -9,11 +9,17 @@ struct ImAppContext;
 namespace imui
 {
 	class UiSurface;
+
+	namespace toolbox
+	{
+		class UiToolboxWindow;
+	}
 }
 
 namespace imapp
 {
 	using namespace imui;
+	using namespace imui::toolbox;
 	using namespace tiki;
 
 	class ResourceTool
@@ -28,7 +34,7 @@ namespace imapp
 
 	private:
 
-		enum class State
+		enum class PopupState
 		{
 			Home,
 			New,
@@ -39,16 +45,20 @@ namespace imapp
 		DynamicString	m_packagePath;
 		ResourcePackage	m_package;
 
+		PopupState		m_popupState		= PopupState::Home;
 		DynamicString	m_errorMessage;
 
-		State			m_state				= State::Home;
+		size_t			m_selecedResource	= (size_t)-1;
 
-		size_t			m_selecedResource	= 0u;
+		void			doPopupState( UiSurface& surface );
+		void			doPupupStateNew( UiSurface& surface );
+		void			doPopupStateDeleteConfirm( UiSurface& surface );
+		void			doPopupStateError( UiSurface& surface );
 
-		void			doState( UiSurface& surface );
-		void			doStateNew( UiSurface& surface );
-		void			doStateDeleteConfirm( UiSurface& surface );
-		void			doStateError( UiSurface& surface );
+		void			doView( UiToolboxWindow& window );
+		void			doViewImage( UiToolboxWindow& window, Resource& resource );
+		void			doViewSkin( UiToolboxWindow& window, Resource& resource );
+		void			doViewConfig( UiToolboxWindow& window, Resource& resource );
 
 		void			showError( const char* format, ... );
 	};

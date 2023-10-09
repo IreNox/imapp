@@ -24,13 +24,15 @@ namespace imapp
 						ResourcePackage();
 						~ResourcePackage();
 
-		bool			load( const RtStr& filename );
+		bool			load( const StringView& filename );
 
 		bool			hasPath() const;
 		bool			save();
-		bool			saveAs( const RtStr& filename );
+		bool			saveAs( const StringView& filename );
 
-		void			addResource( const StringView& name, ResourceType type, const StringView& sourceFilename );
+		void			updateFileData( float time );
+
+		void			addResource( const StringView& name, ResourceType type );
 		Resource&		getResource( uintsize index );
 		uintsize		getResourceCount() const;
 
