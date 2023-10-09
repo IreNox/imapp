@@ -22,6 +22,7 @@ namespace imapp
 	{
 		Image,
 		Skin,
+		Font,
 		Config
 	};
 
@@ -33,50 +34,61 @@ namespace imapp
 	{
 	public:
 
-						Resource();
-						Resource( const StringView& name, ResourceType type );
-						~Resource();
+							Resource();
+							Resource( const StringView& name, ResourceType type );
+							~Resource();
 
-		bool			load( XMLElement* resourceNode );
-		void			serialize( XMLElement* resourcesNode );
+		bool				load( XMLElement* resourceNode );
+		void				serialize( XMLElement* resourcesNode );
 
-		void			updateFileData( float time );
+		void				updateFileData( ImAppContext* imapp, const StringView& packagePath, float time );
 
-		StringView		getName() const { return m_name; }
-		void			setName( const StringView& value );
+		bool				isDirty() const { return m_isDirty; }
 
-		StringView		getImageSourcePath() const { return m_imageSourcePath; }
-		void			setImageSourcePath( const StringView& value );
+		StringView			getName() const { return m_name; }
+		void				setName( const StringView& value );
 
-		ResourceType	getType() const { return m_type; }
+		ResourceType		getType() const { return m_type; }
+
+		StringView			getImageSourcePath() const { return m_imageSourcePath; }
+		void				setImageSourcePath( const StringView& value );
+
+		ImAppImage*			getImage() const { return m_image; }
+
+		StringView			getSkinImageName() const { return m_skinImageName; }
+		void				setSkinImageName( const StringView& value );
+
+		UiBorder&			getSkinBorder() { return m_skinBorder; }
 
 	private:
 
 		using ByteArray = DynamicArray< byte >;
 
-		DynamicString	m_name;
-		ResourceType	m_type			= ResourceType::Image;
+		bool				m_isDirty		= false;
 
-		XMLElement*		m_xml			= nullptr;
+		DynamicString		m_name;
+		ResourceType		m_type			= ResourceType::Image;
 
-		ByteArray		m_fileData;
-		ImUiHash		m_fileHash		= 0u;
-		float			m_fileCheckTime	= 0.0f;
+		XMLElement*			m_xml			= nullptr;
 
-		DynamicString	m_imageSourcePath;
-		ByteArray		m_imageData;
-		ImAppImage*		m_image			= nullptr;
+		ByteArray			m_fileData;
+		ImUiHash			m_fileHash		= 0u;
+		float				m_fileCheckTime	= -1000.0f;
 
-		DynamicString	m_skinImageName;
-		UiBorder		m_skinBorder;
+		DynamicString		m_imageSourcePath;
+		ByteArray			m_imageData;
+		ImAppImage*			m_image			= nullptr;
 
-		UiToolboxConfig	m_config;
+		DynamicString		m_skinImageName;
+		UiBorder			m_skinBorder;
 
-		bool			loadImageXml();
-		bool			loadSkinXml();
-		bool			loadConfigXml();
-		void			serializeImageXml();
-		void			serializeSkinXml();
-		void			serializeConfigXml();
+		UiToolboxConfig		m_config;
+
+		bool				loadImageXml();
+		bool				loadSkinXml();
+		bool				loadConfigXml();
+		void				serializeImageXml();
+		void				serializeSkinXml();
+		void				serializeConfigXml();
 	};
 }

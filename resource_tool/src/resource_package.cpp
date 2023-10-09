@@ -76,11 +76,11 @@ namespace imapp
 		return m_xml.SaveFile( filename.getData() );
 	}
 
-	void ResourcePackage::updateFileData( float time )
+	void ResourcePackage::updateFileData( ImAppContext* imapp, float time )
 	{
 		for( Resource& resource : m_resources )
 		{
-			resource.updateFileData( time );
+			resource.updateFileData( imapp, m_path, time );
 		}
 	}
 
@@ -98,5 +98,18 @@ namespace imapp
 	uintsize ResourcePackage::getResourceCount() const
 	{
 		return m_resources.getLength();
+	}
+
+	Resource* ResourcePackage::findResource( const StringView& name )
+	{
+		for( Resource& resource : m_resources )
+		{
+			if( resource.getName() == name )
+			{
+				return &resource;
+			}
+		}
+
+		return nullptr;
 	}
 }

@@ -27,7 +27,7 @@ namespace imapp
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
 	{
-		m_package.updateFileData( surface.getTime() );
+		m_package.updateFileData( imapp, surface.getTime() );
 
 		doPopupState( surface );
 
@@ -107,8 +107,6 @@ namespace imapp
 				viewWidget.setLayoutVertical();
 
 				doView( window );
-				//const ImUiTexture image = ImAppImageGetBlocking( imapp, IMUI_STR( "test.png" ) );
-				//viewWidget.drawWidgetTexture( image );
 			}
 		}
 
@@ -258,11 +256,68 @@ namespace imapp
 				resource.setImageSourcePath( newPath );
 			}
 		}
+
+		const ImUiTexture imageTexture = ImAppImageGetTexture( resource.getImage() );
+
+		ImageViewWidget imageView( window );
+
+		UiWidget image( window );
+		image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
+
+		image.drawWidgetTexture( imageTexture );
 	}
 
 	void ResourceTool::doViewSkin( UiToolboxWindow& window, Resource& resource )
 	{
+		DynamicArray< UiStringView > imageResourceNames;
+		imageResourceNames.reserve( m_package.getResourceCount() );
 
+		for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
+		{
+			const Resource& resource = m_package.getResource( i );
+			if( resource.getType() != ResourceType::Image )
+			{
+				continue;
+			}
+
+			imageResourceNames.pushBack( (RtStr)resource.getName() );
+		}
+
+		const uintsize selectIndex = window.dropDown( imageResourceNames.getData(), imageResourceNames.getLength() );
+		if( selectIndex < imageResourceNames.getLength() )
+		{
+			const StringView selectedName = (RtStr)imageResourceNames[ selectIndex ];
+			if( selectedName != resource.getSkinImageName() )
+			{
+				resource.setSkinImageName( selectedName );
+			}
+		}
+
+		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
+		if( imageResource )
+		{
+			const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+
+			window.label( "Top:" );
+			window.slider( resource.getSkinBorder().top, 0.0f, imageTexture.size.height);
+			window.label( "Left:" );
+			window.slider( resource.getSkinBorder().left, 0.0f, imageTexture.size.width );
+			window.label( "Bottom:" );
+			window.slider( resource.getSkinBorder().bottom, 0.0f, imageTexture.size.height );
+			window.label( "Right:" );
+			window.slider( resource.getSkinBorder().right, 0.0f, imageTexture.size.width );
+
+			ImageViewWidget imageView( window );
+
+			UiWidget image( window );
+			image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
+
+			image.drawWidgetTexture( imageTexture );
+		}
+		else
+		{
+			window.labelFormat( "No Image selected!" );
+		}
 	}
 
 	void ResourceTool::doViewConfig( UiToolboxWindow& window, Resource& resource )
@@ -279,4 +334,65 @@ namespace imapp
 
 		m_popupState = PopupState::Error;
 	}
+
+	ResourceTool::ImageViewWidget::ImageViewWidget( UiToolboxWindow& window )
+		: UiWidget( window )
+		, m_scrollArea( window )
+		, m_scrollContent( window )
+	{
+		setStretch( UiSize::One );
+
+		m_state = newState< ScrollState >();
+
+		m_scrollArea.setStretch( UiSize::One );
+		m_scrollArea.setLayoutScroll( m_state->offset );
+		m_scrollArea.drawWidgetColor( UiColor::Black );
+
+		ImUiWidgetInputState widgetInput;
+		m_scrollArea.getInputState( widgetInput );
+
+		const UiInputState& inputState = m_scrollArea.getContext().getInput();
+		if( widgetInput.wasPressed )
+		{
+			const UiPos mousePos = inputState.getMousePos();
+			if( widgetInput.hasMousePressed )
+			{
+				m_state->lastMousePos = mousePos;
+			}
+
+			const UiPos deltaPos = mousePos - m_state->lastMousePos;
+			m_state->lastMousePos = mousePos;
+
+			m_state->offset -= deltaPos;
+		}
+
+		if( widgetInput.isMouseOver )
+		{
+			m_state->zoom += max( 0.05f, roundf( m_state->zoom ) * 0.1f ) * inputState.getMouseScrollDelta().y;
+			m_state->zoom = max( 0.05f, m_state->zoom );
+		}
+	}
+
+	ResourceTool::ImageViewWidget::~ImageViewWidget()
+	{
+		m_scrollContent.endWidget();
+		m_scrollArea.endWidget();
+
+		UiToolboxWindow window = getWindow();
+
+		UiWidgetLayoutHorizontal buttonsLayout( window );
+
+		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
+		//{
+		//
+		//}
+
+		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
+		//{
+		//
+		//}
+
+		window.labelFormat( "Zoom: %.0f %%", m_state->zoom * 100.0f );
+	}
+
 }

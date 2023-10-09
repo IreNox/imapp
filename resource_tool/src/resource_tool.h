@@ -26,11 +26,11 @@ namespace imapp
 	{
 	public:
 
-						ResourceTool();
+							ResourceTool();
 
-		void			load( const char* filename );
+		void				load( const char* filename );
 
-		void			doUi( ImAppContext* imapp, UiSurface& surface );
+		void				doUi( ImAppContext* imapp, UiSurface& surface );
 
 	private:
 
@@ -42,24 +42,57 @@ namespace imapp
 			Error
 		};
 
-		DynamicString	m_packagePath;
-		ResourcePackage	m_package;
+		class ImageViewWidget : public UiWidget
+		{
+		public:
 
-		PopupState		m_popupState		= PopupState::Home;
-		DynamicString	m_errorMessage;
+							ImageViewWidget( UiToolboxWindow& window );
+							~ImageViewWidget();
 
-		size_t			m_selecedResource	= (size_t)-1;
+			UiWidget&		getContent() { return m_scrollContent; }
 
-		void			doPopupState( UiSurface& surface );
-		void			doPupupStateNew( UiSurface& surface );
-		void			doPopupStateDeleteConfirm( UiSurface& surface );
-		void			doPopupStateError( UiSurface& surface );
+			float			getZoom() const { return m_state->zoom; }
 
-		void			doView( UiToolboxWindow& window );
-		void			doViewImage( UiToolboxWindow& window, Resource& resource );
-		void			doViewSkin( UiToolboxWindow& window, Resource& resource );
-		void			doViewConfig( UiToolboxWindow& window, Resource& resource );
+		private:
 
-		void			showError( const char* format, ... );
+			struct ScrollState
+			{
+				UiPos		lastMousePos;
+				UiPos		offset;
+				float		zoom		= 1.0f;
+			};
+
+			UiWidget		m_scrollArea;
+			UiWidget		m_scrollContent;
+
+			ScrollState*	m_state;
+		};
+
+		struct SkinState
+		{
+			uintsize		selectedImage;
+		};
+
+		DynamicString		m_packagePath;
+		ResourcePackage		m_package;
+
+		const ImAppImage*	m_icon				= nullptr;
+
+		PopupState			m_popupState		= PopupState::Home;
+		DynamicString		m_errorMessage;
+
+		size_t				m_selecedResource	= (size_t)-1;
+
+		void				doPopupState( UiSurface& surface );
+		void				doPupupStateNew( UiSurface& surface );
+		void				doPopupStateDeleteConfirm( UiSurface& surface );
+		void				doPopupStateError( UiSurface& surface );
+
+		void				doView( UiToolboxWindow& window );
+		void				doViewImage( UiToolboxWindow& window, Resource& resource );
+		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
+		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
+
+		void				showError( const char* format, ... );
 	};
 }

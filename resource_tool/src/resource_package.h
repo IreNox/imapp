@@ -30,11 +30,13 @@ namespace imapp
 		bool			save();
 		bool			saveAs( const StringView& filename );
 
-		void			updateFileData( float time );
+		void			updateFileData( ImAppContext* imapp, float time );
 
 		void			addResource( const StringView& name, ResourceType type );
 		Resource&		getResource( uintsize index );
 		uintsize		getResourceCount() const;
+
+		Resource*		findResource( const StringView& name );
 
 	private:
 

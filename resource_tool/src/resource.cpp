@@ -1,5 +1,7 @@
 #include "resource.h"
 
+#include <tiki/tiki_path.h>
+
 #include <stdio.h>
 
 namespace imapp
@@ -13,6 +15,7 @@ namespace imapp
 	{
 		"Image",
 		"Skin",
+		"Font",
 		"Config"
 	};
 
@@ -119,9 +122,11 @@ namespace imapp
 			serializeConfigXml();
 			break;
 		}
+
+		m_isDirty = false;
 	}
 
-	void Resource::updateFileData( float time )
+	void Resource::updateFileData( ImAppContext* imapp, const StringView& packagePath, float time )
 	{
 		if( m_type != ResourceType::Image ||
 			time - m_fileCheckTime < FileCheckInterval )
@@ -133,7 +138,8 @@ namespace imapp
 
 		m_fileCheckTime = time;
 
-		FILE* file = fopen( m_imageSourcePath.getData(), "rb" );
+		const Path imagePath = Path( packagePath ).getParent().push( m_imageSourcePath );
+		FILE* file = fopen( imagePath.getNativePath().getData(), "rb" );
 		if( !file )
 		{
 			m_fileData.clear();
@@ -159,13 +165,13 @@ namespace imapp
 			return;
 		}
 
-		//if( m_image )
-//{
-//	ImAppImageFree( ..., m_image )
-//	m_image = nullptr;
-//}
+		if( m_image )
+		{
+			ImAppImageFree( imapp, m_image );
+			m_image = nullptr;
+		}
 
-//m_image = ImAppImageLoadFromMemory( ..., m_fileData.getData(), m_fileData.getLength(), )
+		m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
 
 		m_fileHash = newFileHash;
 	}
@@ -173,11 +179,19 @@ namespace imapp
 	void Resource::setName( const StringView& value )
 	{
 		m_name = value;
+		m_isDirty = true;
 	}
 
 	void Resource::setImageSourcePath( const StringView& value )
 	{
 		m_imageSourcePath = value;
+		m_isDirty = true;
+	}
+
+	void Resource::setSkinImageName( const StringView& value )
+	{
+		m_skinImageName = value;
+		m_isDirty = true;
 	}
 
 	bool Resource::loadImageXml()
