@@ -1,6 +1,6 @@
 #include "imapp_resource_storage.h"
 
-#include "imapp_defines.h"
+#include "imapp_debug.h"
 #include "imapp_platform.h"
 #include "imapp_renderer.h"
 
@@ -51,11 +51,13 @@ struct ImAppResourceStorage
 	ImUiHashMap			imageMap;
 };
 
-static void				ImAppResourceStorageChangeState( ImAppResourceStorage* storage, ImAppResource* image, ImAppResourceState state );
-static void				ImAppResourceStorageFreeImageInternal( ImAppResourceStorage* storage, ImAppResource* image );
+static void						ImAppResourceStorageChangeState( ImAppResourceStorage* storage, ImAppResource* image, ImAppResourceState state );
+static void						ImAppResourceStorageFreeImageInternal( ImAppResourceStorage* storage, ImAppResource* image );
 
-static void				ImAppResourceListAdd( ImAppResourceList* list, ImAppResource* resource );
-static void				ImAppResourceListRemove( ImAppResourceList* list, ImAppResource* resource );
+static void						ImAppResourceListAdd( ImAppResourceList* list, ImAppResource* resource );
+static void						ImAppResourceListRemove( ImAppResourceList* list, ImAppResource* resource );
+
+static ImAppRendererTexture*	ImAppResourceStorageTextureCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize, uint32* width, uint32* height );
 
 static ImUiHash ImAppStorageMapImageHash( const void* key )
 {
@@ -182,37 +184,10 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 		return NULL;
 	}
 
-	spng_ctx* spng = spng_ctx_new( 0 );
-	spng_set_png_buffer( spng, imageBlob.data, imageBlob.size );
-
-	size_t pixelDataSize;
-	spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
-
-	struct spng_ihdr ihdr;
-	spng_get_ihdr( spng, &ihdr );
-
-	void* pixelData = ImUiMemoryAlloc( storage->allocator, pixelDataSize );
-	if( !pixelData )
-	{
-		spng_ctx_free( spng );
-		ImUiHashMapRemove( &storage->imageMap, &resourceName );
-		return NULL;
-	}
-
-	const int pngResult = spng_decode_image( spng, pixelData, pixelDataSize, SPNG_FMT_RGBA8, 0 );
+	uint32 width;
+	uint32 height;
+	ImAppRendererTexture* texture = ImAppResourceStorageTextureCreatePng( storage, imageBlob.data, imageBlob.size, &width, &height );
 	ImUiMemoryFree( storage->allocator, imageBlob.data );
-	spng_ctx_free( spng );
-
-	if( pngResult != 0 )
-	{
-		ImUiMemoryFree( storage->allocator, pixelData );
-		ImUiHashMapRemove( &storage->imageMap, &resourceName );
-		return NULL;
-	}
-
-	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, ihdr.width, ihdr.height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
-	free( pixelData );
-
 	if( texture == NULL )
 	{
 		ImUiHashMapRemove( &storage->imageMap, &resourceName );
@@ -222,7 +197,7 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 	ImAppResource* image = (ImAppResource*)ImUiMemoryAllocZero( storage->allocator, IMUI_OFFSETOF( ImAppResource, resourceName ) + resourceName.length + 1u );
 	image->image.resourceName	= ImUiStringViewCreateLength( image->resourceName, resourceName.length );
 	image->image.pTexture		= texture;
-	image->image.size			= ImUiSizeCreate( (float)ihdr.width, (float)ihdr.height );
+	image->image.size			= ImUiSizeCreate( (float)width, (float)height );
 
 	memcpy( image->resourceName, resourceName.data, resourceName.length );
 
@@ -232,7 +207,7 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 	return &image->image;
 }
 
-ImAppImage* ImAppResourceStorageImageCreateFromMemory( ImAppResourceStorage* storage, const void* pixelData, int width, int height )
+ImAppImage* ImAppResourceStorageImageCreateRaw( ImAppResourceStorage* storage, const void* pixelData, int width, int height )
 {
 	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, ImAppRendererShading_Translucent );
 	if( texture == NULL )
@@ -247,6 +222,122 @@ ImAppImage* ImAppResourceStorageImageCreateFromMemory( ImAppResourceStorage* sto
 	ImAppResourceStorageChangeState( storage, image, ImAppImageState_Default );
 
 	return &image->image;
+}
+
+ImAppImage* ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize )
+{
+	uint32 width;
+	uint32 height;
+	ImAppRendererTexture* texture = ImAppResourceStorageTextureCreatePng( storage, imageData, imageDataSize, &width, &height );
+	if( texture == NULL )
+	{
+		return NULL;
+	}
+
+	ImAppResource* image = IMUI_MEMORY_NEW_ZERO( storage->allocator, ImAppResource );
+	image->image.pTexture	= texture;
+	image->image.size		= ImUiSizeCreate( (float)width, (float)height );
+
+	ImAppResourceStorageChangeState( storage, image, ImAppImageState_Default );
+
+	return &image->image;
+}
+
+static ImAppRendererTexture* ImAppResourceStorageTextureCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize, uint32* width, uint32* height )
+{
+	spng_ctx* spng = spng_ctx_new( 0 );
+	const int bufferResult = spng_set_png_buffer( spng, imageData, imageDataSize );
+	if( bufferResult != SPNG_OK )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to set PNG buffer. Result: %d", bufferResult );
+		spng_ctx_free( spng );
+		return NULL;
+	}
+
+	size_t pixelDataSize;
+	const int sizeResult = spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
+	if( sizeResult != SPNG_OK )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to calculate PNG size. Result: %d", sizeResult );
+		spng_ctx_free( spng );
+		return NULL;
+	}
+
+	struct spng_ihdr ihdr;
+	const int headerResult = spng_get_ihdr( spng, &ihdr );
+	if( headerResult != SPNG_OK )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to get PNG header. Result: %d", headerResult );
+		spng_ctx_free( spng );
+		return NULL;
+	}
+
+	enum spng_format sourceImageFormat;
+	ImAppRendererFormat targetImageFormat;
+	ImAppRendererShading targetShading;
+	switch( ihdr.color_type )
+	{
+	case SPNG_COLOR_TYPE_GRAYSCALE:
+		sourceImageFormat	= SPNG_FMT_G8;
+		targetImageFormat	= ImAppRendererFormat_R8;
+		targetShading		= ImAppRendererShading_Translucent;
+		break;
+
+	case SPNG_COLOR_TYPE_INDEXED:
+	case SPNG_COLOR_TYPE_TRUECOLOR:
+		sourceImageFormat	= SPNG_FMT_RGB8;
+		targetImageFormat	= ImAppRendererFormat_RGB8;
+		targetShading		= ImAppRendererShading_Opaque;
+		break;
+
+	case SPNG_COLOR_TYPE_TRUECOLOR_ALPHA:
+		sourceImageFormat	= SPNG_FMT_RGBA8;
+		targetImageFormat	= ImAppRendererFormat_RGBA8;
+		targetShading		= ImAppRendererShading_Translucent;
+		break;
+
+	case SPNG_COLOR_TYPE_GRAYSCALE_ALPHA:
+	default:
+		{
+			IMAPP_DEBUG_LOGE( "Not supported PNG format. Format: %d", ihdr.color_type );
+			spng_ctx_free( spng );
+			return NULL;
+		}
+		break;
+
+	}
+
+	void* pixelData = ImUiMemoryAlloc( storage->allocator, pixelDataSize );
+	if( !pixelData )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to allocate PNG pixel data. Size: %d", pixelDataSize );
+		spng_ctx_free( spng );
+		return NULL;
+	}
+
+	const int decodeResult = spng_decode_image( spng, pixelData, pixelDataSize, sourceImageFormat, 0 );
+	spng_ctx_free( spng );
+
+	if( decodeResult != 0 )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to decode PNG. Result: %d", decodeResult );
+		ImUiMemoryFree( storage->allocator, pixelData );
+		return NULL;
+	}
+
+	ImAppRendererTexture* texture = ImAppRendererTextureCreateFromMemory( storage->renderer, pixelData, ihdr.width, ihdr.height, targetImageFormat, targetShading );
+	free( pixelData );
+
+	if( texture == NULL )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to create Texture for PNG." );
+		return NULL;
+	}
+
+	*width	= ihdr.width;
+	*height	= ihdr.height;
+
+	return texture;
 }
 
 ImUiFont* ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStringView fontName, float fontSize )
@@ -311,7 +402,6 @@ ImUiFont* ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStr
 
 	return font;
 }
-
 
 void ImAppResourceStorageImageFree( ImAppResourceStorage* storage, ImAppImage* image )
 {

@@ -14,14 +14,14 @@
 #	include <android/log.h>
 #endif
 
-void ImAppTrace( const char* pFormat, ... )
+void ImAppTrace( const char* format, ... )
 {
 	char buffer[ 2048u ];
 
 	va_list args;
-	va_start( args, pFormat );
+	va_start( args, format );
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	vsprintf_s( buffer, 2048u, pFormat, args );
+	vsprintf_s( buffer, 2048u, format, args );
 #else
 	vsprintf( buffer, pFormat, args );
 #endif

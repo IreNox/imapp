@@ -319,10 +319,16 @@ ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, ImUiStringView resource
 	return pImage;
 }
 
-ImAppImage* ImAppImageLoadFromMemory( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height )
+ImAppImage* ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height )
 {
 	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-	return ImAppResourceStorageImageCreateFromMemory( pImApp->resources, imageData, width, height );
+	return ImAppResourceStorageImageCreateRaw( pImApp->resources, imageData, width, height );
+}
+
+ImAppImage* ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
+{
+	ImAppInternal* pImApp = (ImAppInternal*)imapp;
+	return ImAppResourceStorageImageCreatePng( pImApp->resources, imageData, imageDataSize );
 }
 
 void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )

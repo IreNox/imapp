@@ -69,7 +69,9 @@ void						ImAppQuit( ImAppContext* imapp );
 
 // Blocking Image
 ImAppImage*					ImAppImageLoadResource( ImAppContext* imapp, ImUiStringView resourceName );
-ImAppImage*					ImAppImageLoadFromMemory( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height );
+ImAppImage*					ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height );
+ImAppImage*					ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
+//ImAppImage*					ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
 void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
 ImUiTexture					ImAppImageGetTexture( const ImAppImage* image );

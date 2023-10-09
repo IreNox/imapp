@@ -23,7 +23,9 @@ void						ImAppResourceStorageUpdate( ImAppResourceStorage* storage );
 bool						ImAppResourceStorageRecreateEverything( ImAppResourceStorage* storage );
 
 ImAppImage*					ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, ImUiStringView resourceName, bool autoFree );
-ImAppImage*					ImAppResourceStorageImageCreateFromMemory( ImAppResourceStorage* storage, const void* pPixelData, int width, int height );
+ImAppImage*					ImAppResourceStorageImageCreateRaw( ImAppResourceStorage* storage, const void* pixelData, int width, int height );
+ImAppImage*					ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize );
+//ImAppImage*					ImAppResourceStorageImageCreateJpeg( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize );
 void						ImAppResourceStorageImageFree( ImAppResourceStorage* storage, ImAppImage* pImage );
 
 ImUiFont*					ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStringView fontName, float fontSize );

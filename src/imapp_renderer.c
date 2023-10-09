@@ -356,6 +356,8 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	glBindTexture( GL_TEXTURE_2D, texture->handle );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, pData );
 	glBindTexture( GL_TEXTURE_2D, 0 );
 
@@ -396,7 +398,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUi
 
 	glDisable( GL_CULL_FACE );
 	glDisable( GL_DEPTH_TEST );
-	//glEnable( GL_SCISSOR_TEST );
+	glEnable( GL_SCISSOR_TEST );
 
 	glUseProgram( renderer->program );
 	glUniform1i( renderer->programUniformTexture, 0 );
