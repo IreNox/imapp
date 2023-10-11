@@ -32,7 +32,10 @@ namespace imapp
 
 		void			updateFileData( ImAppContext* imapp, float time );
 
-		void			addResource( const StringView& name, ResourceType type );
+		StringView		getPath() const { return m_path; }
+		StringView		getName() const { return m_name; }
+
+		Resource&		addResource( const StringView& name, ResourceType type );
 		Resource&		getResource( uintsize index );
 		uintsize		getResourceCount() const;
 

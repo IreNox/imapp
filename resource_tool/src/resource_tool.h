@@ -93,6 +93,8 @@ namespace imapp
 		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
 		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
 
+		void				handleDrop( const char* dropData );
+
 		void				showError( const char* format, ... );
 	};
 }

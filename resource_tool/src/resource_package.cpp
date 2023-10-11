@@ -84,10 +84,10 @@ namespace imapp
 		}
 	}
 
-	void ResourcePackage::addResource( const StringView& name, ResourceType type )
+	Resource& ResourcePackage::addResource( const StringView& name, ResourceType type )
 	{
 		Resource resource( name, type );
-		m_resources.pushBack( resource );
+		return m_resources.pushBack( resource );
 	}
 
 	Resource& ResourcePackage::getResource( uintsize index )

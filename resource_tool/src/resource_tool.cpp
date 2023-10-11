@@ -6,6 +6,8 @@
 #include <imapp/imapp.h>
 #include <imui/imui_cpp.h>
 
+#include <tiki/tiki_path.h>
+
 #include <cstdarg>
 
 namespace imapp
@@ -27,6 +29,11 @@ namespace imapp
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
 	{
+		if( imapp->dropData )
+		{
+			handleDrop( imapp->dropData );
+		}
+
 		m_package.updateFileData( imapp, surface.getTime() );
 
 		doPopupState( surface );
@@ -102,9 +109,8 @@ namespace imapp
 			}
 
 			{
-				UiWidget viewWidget( window );
+				UiWidgetLayoutVertical viewWidget( window, 4.0f );
 				viewWidget.setStretch( UiSize::One );
-				viewWidget.setLayoutVertical();
 
 				doView( window );
 			}
@@ -269,27 +275,45 @@ namespace imapp
 
 	void ResourceTool::doViewSkin( UiToolboxWindow& window, Resource& resource )
 	{
+		size_t selectedIndex = (size_t)-1;
 		DynamicArray< UiStringView > imageResourceNames;
-		imageResourceNames.reserve( m_package.getResourceCount() );
-
-		for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
 		{
-			const Resource& resource = m_package.getResource( i );
-			if( resource.getType() != ResourceType::Image )
-			{
-				continue;
-			}
+			imageResourceNames.reserve( m_package.getResourceCount() );
 
-			imageResourceNames.pushBack( (RtStr)resource.getName() );
+			for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
+			{
+				const Resource& imageResource = m_package.getResource( i );
+				if( imageResource.getType() != ResourceType::Image )
+				{
+					continue;
+				}
+
+				if( imageResource.getName() == resource.getSkinImageName() )
+				{
+					selectedIndex = i;
+				}
+
+				imageResourceNames.pushBack( (RtStr)imageResource.getName() );
+			}
 		}
 
-		const uintsize selectIndex = window.dropDown( imageResourceNames.getData(), imageResourceNames.getLength() );
-		if( selectIndex < imageResourceNames.getLength() )
+		window.label( "Image:" );
 		{
-			const StringView selectedName = (RtStr)imageResourceNames[ selectIndex ];
-			if( selectedName != resource.getSkinImageName() )
+			UiToolboxDropdown imageSelect( window, imageResourceNames.getData(), imageResourceNames.getLength() );
+			imageSelect.setStretch( UiSize::Horizontal );
+
+			const uintsize newSelectedIndex = imageSelect.getSelectedIndex();
+			if( newSelectedIndex < imageResourceNames.getLength() )
 			{
-				resource.setSkinImageName( selectedName );
+				if( newSelectedIndex != selectedIndex )
+				{
+					const StringView selectedName = (RtStr)imageResourceNames[ newSelectedIndex ];
+					resource.setSkinImageName( selectedName );
+				}
+			}
+			else
+			{
+				imageSelect.setSelectedIndex( selectedIndex );
 			}
 		}
 
@@ -298,21 +322,77 @@ namespace imapp
 		{
 			const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
 
-			window.label( "Top:" );
-			window.slider( resource.getSkinBorder().top, 0.0f, imageTexture.size.height);
-			window.label( "Left:" );
-			window.slider( resource.getSkinBorder().left, 0.0f, imageTexture.size.width );
-			window.label( "Bottom:" );
-			window.slider( resource.getSkinBorder().bottom, 0.0f, imageTexture.size.height );
-			window.label( "Right:" );
-			window.slider( resource.getSkinBorder().right, 0.0f, imageTexture.size.width );
+			UiBorder& skinBorder = resource.getSkinBorder();
+			{
+				UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
+				skinLayout.setStretch( UiSize::Horizontal );
+
+				struct BorderInfo { UiStringView title; float& value; } borders[] =
+				{
+					{ "Top:", skinBorder.top },
+					{ "Left:", skinBorder.left },
+					{ "Right:", skinBorder.right },
+					{ "Bottom:", skinBorder.bottom }
+				};
+
+				for( size_t i = 0; i < 4u; ++i )
+				{
+					BorderInfo& border = borders[ i ];
+
+					UiWidgetLayoutVertical borderLayout( window, 4.0f );
+					borderLayout.setStretch( UiSize::Horizontal );
+
+					window.label( border.title );
+					const bool changed = window.slider( border.value, 0.0f, imageTexture.size.height );
+
+					bool isNew;
+					char* buffer = (char*)borderLayout.allocState( 128u, isNew );
+					if( changed || isNew )
+					{
+						snprintf( buffer, 128u, "%.0f", border.value );
+					}
+
+					if( window.textEdit( buffer, 128u ) )
+					{
+						border.value = (float)atof( buffer );
+					}
+				}
+			}
+
+			const bool previewSkin = window.checkBoxState( "Preview Skin" );
 
 			ImageViewWidget imageView( window );
 
 			UiWidget image( window );
 			image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
 
-			image.drawWidgetTexture( imageTexture );
+			if( previewSkin )
+			{
+				ImUiSkin skin;
+				skin.texture	= imageTexture;
+				skin.border		= skinBorder;
+				skin.uv			= UiTexCoord::ZeroToOne;
+
+				image.drawWidgetSkin( skin );
+			}
+			else
+			{
+				image.drawWidgetTexture( imageTexture );
+
+				UiBorder drawBorder = skinBorder;
+				drawBorder.top *= imageView.getZoom();
+				drawBorder.left *= imageView.getZoom();
+				drawBorder.right *= imageView.getZoom();
+				drawBorder.bottom *= imageView.getZoom();
+
+				const UiRect imageRect = image.getRect();
+				const UiRect innerRect = imageRect.shrinkBorder( drawBorder );
+				const UiColor color = UiColor( (uint8)0x30u, 0x90u, 0xe0u );
+				image.drawLine( UiPos( imageRect.pos.x, innerRect.pos.y ), UiPos( imageRect.getRight(), innerRect.pos.y ), color );
+				image.drawLine( UiPos( innerRect.pos.x, imageRect.pos.y ), UiPos( innerRect.pos.x, imageRect.getBottom() ), color );
+				image.drawLine( UiPos( innerRect.getRight(), imageRect.pos.y ), UiPos( innerRect.getRight(), imageRect.getBottom() ), color );
+				image.drawLine( UiPos( imageRect.pos.x, innerRect.getBottom() ), UiPos( imageRect.getRight(), innerRect.getBottom() ), color );
+			}
 		}
 		else
 		{
@@ -323,6 +403,31 @@ namespace imapp
 	void ResourceTool::doViewConfig( UiToolboxWindow& window, Resource& resource )
 	{
 
+	}
+
+	void ResourceTool::handleDrop( const char* dropData )
+	{
+		const Path packageDir = Path( m_package.getPath() ).getParent();
+
+		Path path( dropData );
+		if( !path.getGenericPath().startsWithNoCase( packageDir.getGenericPath() ) )
+		{
+			showError( "File not in same tree as package." );
+			return;
+		}
+
+		const DynamicString ext = path.getExtension();
+		if( ext != ".png" )
+		{
+			showError( "Not supported file format: %s", ext.getData() );
+			return;
+		}
+
+		const DynamicString remainingPath = path.getGenericPath().subString( packageDir.getGenericPath().getLength() + 1u );
+		const DynamicString filename = path.getBasename();
+
+		Resource& resource = m_package.addResource( filename, ResourceType::Image );
+		resource.setImageSourcePath( remainingPath );
 	}
 
 	void ResourceTool::showError( const char* format, ... )
@@ -342,7 +447,8 @@ namespace imapp
 	{
 		setStretch( UiSize::One );
 
-		m_state = newState< ScrollState >();
+		bool isNew;
+		m_state = newState< ScrollState >( isNew );
 
 		m_scrollArea.setStretch( UiSize::One );
 		m_scrollArea.setLayoutScroll( m_state->offset );
@@ -350,6 +456,8 @@ namespace imapp
 
 		ImUiWidgetInputState widgetInput;
 		m_scrollArea.getInputState( widgetInput );
+
+		m_scrollContent.setAlign( UiAlign::Center );
 
 		const UiInputState& inputState = m_scrollArea.getContext().getInput();
 		if( widgetInput.wasPressed )
