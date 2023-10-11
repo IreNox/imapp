@@ -190,13 +190,6 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		}
 		platform->resourceBasePathLength = (pTargetPath - platform->resourcePath);
 
-//#if IMAPP_ENABLED( IMAPP_DEBUG )
-//		const wchar_t assetsPath[] = L"..\\..\\..\\..\\assets\\";
-//#else
-//		const wchar_t assetsPath[] = L"assets\\";
-//#endif
-		//wcscpy_s( pTargetPath, IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength, sourcePath );
-
 		const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - (int)platform->resourceBasePathLength;
 		const int convertResult = MultiByteToWideChar( CP_UTF8, 0u, sourcePath, -1, pTargetPath, targetLengthInCharacters );
 		if( !convertResult )
@@ -253,6 +246,9 @@ struct ImAppWindow
 
 	SDL_Window*			sdlWindow;
 	SDL_GLContext		glContext;
+
+	char*				dropBuffer;
+	uintsize			dropBufferCapacity;
 };
 
 ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state )
@@ -302,6 +298,8 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
 	IMAPP_ASSERT( window->glContext == NULL );
+
+	ImUiMemoryFree( window->allocator, window->dropBuffer );
 
 	if( window->sdlWindow != NULL )
 	{
@@ -457,6 +455,25 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 				default:
 					break;
 				}
+			}
+			break;
+
+		case SDL_DROPFILE:
+		case SDL_DROPTEXT:
+			{
+				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
+
+				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
+				if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( window->allocator, window->dropBuffer, window->dropBufferCapacity, textLength ) )
+				{
+					continue;
+				}
+
+				memcpy( window->dropBuffer, sdlDropEvent->file, textLength );
+
+				const ImAppEventType type = sdlEvent.type == SDL_DROPFILE ? ImAppEventType_DropFile : ImAppEventType_DropText;
+				const ImAppEvent dropEvent = { .drop = {.type = type, .pathOrText = window->dropBuffer } };
+				ImAppEventQueuePush( window->eventQueue, &dropEvent );
 			}
 			break;
 

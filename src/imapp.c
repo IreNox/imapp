@@ -252,6 +252,8 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( imapp->window );
 	ImUiInput* input = ImUiInputBegin( imapp->context.imui );
 
+	imapp->context.dropData = NULL;
+
 	ImAppEvent windowEvent;
 	while( ImAppEventQueuePop( pEventQueue, &windowEvent ) )
 	{
@@ -259,6 +261,11 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 		{
 		case ImAppEventType_WindowClose:
 			imapp->running = false;
+			break;
+
+		case ImAppEventType_DropFile:
+		case ImAppEventType_DropText:
+			imapp->context.dropData = windowEvent.drop.pathOrText;
 			break;
 
 		case ImAppEventType_KeyDown:

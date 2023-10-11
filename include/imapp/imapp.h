@@ -106,6 +106,8 @@ struct ImAppContext
 	int							y;
 	int							width;
 	int							height;
+
+	const char*					dropData;
 };
 
 #ifdef __cplusplus
