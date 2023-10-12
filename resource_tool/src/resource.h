@@ -26,6 +26,13 @@ namespace imapp
 		Config
 	};
 
+	enum class ResourceImageFormat
+	{
+		RAW,
+		PNG,
+		JPEG
+	};
+
 	ArrayView< StringView >	getResourceTypeStrings();
 	bool					parseResourceType( ResourceType& type, const StringView& string );
 	StringView				getResourceTypeString( ResourceType type );
@@ -76,6 +83,7 @@ namespace imapp
 		float				m_fileCheckTime	= -1000.0f;
 
 		DynamicString		m_imageSourcePath;
+		ResourceImageFormat	m_imageFormat;
 		ByteArray			m_imageData;
 		ImAppImage*			m_image			= nullptr;
 

@@ -20,7 +20,7 @@ struct ImAppResPakHeader
 typedef enum ImAppResPakType ImAppResPakType;
 enum ImAppResPakType
 {
-	ImAppResPakType_TextureAtlas,
+	ImAppResPakType_Texture,
 	ImAppResPakType_Image,
 	ImAppResPakType_Skin,
 	ImAppResPakType_FontInfo,
@@ -51,6 +51,7 @@ enum ImAppResPakTextureFormat
 	ImAppResPakTextureFormat_RGBA8,
 	ImAppResPakTextureFormat_PNG24,
 	ImAppResPakTextureFormat_PNG32,
+	ImAppResPakTextureFormat_JPEG,
 
 	ImAppResPakTextureFormat_MAX
 };

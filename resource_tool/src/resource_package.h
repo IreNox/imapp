@@ -2,8 +2,6 @@
 
 #include "resource_helpers.h"
 
-#include <imapp/../../src/imapp_res_pak.h>
-
 #include <tiki/tiki_dynamic_array.h>
 #include <tiki/tiki_dynamic_string.h>
 
