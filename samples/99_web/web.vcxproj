@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Emscripten">
+      <Configuration>Debug</Configuration>
+      <Platform>Emscripten</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Emscripten">
+      <Configuration>Release</Configuration>
+      <Platform>Emscripten</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{8e4527a8-5f3c-4b61-a27d-2fc31b4564b9}</ProjectGuid>
+    <RootNamespace>web</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Emscripten'">
+    <ConfigurationType>HTMLPage</ConfigurationType>
+    <EmscriptenDir>$(EMSDK)\upstream\emscripten\</EmscriptenDir>
+    <PlatformToolset>emcc</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Emscripten'">
+    <ConfigurationType>HTMLPage</ConfigurationType>
+    <PlatformToolset>emcc</PlatformToolset>
+    <EmscriptenDir>$(EMSDK)\upstream\emscripten\</EmscriptenDir>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Emscripten'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Emscripten'">
+    <IncludePath>$(SolutionDir)..\..\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Emscripten'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\include;$(SolutionDir)..\..\submodules\imui\include;$(SolutionDir)..\..\submodules\libspng;$(SolutionDir)miniz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IMAPP_PLATFORM_SDL=1;DEBUG;SPNG_USE_MINIZ;MINIZ_NO_STDIO;SDL_THREADS_DISABLED;SDL_AUDIO_DISABLED;SDL_CPUINFO_DISABLED</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>GL</AdditionalDependencies>
+      <AdditionalOptions>-sFULL_ES3 -sUSE_SDL=2 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Emscripten'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\include;$(SolutionDir)..\..\submodules\imui\include;$(SolutionDir)..\..\submodules\libspng;$(SolutionDir)miniz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;SDL_THREADS_DISABLED;SDL_AUDIO_DISABLED;SDL_CPUINFO_DISABLED</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>GL</AdditionalDependencies>
+      <AdditionalOptions>-sFULL_ES3 -sUSE_SDL=2 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\imapp.c" />
+    <ClCompile Include="..\..\src\imapp_debug.c" />
+    <ClCompile Include="..\..\src\imapp_event_queue.c" />
+    <ClCompile Include="..\..\src\imapp_renderer.c" />
+    <ClCompile Include="..\..\src\imapp_resource_storage.c" />
+    <ClCompile Include="..\..\src\sdl\imapp_platform_sdl.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_cpp.cpp" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_data_types.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_draw.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_font.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_helpers.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_input.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_memory.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_text.c" />
+    <ClCompile Include="..\..\submodules\imui\src\imui_toolbox.c" />
+    <ClCompile Include="..\..\submodules\libspng\spng\spng.c" />
+    <ClCompile Include="main.c" />
+    <ClCompile Include="miniz\miniz.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\imapp\imapp.h" />
+    <ClInclude Include="..\..\src\imapp_debug.h" />
+    <ClInclude Include="..\..\src\imapp_defines.h" />
+    <ClInclude Include="..\..\src\imapp_event.h" />
+    <ClInclude Include="..\..\src\imapp_event_queue.h" />
+    <ClInclude Include="..\..\src\imapp_internal.h" />
+    <ClInclude Include="..\..\src\imapp_main.h" />
+    <ClInclude Include="..\..\src\imapp_platform.h" />
+    <ClInclude Include="..\..\src\imapp_renderer.h" />
+    <ClInclude Include="..\..\src\imapp_resource_storage.h" />
+    <ClInclude Include="..\..\src\imapp_res_pak.h" />
+    <ClInclude Include="..\..\submodules\imui\include\imui\imui.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_draw.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_font.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_helpers.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_input.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_internal.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_memory.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_text.h" />
+    <ClInclude Include="..\..\submodules\imui\src\imui_types.h" />
+    <ClInclude Include="..\..\submodules\imui\src\stb_truetype.h" />
+    <ClInclude Include="..\..\submodules\libspng\spng\spng.h" />
+    <ClInclude Include="miniz\miniz.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

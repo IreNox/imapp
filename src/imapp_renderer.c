@@ -10,6 +10,9 @@
 #	include <GL/glew.h>
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 #	include <GLES3/gl3.h>
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#	include <GL/glew.h>
+#	include <GLES/gl.h>
 #endif
 
 struct ImAppRenderer
@@ -427,7 +430,7 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawDa
 	// upload
 	{
 		void* pVertexData = glMapBufferRange( GL_ARRAY_BUFFER, 0, drawData->vertexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT ); // GL_MAP_UNSYNCHRONIZED_BIT
-		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, drawData->indexDataSize, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT );
+		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, drawData->indexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT );
 
 		memcpy( pVertexData, drawData->vertexData, drawData->vertexDataSize );
 		memcpy( pElementData, drawData->indexData, drawData->indexDataSize );

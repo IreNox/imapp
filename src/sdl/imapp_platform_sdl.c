@@ -5,11 +5,20 @@
 #include "../imapp_debug.h"
 #include "../imapp_event_queue.h"
 
-#include <SDL.h>
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#	include <SDL2/SDL.h>
+#else
+#	include <SDL.h>
+#endif
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 #	include <windows.h>
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#	include <emscripten.h>
 #endif
+
+#include <assert.h>
+#include <limits.h>
 
 //////////////////////////////////////////////////////////////////////////
 // Main
@@ -45,9 +54,9 @@ static const SDL_SystemCursor s_systemCursorMapping[] =
 	SDL_SYSTEM_CURSOR_SIZENS,
 	SDL_SYSTEM_CURSOR_SIZEALL
 };
-IMAPP_STATIC_ASSERT( IMAPP_ARRAY_COUNT( s_systemCursorMapping ) == ImUiInputMouseCursor_MAX );
+static_assert( IMAPP_ARRAY_COUNT( s_systemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
 
-int SDL_main( int argc, char* argv[] )
+int main( int argc, char* argv[] )
 {
 	ImAppPlatform platform = { 0 };
 
@@ -163,6 +172,7 @@ int SDL_main( int argc, char* argv[] )
 		case ImUiInputKey_Numpad_9:			scanCode = SDL_SCANCODE_KP_9; break;
 		case ImUiInputKey_Numpad_0:			scanCode = SDL_SCANCODE_KP_0; break;
 		case ImUiInputKey_Numpad_Period:	scanCode = SDL_SCANCODE_KP_PERIOD; break;
+		case ImUiInputKey_MAX:				break;
 		}
 
 		platform.inputKeyMapping[ scanCode ] = keyValue;
@@ -351,13 +361,11 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 
 bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 {
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
 #else
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
 #endif
 
@@ -386,6 +394,10 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 
 int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval )
 {
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+	SDL_GL_SetSwapInterval( 1 );
+#endif
+
 	const int64_t nextTick = (int64_t)SDL_GetTicks64();
 
 	int64_t timeToWait = tickInterval - (nextTick - lastTickValue);
@@ -510,7 +522,12 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 			}
 			break;
 
-		default:
+		case SDL_QUIT:
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+			emscripten_cancel_main_loop();
+#else
+			// TODO
+#endif
 			break;
 		}
 	}
@@ -607,6 +624,9 @@ ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView res
 
 	const ImAppBlob result = { memory, (size_t)fileSize.QuadPart };
 	return result;
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+	const ImAppBlob result = { NULL, 0u };
+	return result;
 #else
 #	error Not imeplemented
 #endif
@@ -653,6 +673,9 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, ImUiStri
 	}
 
 	const ImAppBlob result = { memory, (size_t)fileSize.QuadPart };
+	return result;
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+	const ImAppBlob result ={ NULL, 0u };
 	return result;
 #else
 #	error Not imeplemented

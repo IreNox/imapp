@@ -1,5 +1,11 @@
 #pragma once
 
+#include "imapp_defines.h"
+
+#include <imui/imui.h>
+
+#include <stdbool.h>
+
 typedef struct ImAppPlatform ImAppPlatform;
 typedef struct ImAppRenderer ImAppRenderer;
 typedef struct ImAppRendererTexture ImAppRendererTexture;
@@ -24,8 +30,8 @@ bool						ImAppResourceStorageRecreateEverything( ImAppResourceStorage* storage 
 
 ImAppImage*					ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, ImUiStringView resourceName, bool autoFree );
 ImAppImage*					ImAppResourceStorageImageCreateRaw( ImAppResourceStorage* storage, const void* pixelData, int width, int height );
-ImAppImage*					ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize );
-//ImAppImage*					ImAppResourceStorageImageCreateJpeg( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize );
+ImAppImage*					ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, size_t imageDataSize );
+//ImAppImage*					ImAppResourceStorageImageCreateJpeg( ImAppResourceStorage* storage, const void* imageData, size_t imageDataSize );
 void						ImAppResourceStorageImageFree( ImAppResourceStorage* storage, ImAppImage* pImage );
 
 ImUiFont*					ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStringView fontName, float fontSize );

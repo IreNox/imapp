@@ -33,6 +33,12 @@
 #	define IMAPP_PLATFORM_LINUX			TIKI_OFF
 #endif
 
+#if defined( __EMSCRIPTEN__ )
+#	define IMAPP_PLATFORM_WEB			TIKI_ON
+#else
+#	define IMAPP_PLATFORM_WEB			TIKI_OFF
+#endif
+
 #if defined( _MSC_VER )
 #	define IMAPP_COMPILER_MSVC			TIKI_ON
 #else
@@ -111,7 +117,7 @@
 #	define IMAPP_POINTER_64				TIKI_OFF
 #endif
 
-#if defined( _DEBUG ) || defined( __DEBUG__ )
+#if defined( DEBUG ) || defined( _DEBUG ) || defined( __DEBUG__ )
 #	define IMAPP_DEBUG					TIKI_ON
 #else
 #	define IMAPP_DEBUG					TIKI_OFF

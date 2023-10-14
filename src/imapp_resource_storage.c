@@ -224,7 +224,7 @@ ImAppImage* ImAppResourceStorageImageCreateRaw( ImAppResourceStorage* storage, c
 	return &image->image;
 }
 
-ImAppImage* ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize )
+ImAppImage* ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, const void* imageData, size_t imageDataSize )
 {
 	uint32 width;
 	uint32 height;
@@ -243,7 +243,7 @@ ImAppImage* ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, c
 	return &image->image;
 }
 
-static ImAppRendererTexture* ImAppResourceStorageTextureCreatePng( ImAppResourceStorage* storage, const void* imageData, uintsize imageDataSize, uint32* width, uint32* height )
+static ImAppRendererTexture* ImAppResourceStorageTextureCreatePng( ImAppResourceStorage* storage, const void* imageData, size_t imageDataSize, uint32* width, uint32* height )
 {
 	spng_ctx* spng = spng_ctx_new( 0 );
 	const int bufferResult = spng_set_png_buffer( spng, imageData, imageDataSize );

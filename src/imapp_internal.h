@@ -30,6 +30,10 @@ struct ImAppInternal
 	uint32_t				inputModifiers;
 	uint32_t				inputDownMask;
 
+	int64_t					tickIntervalMs;
+	int64_t					lastTickValue;
+	ImUiInputMouseCursor	lastCursor;
+
 	ImAppPlatform*			platform;
 	ImAppWindow*			window;
 	ImAppRenderer*			renderer;

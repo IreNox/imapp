@@ -6,17 +6,21 @@
 #include "imapp_renderer.h"
 #include "imapp_resource_storage.h"
 
+#if IMAPP_ENABLED(  IMAPP_PLATFORM_WEB )
+#	include <emscripten.h>
+#endif
+
 #include <string.h>
 
 static void		ImAppFillDefaultParameters( ImAppParameters* parameters );
 static bool		ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters );
 static void		ImAppCleanup( ImAppInternal* imapp );
 static void		ImAppHandleEvents( ImAppInternal* imapp );
+static void		ImAppTick( void* arg );
 
 int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 {
 	ImAppInternal* imapp = NULL;
-	int tickIntervalMs = 0;
 	{
 		void* programContext = NULL;
 		ImAppParameters parameters;
@@ -58,61 +62,70 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 			return 1;
 		}
 
-		tickIntervalMs = parameters.tickIntervalMs;
+		imapp->tickIntervalMs = parameters.tickIntervalMs;
 	}
 
-	int64_t lastTickValue = 0;
-	ImUiInputMouseCursor lastCursor = ImUiInputMouseCursor_Arrow;
+#if IMAPP_ENABLED(  IMAPP_PLATFORM_WEB )
+	emscripten_set_main_loop_arg( ImAppTick, imapp, 0, 1 );
+#else
 	while( imapp->running )
 	{
-		lastTickValue = ImAppPlatformWindowTick( imapp->window, lastTickValue, tickIntervalMs );
-
-		ImAppResourceStorageUpdate( imapp->resources );
-		ImAppHandleEvents( imapp );
-
-		ImAppPlatformWindowGetViewRect( &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height, imapp->window );
-
-		// UI
-		const ImUiDrawData* drawData = NULL;
-		{
-			const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
-
-			ImUiFrame* frame		= ImUiBegin( imapp->context.imui, lastTickValue / 1000.0f );
-			ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
-
-			ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
-
-			drawData = ImUiSurfaceEnd( surface );
-			ImUiEnd( frame );
-		}
-
-		const ImUiInputMouseCursor cursor = ImUiInputGetMouseCursor( imapp->context.imui );
-		if( cursor != lastCursor )
-		{
-			ImAppPlatformSetMouseCursor( platform, cursor );
-			lastCursor = cursor;
-		}
-
-		ImAppRendererDraw( imapp->renderer, imapp->window, drawData );
-
-		if( !ImAppPlatformWindowPresent( imapp->window ) )
-		{
-			if( !ImAppRendererRecreateResources( imapp->renderer ) )
-			{
-				imapp->running = false;
-				break;
-			}
-
-			if( !ImAppResourceStorageRecreateEverything( imapp->resources ) )
-			{
-				imapp->running = false;
-				break;
-			}
-		}
+		ImAppTick( imapp );
 	}
+#endif
 
 	ImAppCleanup( imapp );
 	return 0;
+}
+
+void ImAppTick( void* arg )
+{
+	ImAppInternal* imapp = (ImAppInternal*)arg;
+
+	imapp->lastTickValue = ImAppPlatformWindowTick( imapp->window, imapp->lastTickValue, imapp->tickIntervalMs );
+
+	ImAppResourceStorageUpdate( imapp->resources );
+	ImAppHandleEvents( imapp );
+
+	ImAppPlatformWindowGetViewRect( &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height, imapp->window );
+
+	// UI
+	const ImUiDrawData* drawData = NULL;
+	{
+		const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
+
+		ImUiFrame* frame		= ImUiBegin( imapp->context.imui, imapp->lastTickValue / 1000.0f );
+		ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
+
+		ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
+
+		drawData = ImUiSurfaceEnd( surface );
+		ImUiEnd( frame );
+	}
+
+	const ImUiInputMouseCursor cursor = ImUiInputGetMouseCursor( imapp->context.imui );
+	if( cursor != imapp->lastCursor )
+	{
+		ImAppPlatformSetMouseCursor( imapp->platform, cursor );
+		imapp->lastCursor = cursor;
+	}
+
+	ImAppRendererDraw( imapp->renderer, imapp->window, drawData );
+
+	if( !ImAppPlatformWindowPresent( imapp->window ) )
+	{
+		if( !ImAppRendererRecreateResources( imapp->renderer ) )
+		{
+			ImAppQuit( &imapp->context );
+			return;
+		}
+
+		if( !ImAppResourceStorageRecreateEverything( imapp->resources ) )
+		{
+			ImAppQuit( &imapp->context );
+			return;
+		}
+	}
 }
 
 //static const ImAppInputShortcut s_inputShortcuts[] =
@@ -318,6 +331,9 @@ void ImAppQuit( ImAppContext* imapp )
 {
 	ImAppInternal* pImApp = (ImAppInternal*)imapp;
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+	emscripten_cancel_main_loop();
+#endif
 	pImApp->running = false;
 }
 

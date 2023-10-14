@@ -1,5 +1,10 @@
 #pragma once
 
+#include <imui/imui.h>
+
+#include <stdbool.h>
+
+typedef struct ImAppPlatform ImAppPlatform;
 typedef struct ImAppRenderer ImAppRenderer;
 typedef struct ImAppRendererTexture ImAppRendererTexture;
 typedef struct ImAppWindow ImAppWindow;

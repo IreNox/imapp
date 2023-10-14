@@ -1,0 +1,155 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.c" />
+    <ClCompile Include="..\..\submodules\libspng\spng\spng.c">
+      <Filter>spng</Filter>
+    </ClCompile>
+    <ClCompile Include="miniz\miniz.c">
+      <Filter>miniz</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\imapp.c">
+      <Filter>imapp\include</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\imapp_debug.c">
+      <Filter>imapp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\imapp_event_queue.c">
+      <Filter>imapp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\sdl\imapp_platform_sdl.c">
+      <Filter>imapp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\imapp_renderer.c">
+      <Filter>imapp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\imapp_resource_storage.c">
+      <Filter>imapp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_input.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_memory.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_text.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_toolbox.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_cpp.cpp">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_data_types.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_draw.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_font.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\imui\src\imui_helpers.c">
+      <Filter>imui\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\submodules\libspng\spng\spng.h" />
+    <ClInclude Include="miniz\miniz.h">
+      <Filter>miniz</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\imapp\imapp.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_debug.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_defines.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_event.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_event_queue.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_internal.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_main.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_platform.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_renderer.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_res_pak.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\imapp_resource_storage.h">
+      <Filter>imapp\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\include\imui\imui.h">
+      <Filter>imui\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_input.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_internal.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_memory.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_text.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_types.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\stb_truetype.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_draw.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_font.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\imui\src\imui_helpers.h">
+      <Filter>imui\src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="imapp">
+      <UniqueIdentifier>{ad8c8495-0922-4f12-9a14-88b90bfdf3c9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imapp\include">
+      <UniqueIdentifier>{069dd2c6-04a3-47e9-a9fb-f39fd4921408}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imapp\src">
+      <UniqueIdentifier>{f5ac792b-2d30-4208-b845-6c91ccc4ef1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="spng">
+      <UniqueIdentifier>{a45e4ada-d0e8-4fe5-8b79-0fa3d2b3966f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="miniz">
+      <UniqueIdentifier>{ed829ea2-097a-4369-8c7c-68be83c228ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imui">
+      <UniqueIdentifier>{7566f2db-550f-4d81-8162-8262fedc5261}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imui\include">
+      <UniqueIdentifier>{eae983f7-7afe-443f-bcf4-a7b253bf768c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imui\src">
+      <UniqueIdentifier>{58039b8d-7a6a-4a10-a258-97d9941f66b7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
