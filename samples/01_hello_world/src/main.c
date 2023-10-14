@@ -27,9 +27,11 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	return context;
 }
 
-void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiWindow* window )
+void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface )
 {
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)programContext;
+
+	ImUiWindow* window = ImUiWindowBegin( surface, IMUI_STR( "main" ), ImUiRectCreateCenterPosSize( ImUiPosCreateZero(), ImUiSurfaceGetSize( surface ) ), 1u );
 
 	ImUiWidget* vLayout = ImUiWidgetBegin( window );
 	ImUiWidgetSetPadding( vLayout, ImUiBorderCreateAll( 8.0f ) );
@@ -55,6 +57,8 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 	}
 
 	ImUiWidgetEnd( vLayout );
+
+	ImUiWindowEnd( window );
 
 	context->tickIndex++;
 }

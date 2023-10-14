@@ -23,7 +23,7 @@ void ImAppTrace( const char* format, ... )
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	vsprintf_s( buffer, 2048u, format, args );
 #else
-	vsprintf( buffer, pFormat, args );
+	vsprintf( buffer, format, args );
 #endif
 	va_end( args );
 

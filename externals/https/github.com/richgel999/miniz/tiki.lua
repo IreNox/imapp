@@ -29,16 +29,18 @@ if not os.isfile( download_path ) then
 	end
 end
 
-local sdl_module = module
+local miniz_module = module
 local sdl_project = nil
 if tiki.use_lib then
 	sdl_project = Project:new( "miniz", ProjectTypes.StaticLibrary )
 	sdk_module = sdl_project.module
 end
 
-sdl_module.module_type = ModuleTypes.FilesModule
+miniz_module.module_type = ModuleTypes.FilesModule
 
-sdl_module:add_include_dir( "." )
+miniz_module:add_include_dir( "." )
 
-sdl_module:add_files( "*.h" )
-sdl_module:add_files( "*.c" )
+miniz_module:set_define( "MINIZ_NO_STDIO" );
+
+miniz_module:add_files( "*.h" )
+miniz_module:add_files( "*.c" )

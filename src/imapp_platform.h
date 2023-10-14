@@ -11,7 +11,7 @@ typedef struct ImAppPlatform ImAppPlatform;
 bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
-void					ImAppPlatformShowError( ImAppPlatform* platform, const char* pMessage );
+void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 
 void					ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor );
 

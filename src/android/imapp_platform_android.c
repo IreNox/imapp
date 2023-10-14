@@ -2,6 +2,9 @@
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 
+#include "../imapp_debug.h"
+#include "../imapp_event_queue.h"
+
 #include <android/asset_manager.h>
 #include <android/native_activity.h>
 
@@ -10,6 +13,7 @@
 #include <errno.h>
 #include <jni.h>
 #include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 
 //////////////////////////////////////////////////////////////////////////
@@ -36,6 +40,8 @@ typedef struct ImAppPlatform
 
 	bool					started;
 	bool					stoped;
+
+	ImUiAllocator*			allocator;
 } ImAppPlatform;
 
 typedef enum ImAppAndroidLooperType
@@ -70,7 +76,7 @@ typedef union ImAppAndroidEventData
 	} state;
 	struct
 	{
-		ANativeWindow*			pWindow;
+		ANativeWindow*			window;
 	} window;
 	struct
 	{
@@ -85,14 +91,14 @@ typedef struct ImAppAndroidEvent
 } ImAppAndroidEvent;
 
 static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
-static void		ImAppAndroidDestroy( ImAppPlatform* pPlatform );
+static void		ImAppAndroidDestroy( ImAppPlatform* platform );
 
 static void*	ImAppAndroidThreadEntryPoint( void* pArgument );
 
-static void		ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform );
+static void		ImAppAndroidGetViewBounds( ImAppPlatform* platform );
 
-static bool		ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* pPlatform );
-static void		ImAppAndroidEventPush( ImAppPlatform* pPlatform, const ImAppAndroidEvent* pEvent );
+static bool		ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* platform );
+static void		ImAppAndroidEventPush( ImAppPlatform* platform, const ImAppAndroidEvent* pEvent );
 
 static void		ImAppAndroidOnStart( ANativeActivity* pActivity );
 static void		ImAppAndroidOnPause( ANativeActivity* pActivity );
@@ -103,20 +109,23 @@ static void		ImAppAndroidOnLowMemory( ANativeActivity* pActivity );
 static void*	ImAppAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen );
 static void		ImAppAndroidOnConfigurationChanged( ANativeActivity* pActivity );
 static void		ImAppAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused );
-static void		ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* pWindow );
-static void		ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* pWindow );
-static void		ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* pWindow );
+static void		ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window );
+static void		ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window );
+static void		ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window );
 static void		ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 static void		ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 
-void ImAppShowError( ImAppPlatform* pPlatform, const char* pMessage )
+void ImAppPlatformShowError( ImAppPlatform* platform, const char* message )
 {
+}
 
+void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+{
 }
 
 void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
-	ImAppTrace( "Creating: %p\n", pActivity );
+	IMAPP_DEBUG_LOGI( "Creating: %p\n", pActivity );
 
 	pActivity->callbacks->onStart					= ImAppAndroidOnStart;
 	pActivity->callbacks->onPause					= ImAppAndroidOnPause;
@@ -138,88 +147,88 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 
 static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
-	ImAppPlatform* pPlatform = IMAPP_NEW_ZERO( ImAppAllocatorGetDefault(), ImAppPlatform );
+	ImAppPlatform* platform = (ImAppPlatform*)malloc( sizeof( *platform ) );
 
-	pPlatform->pActivity = pActivity;
+	platform->pActivity = pActivity;
 
-	pthread_mutex_init( &pPlatform->threadConditionMutex, NULL );
-	pthread_cond_init( &pPlatform->threadCondition, NULL );
+	pthread_mutex_init( &platform->threadConditionMutex, NULL );
+	pthread_cond_init( &platform->threadCondition, NULL );
 
 	int eventPipe[ 2u ];
 	if( pipe( eventPipe ) )
 	{
-		ImAppTrace( "Could not create pipe: %s\n", strerror( errno ) );
-		ImAppFree( ImAppAllocatorGetDefault(), pPlatform );
+		IMAPP_DEBUG_LOGE( "Could not create pipe: %s\n", strerror( errno ) );
+		free( platform );
 		return NULL;
 	}
-	pPlatform->eventPipeRead	= eventPipe[ 0u ];
-	pPlatform->eventPipeWrite	= eventPipe[ 1u ];
+	platform->eventPipeRead	= eventPipe[ 0u ];
+	platform->eventPipeWrite	= eventPipe[ 1u ];
 
 	pthread_attr_t threadAttributes;
 	pthread_attr_init( &threadAttributes );
 	pthread_attr_setdetachstate( &threadAttributes, PTHREAD_CREATE_DETACHED );
-	pthread_create( &pPlatform->thread, &threadAttributes, ImAppAndroidThreadEntryPoint, pPlatform );
+	pthread_create( &platform->thread, &threadAttributes, ImAppAndroidThreadEntryPoint, platform );
 
-	return pPlatform;
+	return platform;
 }
 
-static void ImAppAndroidDestroy( ImAppPlatform* pPlatform )
+static void ImAppAndroidDestroy( ImAppPlatform* platform )
 {
 	{
 		ImAppAndroidEvent androidEvent;
 		androidEvent.type = ImAppAndroidEventType_Shutdown;
-		ImAppAndroidEventPush( pPlatform, &androidEvent );
+		ImAppAndroidEventPush( platform, &androidEvent );
 	}
 
-	pthread_mutex_lock( &pPlatform->threadConditionMutex );
-	while( !pPlatform->stoped )
+	pthread_mutex_lock( &platform->threadConditionMutex );
+	while( !platform->stoped )
 	{
-		pthread_cond_wait( &pPlatform->threadCondition, &pPlatform->threadConditionMutex );
+		pthread_cond_wait( &platform->threadCondition, &platform->threadConditionMutex );
 	}
-	pthread_mutex_unlock( &pPlatform->threadConditionMutex );
+	pthread_mutex_unlock( &platform->threadConditionMutex );
 
-	pthread_cond_destroy( &pPlatform->threadCondition );
-	pthread_mutex_destroy( &pPlatform->threadConditionMutex );
+	pthread_cond_destroy( &platform->threadCondition );
+	pthread_mutex_destroy( &platform->threadConditionMutex );
 
-	close( pPlatform->eventPipeWrite );
-	close( pPlatform->eventPipeRead );
+	close( platform->eventPipeWrite );
+	close( platform->eventPipeRead );
 
-	ImAppFree( ImAppAllocatorGetDefault(), pPlatform );
+	free( platform );
 }
 
 static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 {
-	ImAppPlatform* pPlatform = (ImAppPlatform*)pArgument;
+	ImAppPlatform* platform = (ImAppPlatform*)pArgument;
 
-	pPlatform->pLooper = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
-	ALooper_addFd( pPlatform->pLooper, pPlatform->eventPipeRead, ImAppAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, pPlatform );
+	platform->pLooper = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
+	ALooper_addFd( platform->pLooper, platform->eventPipeRead, ImAppAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, platform );
 
-	pthread_mutex_lock( &pPlatform->threadConditionMutex );
-	pPlatform->started = true;
-	pthread_cond_broadcast( &pPlatform->threadCondition );
-	pthread_mutex_unlock( &pPlatform->threadConditionMutex );
+	pthread_mutex_lock( &platform->threadConditionMutex );
+	platform->started = true;
+	pthread_cond_broadcast( &platform->threadCondition );
+	pthread_mutex_unlock( &platform->threadConditionMutex );
 
-	ImAppMain( pPlatform, 0, NULL );
+	ImAppMain( platform, 0, NULL );
 
-	pthread_mutex_lock( &pPlatform->threadConditionMutex );
-	pPlatform->stoped = true;
-	pthread_cond_broadcast( &pPlatform->threadCondition );
-	pthread_mutex_unlock( &pPlatform->threadConditionMutex );
+	pthread_mutex_lock( &platform->threadConditionMutex );
+	platform->stoped = true;
+	pthread_cond_broadcast( &platform->threadCondition );
+	pthread_mutex_unlock( &platform->threadConditionMutex );
 
-	ANativeActivity_finish( pPlatform->pActivity );
+	ANativeActivity_finish( platform->pActivity );
 
 	return NULL;
 }
 
-static void ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform )
+static void ImAppAndroidGetViewBounds( ImAppPlatform* platform )
 {
 	JNIEnv* pEnv = NULL;
-	(*pPlatform->pActivity->vm)->AttachCurrentThread( pPlatform->pActivity->vm, &pEnv, NULL );
+	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
 
-	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, pPlatform->pActivity->clazz );
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
 	jmethodID getWindowMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindow", "()Landroid/view/Window;" );
 
-	jobject window = (*pEnv)->CallObjectMethod( pEnv, pPlatform->pActivity->clazz, getWindowMethod );
+	jobject window = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowMethod );
 
 	jclass windowClass = (*pEnv)->GetObjectClass( pEnv, window );
 	jmethodID getDecorViewMethod = (*pEnv)->GetMethodID( pEnv, windowClass, "getDecorView", "()Landroid/view/View;" );
@@ -242,24 +251,24 @@ static void ImAppAndroidGetViewBounds( ImAppPlatform* pPlatform )
 
 	const int viewRight = (*pEnv)->GetIntField( pEnv, rect, rightField );
 	const int viewBottom = (*pEnv)->GetIntField( pEnv, rect, bottomField );
-	pPlatform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
-	pPlatform->viewLeft		= (*pEnv)->GetIntField( pEnv, rect, leftField );
-	pPlatform->viewWidth	= viewRight - pPlatform->viewLeft;
-	pPlatform->viewHeight	= viewBottom - pPlatform->viewTop;
+	platform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
+	platform->viewLeft		= (*pEnv)->GetIntField( pEnv, rect, leftField );
+	platform->viewWidth	= viewRight - platform->viewLeft;
+	platform->viewHeight	= viewBottom - platform->viewTop;
 
-	(*pPlatform->pActivity->vm)->DetachCurrentThread( pPlatform->pActivity->vm );
+	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
 }
 
-static bool ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* pPlatform )
+static bool ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* platform )
 {
-	const int bytesRead = read( pPlatform->eventPipeRead, pTarget, sizeof( *pTarget ) );
+	const int bytesRead = read( platform->eventPipeRead, pTarget, sizeof( *pTarget ) );
 	IMAPP_ASSERT( bytesRead == 0 || bytesRead == sizeof( *pTarget ) );
 	return bytesRead == sizeof( *pTarget );
 }
 
-static void ImAppAndroidEventPush( ImAppPlatform* pPlatform, const ImAppAndroidEvent* pEvent )
+static void ImAppAndroidEventPush( ImAppPlatform* platform, const ImAppAndroidEvent* pEvent )
 {
-	if( write( pPlatform->eventPipeWrite, pEvent, sizeof( *pEvent ) ) != sizeof( *pEvent ) )
+	if( write( platform->eventPipeWrite, pEvent, sizeof( *pEvent ) ) != sizeof( *pEvent ) )
 	{
 		ImAppTrace( "Write to pipe failed. Error: %s\n", strerror( errno ) );
 	}
@@ -301,8 +310,8 @@ static void ImAppAndroidOnDestroy( ANativeActivity* pActivity )
 {
 	ImAppTrace( "Destroy: %p\n", pActivity );
 
-	ImAppPlatform* pPlatform = (ImAppPlatform*)pActivity->instance;
-	ImAppAndroidDestroy( pPlatform );
+	ImAppPlatform* platform = (ImAppPlatform*)pActivity->instance;
+	ImAppAndroidDestroy( platform );
 }
 
 static void ImAppAndroidOnLowMemory( ANativeActivity* pActivity )
@@ -330,27 +339,27 @@ static void ImAppAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int fo
 	//android_app_write_cmd( (struct android_app*)pActivity->instance, focused ? APP_CMD_GAINED_FOCUS : APP_CMD_LOST_FOCUS );
 }
 
-static void ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* pWindow )
+static void ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowCreated: %p -- %p\n", pActivity, pWindow );
+	ImAppTrace( "NativeWindowCreated: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.pWindow = pWindow };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.window = window };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* pWindow )
+static void ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, pWindow );
+	ImAppTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.pWindow = NULL };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.window = NULL };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* pWindow )
+static void ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowResized: %p -- %p\n", pActivity, pWindow );
+	ImAppTrace( "NativeWindowResized: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowResize, .data.window.pWindow = pWindow };
+	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowResize, .data.window.window = window };
 	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -371,29 +380,18 @@ static void ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInpu
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Shared Libraries
+// Platform
 
-ImAppSharedLibHandle ImAppSharedLibOpen( const char* pSharedLibName )
+bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
-	const ImAppSharedLibHandle handle = (ImAppSharedLibHandle)dlopen( pSharedLibName, RTLD_NOW | RTLD_LOCAL );
-	if( handle == NULL )
-	{
-		const char* pErrorText = dlerror();
-		ImAppTrace( "Failed loading shared lib '%s'. Error: %s", pSharedLibName, pErrorText );
-		return NULL;
-	}
+	platform->allocator = allocator;
 
-	return handle;
+	return true;
 }
 
-void ImAppSharedLibClose( ImAppSharedLibHandle libHandle )
+void ImAppPlatformShutdown( ImAppPlatform* platform )
 {
-	dlclose( libHandle );
-}
-
-void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFunctionName )
-{
-	return dlsym( libHandle, pFunctionName );
+	platform->allocator = NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -401,9 +399,9 @@ void* ImAppSharedLibGetFunction( ImAppSharedLibHandle libHandle, const char* pFu
 
 struct ImAppWindow
 {
-	ImAppAllocator*		pAllocator;
-	ImAppPlatform*		pPlatform;
-	ImAppEventQueue*	pEventQueue;
+	ImUiAllocator*		allocator;
+	ImAppPlatform*		platform;
+	ImAppEventQueue*	eventQueue;
 
 	ANativeWindow*		pNativeWindow;
 	bool				isOpen;
@@ -417,65 +415,65 @@ struct ImAppWindow
 	int					height;
 };
 
-static void	ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
-static void	ImAppWindowHandleWindowResizeEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
-static void	ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent );
+static void	ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
+static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
+static void	ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
 
-static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent* pInputEvent );
+static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent );
 
-ImAppWindow* ImAppWindowCreate( ImAppAllocator* pAllocator, ImAppPlatform* pPlatform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
-	ImAppWindow* pWindow = IMAPP_NEW_ZERO( pAllocator, ImAppWindow );
-	if( pWindow == NULL )
+	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
+	if( window == NULL )
 	{
 		return NULL;
 	}
 
-	pWindow->pAllocator		= pAllocator;
-	pWindow->pPlatform		= pPlatform;
-	pWindow->pEventQueue	= ImAppEventQueueCreate( pAllocator );
-	pWindow->isOpen			= true;
-	pWindow->display		= EGL_NO_DISPLAY;
-	pWindow->surface		= EGL_NO_SURFACE;
-	pWindow->context		= EGL_NO_CONTEXT;
+	window->allocator	= platform->allocator;
+	window->platform	= platform;
+	window->eventQueue	= ImAppEventQueueCreate( platform->allocator );
+	window->isOpen		= true;
+	window->display		= EGL_NO_DISPLAY;
+	window->surface		= EGL_NO_SURFACE;
+	window->context		= EGL_NO_CONTEXT;
 
-	while( pWindow->isOpen &&
-		pWindow->pNativeWindow == NULL )
+	while( window->isOpen &&
+		   window->pNativeWindow == NULL )
 	{
-		ImAppWindowTick( pWindow, 0, 0 );
+		ImAppPlatformWindowTick( window, 0, 0 );
 	}
 
-	if( pWindow->pNativeWindow == NULL )
+	if( window->pNativeWindow == NULL )
 	{
-		ImAppWindowDestroy( pWindow );
+		ImAppPlatformWindowDestroy( window );
 		return NULL;
 	}
 
-	pWindow->hasDeviceChange = false;
+	window->hasDeviceChange = false;
 
-	return pWindow;
+	return window;
 }
 
-void ImAppWindowDestroy( ImAppWindow* pWindow )
+void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
-	IMAPP_ASSERT( pWindow->context == EGL_NO_CONTEXT );
+	IMAPP_ASSERT( window->context == EGL_NO_CONTEXT );
 
-	if( pWindow->pEventQueue != NULL )
+	if( window->eventQueue != NULL )
 	{
-		ImAppEventQueueDestroy( pWindow->pEventQueue );
-		pWindow->pEventQueue = NULL;
+		ImAppEventQueueDestroy( window->eventQueue );
+		window->eventQueue = NULL;
 	}
 
-	ImAppFree( pWindow->pAllocator, pWindow );
+	ImUiMemoryFree( window->allocator, window );
 }
 
-bool ImAppWindowCreateGlContext( ImAppWindow* pWindow )
+bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 {
-	IMAPP_ASSERT( pWindow->pNativeWindow != NULL );
-	IMAPP_ASSERT( pWindow->display == EGL_NO_DISPLAY );
+	IMAPP_ASSERT( window->pNativeWindow != NULL );
+	IMAPP_ASSERT( window->display == EGL_NO_DISPLAY );
 
-	pWindow->display = eglGetDisplay( EGL_DEFAULT_DISPLAY );
-	eglInitialize( pWindow->display, NULL, NULL );
+	window->display = eglGetDisplay( EGL_DEFAULT_DISPLAY );
+	eglInitialize( window->display, NULL, NULL );
 
 	const EGLint displayAttributes[] = {
 		EGL_SURFACE_TYPE,	EGL_WINDOW_BIT,
@@ -487,63 +485,63 @@ bool ImAppWindowCreateGlContext( ImAppWindow* pWindow )
 
 	EGLint configCount;
 	EGLConfig config;
-	eglChooseConfig( pWindow->display, displayAttributes, &config, 1, &configCount );
+	eglChooseConfig( window->display, displayAttributes, &config, 1, &configCount );
 
 	EGLint format;
-	eglGetConfigAttrib( pWindow->display, config, EGL_NATIVE_VISUAL_ID, &format );
+	eglGetConfigAttrib( window->display, config, EGL_NATIVE_VISUAL_ID, &format );
 
-	ANativeWindow_setBuffersGeometry( pWindow->pNativeWindow, 0, 0, format );
+	ANativeWindow_setBuffersGeometry( window->pNativeWindow, 0, 0, format );
 
-	pWindow->surface = eglCreateWindowSurface( pWindow->display, config, pWindow->pNativeWindow, NULL );
+	window->surface = eglCreateWindowSurface( window->display, config, window->pNativeWindow, NULL );
 
 	const EGLint contextAttributes[] = {
 		EGL_CONTEXT_CLIENT_VERSION,	2,
 		EGL_NONE
 	};
 
-	pWindow->context = eglCreateContext( pWindow->display, config, NULL, contextAttributes );
+	window->context = eglCreateContext( window->display, config, NULL, contextAttributes );
 
-	if( eglMakeCurrent( pWindow->display, pWindow->surface, pWindow->surface, pWindow->context ) == EGL_FALSE )
+	if( eglMakeCurrent( window->display, window->surface, window->surface, window->context ) == EGL_FALSE )
 	{
 		return false;
 	}
 
-	eglQuerySurface( pWindow->display, pWindow->surface, EGL_WIDTH, &pWindow->width );
-	eglQuerySurface( pWindow->display, pWindow->surface, EGL_HEIGHT, &pWindow->height );
+	eglQuerySurface( window->display, window->surface, EGL_WIDTH, &window->width );
+	eglQuerySurface( window->display, window->surface, EGL_HEIGHT, &window->height );
 
-	ImAppAndroidGetViewBounds( pWindow->pPlatform );
+	ImAppAndroidGetViewBounds( window->platform );
 
 	return true;
 }
 
-void ImAppWindowDestroyGlContext( ImAppWindow* pWindow )
+void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 {
-	if( pWindow->display == EGL_NO_DISPLAY )
+	if( window->display == EGL_NO_DISPLAY )
 	{
 		return;
 	}
 
-	eglMakeCurrent( pWindow->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
+	eglMakeCurrent( window->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
 
-	if( pWindow->context != EGL_NO_CONTEXT )
+	if( window->context != EGL_NO_CONTEXT )
 	{
-		eglDestroyContext( pWindow->display, pWindow->context );
-		pWindow->context = EGL_NO_CONTEXT;
+		eglDestroyContext( window->display, window->context );
+		window->context = EGL_NO_CONTEXT;
 	}
 
-	if( pWindow->surface != EGL_NO_SURFACE )
+	if( window->surface != EGL_NO_SURFACE )
 	{
-		eglDestroySurface( pWindow->display, pWindow->surface );
-		pWindow->surface = EGL_NO_SURFACE;
+		eglDestroySurface( window->display, window->surface );
+		window->surface = EGL_NO_SURFACE;
 	}
 
-	eglTerminate( pWindow->display );
-	pWindow->display = EGL_NO_DISPLAY;
+	eglTerminate( window->display );
+	window->display = EGL_NO_DISPLAY;
 
-	pWindow->pNativeWindow = NULL;
+	window->pNativeWindow = NULL;
 }
 
-int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval )
 {
 	int waitDuration;
 	int64_t currentTickValue;
@@ -565,26 +563,26 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 	void* pUserData;
 	while( (eventType = ALooper_pollAll( timeoutValue, NULL, &eventCount, &pUserData )) >= 0 )
 	{
-		IMAPP_ASSERT( pUserData == pWindow->pPlatform );
+		IMAPP_ASSERT( pUserData == window->platform );
 		timeoutValue = 0;
 
 		if( eventType == ImAppAndroidLooperType_Event )
 		{
 			ImAppAndroidEvent androidEvent;
-			if( ImAppAndroidEventPop( &androidEvent, pWindow->pPlatform ) )
+			if( ImAppAndroidEventPop( &androidEvent, window->platform ) )
 			{
 				switch( androidEvent.type )
 				{
 				case ImAppAndroidEventType_WindowChanged:
-					ImAppWindowHandleWindowChangedEvent( pWindow, &androidEvent );
+					ImAppPlatformWindowHandleWindowChangedEvent( window, &androidEvent );
 					break;
 
 				case ImAppAndroidEventType_WindowResize:
-					ImAppWindowHandleWindowResizeEvent( pWindow, &androidEvent );
+					ImAppPlatformWindowHandleWindowResizeEvent( window, &androidEvent );
 					break;
 
 				case ImAppAndroidEventType_InputChanged:
-					ImAppWindowHandleInputChangedEvent( pWindow, &androidEvent );
+					ImAppPlatformWindowHandleInputChangedEvent( window, &androidEvent );
 					break;
 
 				default:
@@ -595,15 +593,15 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 		else if( eventType == ImAppAndroidLooperType_Input )
 		{
 			AInputEvent* pInputEvent = NULL;
-			while( AInputQueue_getEvent( pWindow->pPlatform->pInputQueue, &pInputEvent ) >= 0 )
+			while( AInputQueue_getEvent( window->platform->pInputQueue, &pInputEvent ) >= 0 )
 			{
-				if( AInputQueue_preDispatchEvent( pWindow->pPlatform->pInputQueue, pInputEvent ) )
+				if( AInputQueue_preDispatchEvent( window->platform->pInputQueue, pInputEvent ) )
 				{
 					continue;
 				}
 
-				const bool  handled = ImAppWindowHandleInputEvent( pWindow, pInputEvent );
-				AInputQueue_finishEvent( pWindow->pPlatform->pInputQueue, pInputEvent, handled );
+				const bool  handled = ImAppPlatformWindowHandleInputEvent( window, pInputEvent );
+				AInputQueue_finishEvent( window->platform->pInputQueue, pInputEvent, handled );
 			}
 		}
 	}
@@ -611,46 +609,46 @@ int64_t ImAppWindowTick( ImAppWindow* pWindow, int64_t lastTickValue, int64_t ti
 	return currentTickValue;
 }
 
-static void ImAppWindowHandleWindowChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
+static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
 {
-	if( pWindow->context == EGL_NO_CONTEXT )
+	if( window->context == EGL_NO_CONTEXT )
 	{
-		pWindow->pNativeWindow = pSystemEvent->data.window.pWindow;
+		window->pNativeWindow = pSystemEvent->data.window.window;
 		return;
 	}
 
-	ImAppWindowDestroyGlContext( pWindow );
-	pWindow->pNativeWindow = pSystemEvent->data.window.pWindow;
-	pWindow->isOpen = ImAppWindowCreateGlContext( pWindow );
-	pWindow->hasDeviceChange = true;
+	ImAppPlatformWindowDestroyGlContext( window );
+	window->pNativeWindow = pSystemEvent->data.window.window;
+	window->isOpen = ImAppPlatformWindowCreateGlContext( window );
+	window->hasDeviceChange = true;
 }
 
-static void	ImAppWindowHandleWindowResizeEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
+static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
 {
-	IMAPP_ASSERT( pWindow->pNativeWindow == pSystemEvent->data.window.pWindow );
+	IMAPP_ASSERT( window->pNativeWindow == pSystemEvent->data.window.window );
 
-	pWindow->width	= ANativeWindow_getWidth( pWindow->pNativeWindow );
-	pWindow->height	= ANativeWindow_getHeight( pWindow->pNativeWindow );
+	window->width	= ANativeWindow_getWidth( window->pNativeWindow );
+	window->height	= ANativeWindow_getHeight( window->pNativeWindow );
 
-	ImAppAndroidGetViewBounds( pWindow->pPlatform );
+	ImAppAndroidGetViewBounds( window->platform );
 }
 
-static void ImAppWindowHandleInputChangedEvent( ImAppWindow* pWindow, const ImAppAndroidEvent* pSystemEvent )
+static void ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
 {
-	if( pWindow->pPlatform->pInputQueue != NULL )
+	if( window->platform->pInputQueue != NULL )
 	{
-		AInputQueue_detachLooper( pWindow->pPlatform->pInputQueue );
+		AInputQueue_detachLooper( window->platform->pInputQueue );
 	}
 
-	pWindow->pPlatform->pInputQueue = pSystemEvent->data.input.pInputQueue;
+	window->platform->pInputQueue = pSystemEvent->data.input.pInputQueue;
 
-	if( pWindow->pPlatform->pInputQueue != NULL )
+	if( window->platform->pInputQueue != NULL )
 	{
-		AInputQueue_attachLooper( pWindow->pPlatform->pInputQueue, pWindow->pPlatform->pLooper, ImAppAndroidLooperType_Input, NULL, pWindow->pPlatform );
+		AInputQueue_attachLooper( window->platform->pInputQueue, window->platform->pLooper, ImAppAndroidLooperType_Input, NULL, window->platform );
 	}
 }
 
-static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent* pInputEvent )
+static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent )
 {
 	const uint32_t eventType = AInputEvent_getType( pInputEvent );
 	switch( eventType )
@@ -706,13 +704,13 @@ static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent
 					const int y = (int)AMotionEvent_getY( pInputEvent, 0 );
 
 					const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = x, .y = y } };
-					ImAppEventQueuePush( pWindow->pEventQueue, &motionEvent );
+					ImAppEventQueuePush( window->eventQueue, &motionEvent );
 
 					if( motionAction != AMOTION_EVENT_ACTION_MOVE )
 					{
 						const ImAppEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-						const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImAppInputButton_Left, .repeateCount = 1 } };
-						ImAppEventQueuePush( pWindow->pEventQueue, &buttonEvent );
+						const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImUiInputMouseButton_Left, .repeateCount = 1 } };
+						ImAppEventQueuePush( window->eventQueue, &buttonEvent );
 					}
 
 					return true;
@@ -732,44 +730,44 @@ static bool	ImAppWindowHandleInputEvent( ImAppWindow* pWindow, const AInputEvent
 	return false;
 }
 
-bool ImAppWindowPresent( ImAppWindow* pWindow )
+bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
-	if( pWindow->hasDeviceChange )
+	if( window->hasDeviceChange )
 	{
-		pWindow->hasDeviceChange = false;
+		window->hasDeviceChange = false;
 		return false;
 	}
 
-	eglSwapBuffers( pWindow->display, pWindow->surface );
+	eglSwapBuffers( window->display, window->surface );
 	return true;
 }
 
-ImAppEventQueue* ImAppWindowGetEventQueue( ImAppWindow* pWindow )
+ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
-	return pWindow->pEventQueue;
+	return window->eventQueue;
 }
 
-void ImAppWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* window )
 {
-	*pX			= 0u; //pWindow->pPlatform->viewLeft;
-	*pY			= pWindow->pPlatform->viewTop;
-	*pWidth		= pWindow->pPlatform->viewWidth;
-	*pHeight	= pWindow->pPlatform->viewHeight;
+	*pX			= 0u; //window->platform->viewLeft;
+	*pY			= window->platform->viewTop;
+	*pWidth		= window->platform->viewWidth;
+	*pHeight	= window->platform->viewHeight;
 }
 
-void ImAppWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* window )
 {
-	*pWidth		= pWindow->width;
-	*pHeight	= pWindow->height;
+	*pWidth		= window->width;
+	*pHeight	= window->height;
 }
 
-void ImAppWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetPosition( int* pX, int* pY, ImAppWindow* window )
 {
 	*pX	= 0u;
 	*pY	= 0u;
 }
 
-ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
+ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* window )
 {
 	return ImAppWindowState_Maximized;
 }
@@ -777,24 +775,30 @@ ImAppWindowState ImAppWindowGetState( ImAppWindow* pWindow )
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-ImAppResource ImAppResourceLoad( ImAppPlatform* pPlatform, ImAppAllocator* pAllocator, const char* pResourceName )
+ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView resourceName )
 {
-	AAsset* pAsset = AAssetManager_open( pPlatform->pActivity->assetManager, pResourceName, AASSET_MODE_BUFFER );
-	if( pAsset == NULL )
+	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName.data, AASSET_MODE_BUFFER );
+	if( asset == NULL )
 	{
-		const ImAppResource result = { NULL, 0u };
+		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	const size_t size = AAsset_getLength64( pAsset );
-	void* pData = ImAppMalloc( pAllocator, size );
+	const size_t size = AAsset_getLength64( asset );
+	void* data = ImUiMemoryAlloc( platform->allocator, size );
 
-	const void* pSourceData = AAsset_getBuffer( pAsset );
-	memcpy( pData, pSourceData, size );
+	const void* sourceData = AAsset_getBuffer( asset );
+	memcpy( data, sourceData, size );
 
-	AAsset_close( pAsset );
+	AAsset_close( asset );
 
-	const ImAppResource result = { pData, size };
+	const ImAppBlob result = { data, size };
+	return result;
+}
+
+ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, ImUiStringView resourceName )
+{
+	const ImAppBlob result = { NULL, 0u };
 	return result;
 }
 
