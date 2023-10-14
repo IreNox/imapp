@@ -1,8 +1,10 @@
 #pragma once
 
+#include "resource.h"
 #include "resource_package.h"
 
 #include <tiki/tiki_dynamic_string.h>
+#include <tiki/tiki_static_array.h>
 
 struct ImAppContext;
 
@@ -33,6 +35,8 @@ namespace imapp
 		void				doUi( ImAppContext* imapp, UiSurface& surface );
 
 	private:
+
+		using TypeNameArray = StaticArray< DynamicArray< UiStringView >, (uintsize)ResourceType::Count >;
 
 		enum class PopupState
 		{
@@ -83,6 +87,8 @@ namespace imapp
 
 		size_t				m_selecedResource	= (size_t)-1;
 
+		TypeNameArray		m_resourceNamesByType;
+
 		void				doPopupState( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );
 		void				doPopupStateDeleteConfirm( UiSurface& surface );
@@ -93,8 +99,13 @@ namespace imapp
 		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
 		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
 
+		void				doFloatTextEdit( UiToolboxWindow& window, float& value );
+		StringView			doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName );
+
 		void				handleDrop( const char* dropData );
 
 		void				showError( const char* format, ... );
+
+		void				updateResourceNamesByType();
 	};
 }

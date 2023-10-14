@@ -1,11 +1,14 @@
 #pragma once
 
-#include "resource_package.h"
-
 #include <imui/imui_cpp.h>
+
 #include <tiki/tiki_dynamic_string.h>
 
-#include <tinyxml2.h>
+namespace tinyxml2
+{
+	class XMLElement;
+	class XMLNode;
+}
 
 namespace imapp
 {
@@ -43,15 +46,8 @@ namespace imapp
 		}
 	};
 
-	XMLElement* findOrCreateElement( XMLNode* node, const char* name )
-	{
-		XMLElement* child = node->FirstChildElement( name );
-		if( !child )
-		{
-			child = node->GetDocument()->NewElement( name );
-			node->InsertEndChild( child );
-		}
+	XMLElement*		findOrCreateElement( XMLNode* node, const char* name );
 
-		return child;
-	}
+	bool			parseUiColor( ImUiColor& target, const StringView& string );
+	uintsize		formatUiColor( char* buffer, uintsize bufferSize, const ImUiColor& value );
 }

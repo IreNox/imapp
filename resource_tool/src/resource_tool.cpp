@@ -1,12 +1,15 @@
 #include "resource_tool.h"
 
-#include "resource.h"
 #include "resource_helpers.h"
+#include "resource_toolbox_config.h"
+
+#include "file_dialog.h"
 
 #include <imapp/imapp.h>
 #include <imui/imui_cpp.h>
 
 #include <tiki/tiki_path.h>
+#include <tiki/tiki_string_tools.h>
 
 #include <cstdarg>
 
@@ -25,6 +28,8 @@ namespace imapp
 		{
 			showError( "Failed to load '%s'.", filename );
 		}
+
+		updateResourceNamesByType();
 	}
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
@@ -49,14 +54,33 @@ namespace imapp
 
 			if( window.buttonLabel( "Open" ) )
 			{
-
+				const ArrayView< StringView > filters = { "I'm App Resource Package(*.imappresx)", "*.imappresx" };
+				const DynamicString filePath = openFileDialog( "Open package...", "", filters );
+				if( filePath.hasElements() &&
+					!m_package.load( filePath ) )
+				{
+					showError( "Failed to save package: %s", filePath.toConstCharPointer() );
+				}
 			}
 
 			if( window.buttonLabel( "Save" ) )
 			{
 				if( m_package.hasPath() )
 				{
-					m_package.save();
+					if( !m_package.save() )
+					{
+						showError( "Failed to save package." );
+					}
+				}
+				else
+				{
+					const ArrayView< StringView > filters ={ "I'm App Resource Package(*.imappresx)", "*.imappresx" };
+					const DynamicString filePath = saveFileDialog( "Save package as...", "", filters );
+					if( filePath.hasElements() &&
+						!m_package.saveAs( filePath ) )
+					{
+						showError( "Failed to save package: %s", filePath.toConstCharPointer() );
+					}
 				}
 			}
 
@@ -75,6 +99,8 @@ namespace imapp
 					UiToolboxList list( window, 20.0f, m_package.getResourceCount() );
 					list.setStretch( UiSize::One );
 					list.setMinWidth( 150.0f );
+
+					list.setSelectedIndex( m_selecedResource );
 
 					for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
 					{
@@ -155,8 +181,14 @@ namespace imapp
 
 			popup.label( "Type:" );
 			const ArrayView< StringView > items = getResourceTypeStrings();
-			// HACK: really ugly but works. need a was to convert to UiStringView in a proper way.
-			typeIndex = popup.dropDown( (const UiStringView*)items.getData(), items.getLength() );
+			// HACK: really ugly but works. need a way to convert to UiStringView in a proper way.
+			{
+				UiToolboxDropdown dropDown( popup, (const UiStringView*)items.getData(), items.getLength() );
+				dropDown.setStretch( UiSize::Horizontal );
+
+				typeIndex = dropDown.getSelectedIndex();
+			}
+
 			popup.spacer( 1.0f, 4.0f );
 		}
 
@@ -166,7 +198,12 @@ namespace imapp
 			popup.label( "No name set!" );
 			ok = false;
 		}
-		if( typeIndex >= ImAppResPakType_MAX )
+		if( m_package.findResource( (RtStr)name ) )
+		{
+			popup.label( "No name must be unique!" );
+			ok = false;
+		}
+		if( typeIndex >= (uintsize)ResourceType::Count )
 		{
 			popup.label( "No type set!" );
 			ok = false;
@@ -176,7 +213,10 @@ namespace imapp
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex == 0u && ok )
 		{
-			m_package.addResource( (RtStr)name, (ResourceType)typeIndex );
+			const ResourceType type = (ResourceType)typeIndex;
+			m_package.addResource( (RtStr)name, type );
+			updateResourceNamesByType();
+
 			m_popupState = PopupState::Home;
 		}
 		else if( buttonIndex == 1u )
@@ -187,7 +227,29 @@ namespace imapp
 
 	void ResourceTool::doPopupStateDeleteConfirm( UiSurface& surface )
 	{
+		UiToolboxPopup popup( surface );
 
+		if( m_selecedResource >= m_package.getResourceCount() )
+		{
+			m_popupState = PopupState::Home;
+			return;
+		}
+
+		const Resource& resource = m_package.getResource( m_selecedResource );
+		popup.labelFormat( "Do you really want to delete '%s'?", resource.getName().toConstCharPointer() );
+
+		popup.spacer( 1.0f, 8.0f );
+
+		const UiStringView buttons[] = { "Yes", "No" };
+		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
+		if( buttonIndex < TIKI_ARRAY_COUNT( buttons ) )
+		{
+			if( buttonIndex == 0u )
+			{
+				m_package.removeResource( m_selecedResource );
+			}
+			m_popupState = PopupState::Home;
+		}
 	}
 
 	void ResourceTool::doPopupStateError( UiSurface& surface )
@@ -242,7 +304,7 @@ namespace imapp
 			doViewSkin( window, resource );
 			break;
 
-		case ResourceType::Config:
+		case ResourceType::Theme:
 			doViewConfig( window, resource );
 			break;
 		}
@@ -263,58 +325,42 @@ namespace imapp
 			}
 		}
 
+		bool allowAtlas = resource.getImageAllowAtlas();
+		window.checkBox( allowAtlas, "Allow Atlas" );
+		resource.setImageAllowAtlas( allowAtlas );
+
 		const ImUiTexture imageTexture = ImAppImageGetTexture( resource.getImage() );
 
-		ImageViewWidget imageView( window );
+		{
+			ImageViewWidget imageView( window );
 
-		UiWidget image( window );
-		image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
+			UiWidget image( window );
+			image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
 
-		image.drawWidgetTexture( imageTexture );
+			image.drawWidgetTexture( imageTexture );
+		}
+
+		if( window.buttonLabel( "Create Skin" ) )
+		{
+			DynamicString name = resource.getName();
+			name = "skin_" + name;
+
+			Resource& skinResource = m_package.addResource( name, ResourceType::Skin );
+			updateResourceNamesByType();
+
+			skinResource.setSkinImageName( resource.getName() );
+
+			m_selecedResource = m_package.getResourceCount() - 1u;
+		}
 	}
 
 	void ResourceTool::doViewSkin( UiToolboxWindow& window, Resource& resource )
 	{
-		size_t selectedIndex = (size_t)-1;
-		DynamicArray< UiStringView > imageResourceNames;
-		{
-			imageResourceNames.reserve( m_package.getResourceCount() );
-
-			for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
-			{
-				const Resource& imageResource = m_package.getResource( i );
-				if( imageResource.getType() != ResourceType::Image )
-				{
-					continue;
-				}
-
-				if( imageResource.getName() == resource.getSkinImageName() )
-				{
-					selectedIndex = i;
-				}
-
-				imageResourceNames.pushBack( (RtStr)imageResource.getName() );
-			}
-		}
-
 		window.label( "Image:" );
+		const StringView selectedImageName = doResourceSelect( window, ResourceType::Image, resource.getSkinImageName() );
+		if( selectedImageName != resource.getSkinImageName() )
 		{
-			UiToolboxDropdown imageSelect( window, imageResourceNames.getData(), imageResourceNames.getLength() );
-			imageSelect.setStretch( UiSize::Horizontal );
-
-			const uintsize newSelectedIndex = imageSelect.getSelectedIndex();
-			if( newSelectedIndex < imageResourceNames.getLength() )
-			{
-				if( newSelectedIndex != selectedIndex )
-				{
-					const StringView selectedName = (RtStr)imageResourceNames[ newSelectedIndex ];
-					resource.setSkinImageName( selectedName );
-				}
-			}
-			else
-			{
-				imageSelect.setSelectedIndex( selectedIndex );
-			}
+			resource.setSkinImageName( selectedImageName );
 		}
 
 		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
@@ -343,19 +389,9 @@ namespace imapp
 					borderLayout.setStretch( UiSize::Horizontal );
 
 					window.label( border.title );
-					const bool changed = window.slider( border.value, 0.0f, imageTexture.size.height );
-
-					bool isNew;
-					char* buffer = (char*)borderLayout.allocState( 128u, isNew );
-					if( changed || isNew )
-					{
-						snprintf( buffer, 128u, "%.0f", border.value );
-					}
-
-					if( window.textEdit( buffer, 128u ) )
-					{
-						border.value = (float)atof( buffer );
-					}
+					window.slider( border.value, 0.0f, imageTexture.size.height );
+					border.value = floorf( border.value );
+					doFloatTextEdit( window, border.value );
 				}
 			}
 
@@ -402,7 +438,235 @@ namespace imapp
 
 	void ResourceTool::doViewConfig( UiToolboxWindow& window, Resource& resource )
 	{
+		UiToolboxScrollArea scrollArea( window );
+		scrollArea.setStretch( UiSize::One );
 
+		UiWidgetLayoutVertical scrollLayout( window );
+		scrollLayout.setStretch( UiSize::Horizontal );
+		scrollLayout.setLayoutVertical();
+
+		bool skipGroup = false;
+		for( ResourceToolboxConfigField& field : resource.getConfig().getFields() )
+		{
+			if( field.type == ResourceToolboxConfigFieldType::Group )
+			{
+				skipGroup = !window.checkBoxState( (RtStr)field.name, true );
+			}
+			else if( skipGroup )
+			{
+				continue;
+			}
+			else
+			{
+				window.label( (RtStr)field.name );
+			}
+
+			switch( field.type )
+			{
+			case ResourceToolboxConfigFieldType::Group:
+				break;
+
+			case ResourceToolboxConfigFieldType::Font:
+				{
+					const StringView fontName = doResourceSelect( window, ResourceType::Font, *field.data.fontNamePtr );
+					if( *field.data.fontNamePtr != fontName )
+					{
+						*field.data.fontNamePtr = fontName;
+					}
+				}
+				break;
+
+			case ResourceToolboxConfigFieldType::Color:
+				{
+					UiWidgetLayoutHorizontal colorLayout( window, 4.0f );
+					colorLayout.setStretch( UiSize::Horizontal );
+
+					ImUiColor& value = *field.data.colorPtr;
+
+					{
+						UiWidget previewWidget( window );
+						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setFixedWidth( 50.0f );
+
+						previewWidget.drawWidgetColor( (UiColor)value );
+					}
+
+					struct ColorEditState
+					{
+						uintsize					length;
+						StaticArray< char, 32u >	buffer;
+					};
+
+					UiToolboxTextEdit textEdit( window );
+
+					bool isNew;
+					ColorEditState* state = textEdit.newState< ColorEditState >( isNew );
+					if( isNew )
+					{
+						state->length = formatUiColor( state->buffer.getData(), state->buffer.getLength(), value );
+					}
+
+					textEdit.setBuffer( state->buffer.getData(), state->buffer.getLength() );
+
+					if( textEdit.end( &state->length ) )
+					{
+						parseUiColor( value, StringView( state->buffer.getData(), state->length ) );
+					}
+				}
+				break;
+
+			case ResourceToolboxConfigFieldType::Skin:
+				{
+					UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
+					skinLayout.setStretch( UiSize::Horizontal );
+
+					{
+						UiWidget previewWidget( window );
+						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setFixedWidth( 50.0f );
+
+						Resource* skinResource = m_package.findResource( *field.data.skinNamePtr );
+						Resource* imageResource = nullptr;
+						if( skinResource )
+						{
+							imageResource = m_package.findResource( skinResource->getSkinImageName() );
+						}
+
+						if( skinResource && imageResource )
+						{
+							const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+
+							ImUiSkin skin;
+							skin.texture	= imageTexture;
+							skin.border		= skinResource->getSkinBorder();
+							skin.uv			= UiTexCoord::ZeroToOne;
+							previewWidget.drawWidgetSkin( skin );
+						}
+						else
+						{
+							previewWidget.drawWidgetColor( UiColor( (uint8)0xffu, 0u, 0u ) );
+						}
+					}
+
+					const StringView skinName = doResourceSelect( window, ResourceType::Skin, *field.data.skinNamePtr );
+					if( *field.data.skinNamePtr != skinName )
+					{
+						*field.data.skinNamePtr = skinName;
+					}
+				}
+				break;
+
+			case ResourceToolboxConfigFieldType::Float:
+				doFloatTextEdit( window, *field.data.floatPtr );
+				break;
+
+			case ResourceToolboxConfigFieldType::Border:
+				doFloatTextEdit( window, field.data.borderPtr->top );
+				doFloatTextEdit( window, field.data.borderPtr->left );
+				doFloatTextEdit( window, field.data.borderPtr->right );
+				doFloatTextEdit( window, field.data.borderPtr->bottom );
+				break;
+
+			case ResourceToolboxConfigFieldType::Size:
+				doFloatTextEdit( window, field.data.sizePtr->width );
+				doFloatTextEdit( window, field.data.sizePtr->height );
+				break;
+
+			case ResourceToolboxConfigFieldType::Image:
+				{
+					UiWidgetLayoutHorizontal imageLayout( window, 4.0f );
+					imageLayout.setStretch( UiSize::Horizontal );
+
+					{
+						UiWidget previewWidget( window );
+						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setFixedWidth( 50.0f );
+
+						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
+						if( imageResource )
+						{
+							const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+
+							const float width = (previewWidget.getRect().size.height / imageTexture.size.height) * imageTexture.size.width;
+							previewWidget.setFixedWidth( width );
+
+							previewWidget.drawWidgetTexture( imageTexture );
+						}
+						else
+						{
+							previewWidget.drawWidgetColor( UiColor( (uint8)0xffu, 0u, 0u ) );
+						}
+					}
+
+					const StringView imageName = doResourceSelect( window, ResourceType::Image, *field.data.imageNamePtr );
+					if( *field.data.imageNamePtr != imageName )
+					{
+						*field.data.imageNamePtr = imageName;
+					}
+				}
+				break;
+
+			case ResourceToolboxConfigFieldType::UInt32:
+				break;
+			}
+		}
+	}
+
+	void ResourceTool::doFloatTextEdit( UiToolboxWindow& window, float& value )
+	{
+		struct FloatEditState
+		{
+			float						lastValue;
+			StaticArray< char, 32u >	buffer;
+		};
+
+		UiToolboxTextEdit textEdit( window );
+
+		bool isNew;
+		FloatEditState* state = textEdit.newState< FloatEditState >( isNew );
+		if( isNew || state->lastValue != value )
+		{
+			snprintf( state->buffer.getData(), state->buffer.getLength(), "%.0f", value );
+		}
+
+		textEdit.setBuffer( state->buffer.getData(), state->buffer.getLength() );
+
+		if( textEdit.end() )
+		{
+			string_tools::tryParseFloat( value, StringView( state->buffer.getData() ) );
+			state->lastValue = value;
+		}
+	}
+
+	StringView ResourceTool::doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName )
+	{
+		uintsize selectedIndex = -1;
+		const UiStringView selectedResourceNameUi = (RtStr)selectedResourceName;
+		const ArrayView< UiStringView > resourceNames = m_resourceNamesByType[ (uintsize)type ];
+		for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
+		{
+			const UiStringView& resourceName = resourceNames[ i ];
+			if( resourceName == selectedResourceNameUi )
+			{
+				selectedIndex = i;
+				break;
+			}
+		}
+
+		UiToolboxDropdown resourceSelect( window, resourceNames.getData(), resourceNames.getLength() );
+		resourceSelect.setStretch( UiSize::Horizontal );
+
+		const uintsize newSelectedIndex = resourceSelect.getSelectedIndex();
+		if( newSelectedIndex < resourceNames.getLength() )
+		{
+			return (RtStr)resourceNames[ newSelectedIndex ];
+		}
+		else
+		{
+			resourceSelect.setSelectedIndex( selectedIndex );
+		}
+
+		return StringView();
 	}
 
 	void ResourceTool::handleDrop( const char* dropData )
@@ -426,8 +690,18 @@ namespace imapp
 		const DynamicString remainingPath = path.getGenericPath().subString( packageDir.getGenericPath().getLength() + 1u );
 		const DynamicString filename = path.getBasename();
 
+		if( m_package.findResource( filename ) )
+		{
+			showError( "Can't add '%s' because there is already a resource with this name.", filename.toConstCharPointer() );
+			return;
+		}
+
 		Resource& resource = m_package.addResource( filename, ResourceType::Image );
+		updateResourceNamesByType();
+
 		resource.setImageSourcePath( remainingPath );
+
+		m_selecedResource = m_package.getResourceCount() - 1u;
 	}
 
 	void ResourceTool::showError( const char* format, ... )
@@ -438,6 +712,19 @@ namespace imapp
 		va_end( args );
 
 		m_popupState = PopupState::Error;
+	}
+
+	void ResourceTool::updateResourceNamesByType()
+	{
+		for( DynamicArray< UiStringView >& array : m_resourceNamesByType )
+		{
+			array.clear();
+		}
+
+		for( const Resource& resource : m_package.getResources() )
+		{
+			m_resourceNamesByType[ (uintsize)resource.getType() ].pushBack( (RtStr)resource.getName() );
+		}
 	}
 
 	ResourceTool::ImageViewWidget::ImageViewWidget( UiToolboxWindow& window )
@@ -476,6 +763,8 @@ namespace imapp
 
 		if( widgetInput.isMouseOver )
 		{
+			getContext().setMouseCursor( ImUiInputMouseCursor_Move );
+
 			m_state->zoom += max( 0.05f, roundf( m_state->zoom ) * 0.1f ) * inputState.getMouseScrollDelta().y;
 			m_state->zoom = max( 0.05f, m_state->zoom );
 		}

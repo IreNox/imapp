@@ -7,6 +7,8 @@
 
 #include <tinyxml2.h>
 
+struct ImAppContext;
+
 namespace imapp
 {
 	using namespace tiki;
@@ -19,34 +21,36 @@ namespace imapp
 	{
 	public:
 
-						ResourcePackage();
-						~ResourcePackage();
+								ResourcePackage();
+								~ResourcePackage();
 
-		bool			load( const StringView& filename );
+		bool					load( const StringView& filename );
 
-		bool			hasPath() const;
-		bool			save();
-		bool			saveAs( const StringView& filename );
+		bool					hasPath() const;
+		bool					save();
+		bool					saveAs( const StringView& filename );
 
-		void			updateFileData( ImAppContext* imapp, float time );
+		void					updateFileData( ImAppContext* imapp, float time );
 
-		StringView		getPath() const { return m_path; }
-		StringView		getName() const { return m_name; }
+		StringView				getPath() const { return m_path; }
+		StringView				getName() const { return m_name; }
 
-		Resource&		addResource( const StringView& name, ResourceType type );
-		Resource&		getResource( uintsize index );
-		uintsize		getResourceCount() const;
+		Resource&				addResource( const StringView& name, ResourceType type );
+		Resource&				getResource( uintsize index );
+		void					removeResource( uintsize index );
+		uintsize				getResourceCount() const;
+		ArrayView< Resource >	getResources() const { return m_resources; }
 
-		Resource*		findResource( const StringView& name );
+		Resource*				findResource( const StringView& name );
 
 	private:
 
 		using ResourceArray = DynamicArray< Resource >;
 
-		DynamicString	m_path;
-		XMLDocument		m_xml;
+		DynamicString			m_path;
+		XMLDocument				m_xml;
 
-		DynamicString	m_name;
-		ResourceArray	m_resources;
+		DynamicString			m_name;
+		ResourceArray			m_resources;
 	};
 }

@@ -73,7 +73,7 @@ namespace imapp
 			resource.serialize( resourcesNode );
 		}
 
-		return m_xml.SaveFile( filename.getData() );
+		return m_xml.SaveFile( filename.getData() ) == XML_SUCCESS;
 	}
 
 	void ResourcePackage::updateFileData( ImAppContext* imapp, float time )
@@ -93,6 +93,12 @@ namespace imapp
 	Resource& ResourcePackage::getResource( uintsize index )
 	{
 		return m_resources[ index ];
+	}
+
+	void ResourcePackage::removeResource( uintsize index )
+	{
+		m_resources[ index ].remove();
+		m_resources.eraseSortedByIndex( index );
 	}
 
 	uintsize ResourcePackage::getResourceCount() const

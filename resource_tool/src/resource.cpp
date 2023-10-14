@@ -2,8 +2,6 @@
 
 #include <tiki/tiki_path.h>
 
-#include <stdio.h>
-
 namespace imapp
 {
 	using namespace imui;
@@ -16,7 +14,7 @@ namespace imapp
 		"Image",
 		"Skin",
 		"Font",
-		"Config"
+		"Theme"
 	};
 
 	ArrayView< StringView > getResourceTypeStrings()
@@ -52,12 +50,10 @@ namespace imapp
 		: m_name( name )
 		, m_type( type )
 	{
-
 	}
 
 	Resource::~Resource()
 	{
-
 	}
 
 	bool Resource::load( XMLElement* resourceNode )
@@ -90,8 +86,8 @@ namespace imapp
 		case imapp::ResourceType::Skin:
 			return loadSkinXml();
 
-		case imapp::ResourceType::Config:
-			return loadConfigXml();
+		case imapp::ResourceType::Theme:
+			return m_config.load( m_xml );
 		}
 
 		return false;
@@ -118,12 +114,21 @@ namespace imapp
 			serializeSkinXml();
 			break;
 
-		case ResourceType::Config:
-			serializeConfigXml();
+		case ResourceType::Theme:
+			m_config.serialize( m_xml );
 			break;
 		}
 
 		m_isDirty = false;
+	}
+
+	void Resource::remove()
+	{
+		if( m_xml )
+		{
+			m_xml->Parent()->DeleteChild( m_xml );
+			m_xml = nullptr;
+		}
 	}
 
 	void Resource::updateFileData( ImAppContext* imapp, const StringView& packagePath, float time )
@@ -203,6 +208,8 @@ namespace imapp
 		}
 		m_imageSourcePath = path;
 
+		m_xml->QueryBoolAttribute( "allow_atlas", &m_imageAllowAtlas );
+
 		return true;
 	}
 
@@ -221,14 +228,10 @@ namespace imapp
 			m_xml->QueryFloatAttribute( "right", &m_skinBorder.right ) == XML_SUCCESS;
 	}
 
-	bool Resource::loadConfigXml()
-	{
-		return true;
-	}
-
 	void Resource::serializeImageXml()
 	{
 		m_xml->SetAttribute( "path", m_imageSourcePath );
+		m_xml->SetAttribute( "allow_atlas", m_imageAllowAtlas );
 	}
 
 	void Resource::serializeSkinXml()
@@ -239,10 +242,5 @@ namespace imapp
 		m_xml->SetAttribute( "left", m_skinBorder.left );
 		m_xml->SetAttribute( "bottom", m_skinBorder.bottom );
 		m_xml->SetAttribute( "right", m_skinBorder.right );
-	}
-
-	void Resource::serializeConfigXml()
-	{
-
 	}
 }

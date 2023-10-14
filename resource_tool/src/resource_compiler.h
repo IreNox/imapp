@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tiki/tiki_dynamic_array.h>
+
 namespace tiki
 {
 	class StringView;
