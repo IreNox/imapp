@@ -13,6 +13,8 @@ void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* pMessage );
 
+void					ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor );
+
 //////////////////////////////////////////////////////////////////////////
 // Window
 

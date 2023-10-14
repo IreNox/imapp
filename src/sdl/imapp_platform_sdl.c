@@ -27,7 +27,25 @@ struct ImAppPlatform
 	wchar_t			fontPath[ MAX_PATH ];
 	size_t			fontBasePathLength;
 #endif
+
+	SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
+
+static const SDL_SystemCursor s_systemCursorMapping[] =
+{
+	SDL_SYSTEM_CURSOR_ARROW,
+	SDL_SYSTEM_CURSOR_WAIT,
+	SDL_SYSTEM_CURSOR_WAITARROW,
+	SDL_SYSTEM_CURSOR_IBEAM,
+	SDL_SYSTEM_CURSOR_CROSSHAIR,
+	SDL_SYSTEM_CURSOR_HAND,
+	SDL_SYSTEM_CURSOR_SIZENWSE,
+	SDL_SYSTEM_CURSOR_SIZENESW,
+	SDL_SYSTEM_CURSOR_SIZEWE,
+	SDL_SYSTEM_CURSOR_SIZENS,
+	SDL_SYSTEM_CURSOR_SIZEALL
+};
+IMAPP_STATIC_ASSERT( IMAPP_ARRAY_COUNT( s_systemCursorMapping ) == ImUiInputMouseCursor_MAX );
 
 int SDL_main( int argc, char* argv[] )
 {
@@ -170,6 +188,10 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 {
 	platform->allocator = allocator;
 
+	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
+	{
+		platform->systemCursors[ i ] = SDL_CreateSystemCursor( s_systemCursorMapping[ i ] );
+	}
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	const char* sourcePath = resourcePath;
@@ -227,12 +249,23 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 
 void ImAppPlatformShutdown( ImAppPlatform* platform )
 {
+	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
+	{
+		SDL_FreeCursor( platform->systemCursors[ i ] );
+		platform->systemCursors[ i ] = NULL;
+	}
+
 	platform->allocator = NULL;
 }
 
 void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* pMessage )
 {
 	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
+}
+
+void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+{
+	SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
 //////////////////////////////////////////////////////////////////////////

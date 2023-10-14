@@ -62,6 +62,7 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 	}
 
 	int64_t lastTickValue = 0;
+	ImUiInputMouseCursor lastCursor = ImUiInputMouseCursor_Arrow;
 	while( imapp->running )
 	{
 		lastTickValue = ImAppPlatformWindowTick( imapp->window, lastTickValue, tickIntervalMs );
@@ -83,6 +84,13 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 
 			drawData = ImUiSurfaceEnd( surface );
 			ImUiEnd( frame );
+		}
+
+		const ImUiInputMouseCursor cursor = ImUiInputGetMouseCursor( imapp->context.imui );
+		if( cursor != lastCursor )
+		{
+			ImAppPlatformSetMouseCursor( platform, cursor );
+			lastCursor = cursor;
 		}
 
 		ImAppRendererDraw( imapp->renderer, imapp->window, drawData );
