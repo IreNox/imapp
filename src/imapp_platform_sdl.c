@@ -1,9 +1,9 @@
-#include "../imapp_platform.h"
+#include "imapp_platform.h"
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_SDL )
 
-#include "../imapp_debug.h"
-#include "../imapp_event_queue.h"
+#include "imapp_debug.h"
+#include "imapp_event_queue.h"
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <SDL2/SDL.h>

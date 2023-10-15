@@ -1,4 +1,4 @@
-#include "../imapp_platform.h"
+#include "imapp_platform.h"
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 
