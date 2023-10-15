@@ -43,9 +43,13 @@ namespace imapp
 
 		Resource*				findResource( const StringView& name );
 
+		uint32					getRevision() const;
+
 	private:
 
 		using ResourceArray = DynamicArray< Resource >;
+
+		uint32					m_revision;
 
 		DynamicString			m_path;
 		XMLDocument				m_xml;

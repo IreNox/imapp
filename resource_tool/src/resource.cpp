@@ -2,12 +2,14 @@
 
 #include <tiki/tiki_path.h>
 
+#include <spng/spng.h>
+
 namespace imapp
 {
 	using namespace imui;
 	using namespace tiki;
 
-	static constexpr float FileCheckInterval = 5.0f;
+	static constexpr float FileCheckInterval = 2.0f;
 
 	static const StringView s_resourceTypeStrings[] =
 	{
@@ -59,6 +61,8 @@ namespace imapp
 	bool Resource::load( XMLElement* resourceNode )
 	{
 		m_xml = resourceNode;
+
+		m_revision++;
 
 		const char* name;
 		if( m_xml->QueryStringAttribute( "name", &name ) != XML_SUCCESS )
@@ -125,8 +129,6 @@ namespace imapp
 			m_theme.serialize( m_xml );
 			break;
 		}
-
-		m_isDirty = false;
 	}
 
 	void Resource::remove()
@@ -199,19 +201,19 @@ namespace imapp
 	void Resource::setName( const StringView& value )
 	{
 		m_name = value;
-		m_isDirty = true;
+		m_revision++;
 	}
 
 	void Resource::setFileSourcePath( const StringView& value )
 	{
 		m_fileSourcePath = value;
-		m_isDirty = true;
+		m_revision++;
 	}
 
 	void Resource::setImageAllowAtlas( bool value )
 	{
 		m_imageAllowAtlas = value;
-		m_isDirty = true;
+		m_revision++;
 	}
 
 	uint32 Resource::getImageWidth() const
@@ -239,13 +241,18 @@ namespace imapp
 	void Resource::setFontSize( float value )
 	{
 		m_fontSize = value;
-		m_isDirty = true;
+		m_revision++;
 	}
 
 	void Resource::setSkinImageName( const StringView& value )
 	{
 		m_skinImageName = value;
-		m_isDirty = true;
+		m_revision++;
+	}
+
+	void Resource::increaseRevision()
+	{
+		m_revision++;
 	}
 
 	bool Resource::loadImageXml()
@@ -311,6 +318,45 @@ namespace imapp
 			m_image = nullptr;
 		}
 
-		m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
+		spng_ctx* spng = spng_ctx_new( 0 );
+		const int bufferResult = spng_set_png_buffer( spng, m_fileData.getData(), m_fileData.getSizeInBytes() );
+		if( bufferResult != SPNG_OK )
+		{
+			//IMAPP_DEBUG_LOGE( "Failed to set PNG buffer. Result: %d", bufferResult );
+			spng_ctx_free( spng );
+			return;
+		}
+
+		size_t pixelDataSize;
+		const int sizeResult = spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
+		if( sizeResult != SPNG_OK )
+		{
+			//IMAPP_DEBUG_LOGE( "Failed to calculate PNG size. Result: %d", sizeResult );
+			spng_ctx_free( spng );
+			return;
+		}
+
+		struct spng_ihdr ihdr;
+		const int headerResult = spng_get_ihdr( spng, &ihdr );
+		if( headerResult != SPNG_OK )
+		{
+			//IMAPP_DEBUG_LOGE( "Failed to get PNG header. Result: %d", headerResult );
+			spng_ctx_free( spng );
+			return;
+		}
+
+		m_imageData.setLengthUninitialized( pixelDataSize );
+
+		const int decodeResult = spng_decode_image( spng, m_imageData.getData(), m_imageData.getLength(), SPNG_FMT_RGBA8, 0 );
+		spng_ctx_free( spng );
+
+		if( decodeResult != 0 )
+		{
+			//IMAPP_DEBUG_LOGE( "Failed to decode PNG. Result: %d", decodeResult );
+			return;
+		}
+
+		m_image = ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), ihdr.width, ihdr.height );
+		//m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
 	}
 }

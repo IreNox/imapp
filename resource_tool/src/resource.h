@@ -54,8 +54,6 @@ namespace imapp
 
 		void					updateFileData( ImAppContext* imapp, const StringView& packagePath, float time );
 
-		bool					isDirty() const { return m_isDirty; }
-
 		StringView				getName() const { return m_name; }
 		void					setName( const StringView& value );
 
@@ -82,15 +80,19 @@ namespace imapp
 		void					setSkinImageName( const StringView& value );
 
 		UiBorder&				getSkinBorder() { return m_skinBorder; }
+		const UiBorder&			getSkinBorder() const { return m_skinBorder; }
 
 		ResourceTheme&			getTheme() { return m_theme; }
 		const ResourceTheme&	getTheme() const { return m_theme; }
+
+		uint32					getRevision() const { return m_revision; }
+		void					increaseRevision();
 
 	private:
 
 		using ByteArray = DynamicArray< byte >;
 
-		bool					m_isDirty			= false;
+		uint32					m_revision			= 0u;
 
 		DynamicString			m_name;
 		ResourceType			m_type				= ResourceType::Image;

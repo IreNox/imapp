@@ -6,10 +6,11 @@ namespace imapp
 {
 	using namespace tiki;
 
-	struct Thread;
-	struct Mutex;
+	class Thread;
 
-	Thread*		createThread( const StringView& name, void(*threadFunc)( void* arg ), void* arg );
+	using ThreadFunc = void (*)( void* arg );
+
+	Thread*		createThread( const StringView& name, ThreadFunc, void* arg );
 	bool		isThreadRunning( const Thread* thread );
 	void		destroyThread( Thread* thread );
 }

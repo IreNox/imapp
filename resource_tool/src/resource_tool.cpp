@@ -19,7 +19,6 @@ namespace imapp
 	using namespace imui::toolbox;
 
 	ResourceTool::ResourceTool()
-		: m_compiler( m_package )
 	{
 	}
 
@@ -99,7 +98,7 @@ namespace imapp
 			else if( window.buttonLabel( "Compile" ) )
 			{
 				const Path outputPath = Path( m_package.getPath() ).replaceExtension( ".iarespak" );
-				m_compiler.startCompile( outputPath.getGenericPath() );
+				m_compiler.startCompile( outputPath.getGenericPath(), m_package );
 			}
 		}
 
@@ -158,6 +157,19 @@ namespace imapp
 			}
 		}
 
+		if( m_compiler.getOutputs().hasElements() )
+		{
+			UiToolboxList outputList( window, 25.0f, m_compiler.getOutputs().getLength() );
+			outputList.setStretch( UiSize( 1.0f, 0.0f ) );
+			outputList.setFixedHeight( 150.0f );
+
+			for( const ResourceCompilerOutput& output : m_compiler.getOutputs() )
+			{
+				outputList.nextItem();
+
+				window.label( (RtStr)output.message );
+			}
+		}
 	}
 
 	void ResourceTool::doPopupState( UiSurface& surface )
@@ -405,9 +417,17 @@ namespace imapp
 					borderLayout.setStretch( UiSize::Horizontal );
 
 					window.label( border.title );
-					window.slider( border.value, 0.0f, (float)imageTexture.height );
-					border.value = floorf( border.value );
-					doFloatTextEdit( window, border.value );
+
+					if( window.slider( border.value, 0.0f, (float)imageTexture.height ) )
+					{
+						border.value = floorf( border.value );
+						resource.increaseRevision();
+					}
+
+					if( doFloatTextEdit( window, border.value ) )
+					{
+						resource.increaseRevision();
+					}
 				}
 			}
 
@@ -489,6 +509,7 @@ namespace imapp
 					if( *field.data.fontNamePtr != fontName )
 					{
 						*field.data.fontNamePtr = fontName;
+						resource.increaseRevision();
 					}
 				}
 				break;
@@ -505,6 +526,7 @@ namespace imapp
 						previewWidget.setStretch( UiSize::Vertical );
 						previewWidget.setFixedWidth( 50.0f );
 
+						previewWidget.drawWidgetColor( UiColor::Black );
 						previewWidget.drawWidgetColor( (UiColor)value );
 					}
 
@@ -528,6 +550,7 @@ namespace imapp
 					if( textEdit.end( &state->length ) )
 					{
 						parseUiColor( value, StringView( state->buffer.getData(), state->length ) );
+						resource.increaseRevision();
 					}
 				}
 				break;
@@ -569,24 +592,34 @@ namespace imapp
 					if( *field.data.skinNamePtr != skinName )
 					{
 						*field.data.skinNamePtr = skinName;
+						resource.increaseRevision();
 					}
 				}
 				break;
 
 			case ResourceThemeFieldType::Float:
-				doFloatTextEdit( window, *field.data.floatPtr );
+				if( doFloatTextEdit( window, *field.data.floatPtr ) )
+				{
+					resource.increaseRevision();
+				}
 				break;
 
 			case ResourceThemeFieldType::Border:
-				doFloatTextEdit( window, field.data.borderPtr->top );
-				doFloatTextEdit( window, field.data.borderPtr->left );
-				doFloatTextEdit( window, field.data.borderPtr->right );
-				doFloatTextEdit( window, field.data.borderPtr->bottom );
+				if( doFloatTextEdit( window, field.data.borderPtr->top ) ||
+					doFloatTextEdit( window, field.data.borderPtr->left ) ||
+					doFloatTextEdit( window, field.data.borderPtr->right ) ||
+					doFloatTextEdit( window, field.data.borderPtr->bottom ) )
+				{
+					resource.increaseRevision();
+				}
 				break;
 
 			case ResourceThemeFieldType::Size:
-				doFloatTextEdit( window, field.data.sizePtr->width );
-				doFloatTextEdit( window, field.data.sizePtr->height );
+				if( doFloatTextEdit( window, field.data.sizePtr->width ) ||
+					doFloatTextEdit( window, field.data.sizePtr->height ) )
+				{
+					resource.increaseRevision();
+				}
 				break;
 
 			case ResourceThemeFieldType::Image:
@@ -619,6 +652,7 @@ namespace imapp
 					if( *field.data.imageNamePtr != imageName )
 					{
 						*field.data.imageNamePtr = imageName;
+						resource.increaseRevision();
 					}
 				}
 				break;
@@ -629,7 +663,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doFloatTextEdit( UiToolboxWindow& window, float& value )
+	bool ResourceTool::doFloatTextEdit( UiToolboxWindow& window, float& value )
 	{
 		struct FloatEditState
 		{
@@ -652,7 +686,10 @@ namespace imapp
 		{
 			string_tools::tryParseFloat( value, StringView( state->buffer.getData() ) );
 			state->lastValue = value;
+			return true;
 		}
+
+		return false;
 	}
 
 	StringView ResourceTool::doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName )

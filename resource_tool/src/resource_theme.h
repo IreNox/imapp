@@ -60,18 +60,22 @@ namespace imapp
 
 		using FieldView = Array< ResourceThemeField >;
 
-						ResourceTheme();
-						ResourceTheme( const ResourceTheme& theme );
+								ResourceTheme();
+								ResourceTheme( const ResourceTheme& theme );
 
-		bool			load( XMLElement* resourceNode );
-		void			serialize( XMLElement* resourceNode );
+		bool					load( XMLElement* resourceNode );
+		void					serialize( XMLElement* resourceNode );
 
-		FieldView		getFields() { return m_fields; }
+		FieldView				getFields() { return m_fields; }
 
-		StringView		getFontName() const { return m_fontName; }
-		void			setFontName( const StringView& value ) { m_fontName = value; }
+		StringView				getFontName() const { return m_fontName; }
+		void					setFontName( const StringView& value ) { m_fontName = value; }
 
-		ResourceTheme&	operator=( const ResourceTheme& rhs );
+		const UiToolboxConfig&	getConfig() const { return m_config; }
+		StringView				getSkinName( ImUiToolboxSkin skin ) const { return m_skins[ skin ]; }
+		StringView				getImageName( ImUiToolboxImage image ) const { return m_images[ image ]; }
+
+		ResourceTheme&			operator=( const ResourceTheme& rhs );
 
 	private:
 
@@ -81,14 +85,14 @@ namespace imapp
 		using SkinArray = StaticArray< DynamicString, ImUiToolboxSkin_MAX >;
 		using ImageArray = StaticArray< DynamicString, ImUiToolboxImage_MAX >;
 
-		UiToolboxConfig	m_config;
+		UiToolboxConfig			m_config;
 
-		FieldArray		m_fields;
+		FieldArray				m_fields;
 
-		DynamicString	m_fontName;
-		SkinArray		m_skins;
-		ImageArray		m_images;
+		DynamicString			m_fontName;
+		SkinArray				m_skins;
+		ImageArray				m_images;
 
-		void			setFields();
+		void					setFields();
 	};
 }

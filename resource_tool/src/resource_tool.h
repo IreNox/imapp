@@ -100,7 +100,7 @@ namespace imapp
 		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
 		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
 
-		void				doFloatTextEdit( UiToolboxWindow& window, float& value );
+		bool				doFloatTextEdit( UiToolboxWindow& window, float& value );
 		StringView			doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName );
 
 		void				handleDrop( const char* dropData );

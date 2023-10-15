@@ -121,4 +121,14 @@ namespace imapp
 
 		return nullptr;
 	}
+
+	uint32 ResourcePackage::getRevision() const
+	{
+		uint32 revision = m_revision;
+		for( const Resource& res : m_resources )
+		{
+			revision += res.getRevision();
+		}
+		return revision;
+	}
 }
