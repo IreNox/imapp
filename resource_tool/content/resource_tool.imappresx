@@ -1,6 +1,6 @@
 <res_pak>
     <resources>
-        <resource name="test" type="Image" path=":/dev/imapp/resource_tool/content/images/test.png" allow_atlas="true"/>
+        <resource name="test" type="Image" path="images/test.png" allow_atlas="true"/>
         <resource name="icon_check" type="Image" path="icons/icon_check.png" allow_atlas="true"/>
         <resource name="icon_cross" type="Image" path="icons/icon_cross.png" allow_atlas="true"/>
         <resource name="icon_gear" type="Image" path="icons/icon_gear.png" allow_atlas="true"/>
@@ -94,78 +94,78 @@
             <value name="Pop-Up Z Order" value="10"/>
             <value name="Pop-Up Padding" top="8" left="8" right="8" bottom="8"/>
             <value name="Pop-Up Button Spacing" value="4"/>
-            <value name="Font" fontName=""/>
+            <value name="Font" fontName="font"/>
             <value name="Text" color="fff"/>
             <value name="Button" skinName=""/>
-            <value name="Button" color="b2b2b2"/>
-            <value name="Button Hover" color="e5e5e5"/>
+            <value name="Button" color="b2b2b2cc" skinName="skin_skin_solid"/>
+            <value name="Button Hover" color="e5e5e5cc"/>
             <value name="Button Clocked" color="666"/>
             <value name="Button Text" color="fff"/>
             <value name="Button Height" value="25"/>
             <value name="Button Padding" top="8" left="8" right="8" bottom="8"/>
             <value name="Check Box" skinName=""/>
             <value name="Check Box Checked" skinName=""/>
-            <value name="Check Box" color="b2b2b2"/>
-            <value name="Check Box Hover" color="e5e5e5"/>
+            <value name="Check Box" color="b2b2b2cc" skinName="skin_skin_solid_border"/>
+            <value name="Check Box Hover" color="e5e5e5cc"/>
             <value name="Check Box Clicked" color="666"/>
             <value name="Check Box Checked" color="fff"/>
-            <value name="Check Box Checked" imageName=""/>
+            <value name="Check Box Checked" imageName="" skinName="" color="fff"/>
             <value name="Check Box Size" width="25" height="25"/>
             <value name="Check Box Text Spacing" value="8"/>
             <value name="Slider Background" skinName=""/>
             <value name="Slider Pivot" skinName=""/>
-            <value name="Slider Background" color="4c4c4c"/>
-            <value name="Slider Pivot" color="b2b2b2"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
+            <value name="Slider Background" color="4c4c4ccc" skinName="skin_skin_border"/>
+            <value name="Slider Pivot" color="b2b2b2cc" skinName="skin_skin_solid"/>
+            <value name="Slider PivotHover" color="e5e5e5cc"/>
             <value name="Slider PivotClicked" color="666"/>
             <value name="Slider Height" value="25"/>
             <value name="Slider Padding" top="0" left="5" right="5" bottom="0"/>
             <value name="Slider Pivot Size" width="10" height="25"/>
             <value name="Text Edit Background" skinName=""/>
-            <value name="Text Edit Background" color="666"/>
+            <value name="Text Edit Background" color="666" skinName="skin_skin_solid_border"/>
             <value name="Text Edit Text" color="fff"/>
             <value name="Text Edit Cursor" color="000"/>
-            <value name="Text Edit Selection" color="b2b2b2"/>
+            <value name="Text Edit Selection" color="b2b2b2cc"/>
             <value name="Text Edit Height" value="25"/>
             <value name="Text Edit Padding" top="2" left="2" right="2" bottom="2"/>
             <value name="Text Edit Cursor Size" width="1" height="21"/>
             <value name="Text Edit Blink time" value="0.52999997"/>
             <value name="Progress Bar Background" skinName=""/>
             <value name="Progress Bar Progress" skinName=""/>
-            <value name="Progress Bar Background" color="4c4c4c"/>
-            <value name="Progress Bar Progress" color="b2b2b2"/>
+            <value name="Progress Bar Background" color="4c4c4ccc" skinName="skin_skin_solid_border"/>
+            <value name="Progress Bar Progress" color="b2b2b2cc" skinName="skin_skin_solid"/>
             <value name="Progress Bar Height" value="25"/>
             <value name="Progress Bar Padding" top="2" left="2" right="2" bottom="2"/>
             <value name="Scroll Area Bar Background" skinName=""/>
             <value name="Scroll Area Bar Pivot" skinName=""/>
-            <value name="Scroll Area Bar Background" color="4c4c4c"/>
-            <value name="Scroll Area Bar Pivot" color="b2b2b2"/>
+            <value name="Scroll Area Bar Background" color="4c4c4ccc" skinName="skin_skin_solid"/>
+            <value name="Scroll Area Bar Pivot" color="b2b2b2cc" skinName="skin_skin_solid"/>
             <value name="Scroll Area Bar Size" value="8"/>
             <value name="Scroll Area Bar Spacing" top="8" left="25" right="25" bottom="8"/>
             <value name="Scroll Area Bar Min Size" width="25" height="8"/>
-            <value name="List Item" skinName=""/>
-            <value name="List Item Hover" color="e5e5e5"/>
+            <value name="List Item" skinName="skin_skin_border"/>
+            <value name="List Item Hover" color="e5e5e5cc"/>
             <value name="List Item Clicked" color="666"/>
-            <value name="List Item Selected" color="b2b2b2"/>
+            <value name="List Item Selected" color="b2b2b2cc"/>
             <value name="List Item Spacing" value="8"/>
             <value name="Scroll Area Bar Size" value="8"/>
             <value name="Scroll Area Bar Spacing" top="8" left="25" right="25" bottom="8"/>
             <value name="Scroll Area Bar Min Size" width="25" height="8"/>
-            <value name="Drop Down" skinName=""/>
+            <value name="Drop Down" skinName="skin_skin_solid_border"/>
             <value name="Drop Down List" skinName=""/>
-            <value name="Drop Down List Item" skinName=""/>
+            <value name="Drop Down List Item" skinName="skin_skin_border"/>
             <value name="Drop Down " color="666"/>
             <value name="Drop Down Text" color="fff"/>
-            <value name="Drop Down Hover" color="e5e5e5"/>
+            <value name="Drop Down Hover" color="e5e5e5cc"/>
             <value name="Drop Down Clicked" color="666"/>
-            <value name="Drop Down Open" color="b2b2b2"/>
-            <value name="Drop Down List" color="4c4c4c"/>
+            <value name="Drop Down Open" color="b2b2b2cc"/>
+            <value name="Drop Down List" color="4c4c4ccc" skinName="skin_skin_solid_border"/>
             <value name="Drop Down List Item Text" color="fff"/>
-            <value name="Drop Down List Item Hover" color="e5e5e5"/>
+            <value name="Drop Down List Item Hover" color="e5e5e5cc"/>
             <value name="Drop Down List Item Clicked" color="666"/>
-            <value name="Drop Down List Item Selected" color="b2b2b2"/>
-            <value name="Drop Down Open Icon" imageName=""/>
-            <value name="Drop Down Close Icon" imageName=""/>
+            <value name="Drop Down List Item Selected" color="b2b2b2cc"/>
+            <value name="Drop Down Open Icon" imageName="icon_arrow_down"/>
+            <value name="Drop Down Close Icon" imageName="icon_arrow_up"/>
             <value name="Drop Down Height" value="25"/>
             <value name="Drop Down Padding" top="0" left="4" right="0" bottom="0"/>
             <value name="Drop Down List Z Order" value="20"/>
@@ -175,11 +175,15 @@
             <value name="Drop Down Item Spacing" value="8"/>
             <value name="Popup" skinName=""/>
             <value name="Popup Background" color="0003"/>
-            <value name="Popup" color="4c4c4c"/>
+            <value name="Popup" color="4c4c4ccc" skinName="skin_skin_solid_border"/>
             <value name="Pop-Up Z Order" value="10"/>
             <value name="Pop-Up Padding" top="8" left="8" right="8" bottom="8"/>
             <value name="Pop-Up Button Spacing" value="4"/>
         </resource>
-        <resource name="font" type="Font"/>
+        <resource name="font" type="Font" path=""/>
+        <resource name="skin_skin_solid" type="Skin" image_name="skin_solid" top="8" left="8" bottom="8" right="8"/>
+        <resource name="skin_skin_border" type="Skin" image_name="skin_border" top="8" left="8" bottom="8" right="8"/>
+        <resource name="icon_arrow_up" type="Image" path="icons/icon_arrow_up.png" allow_atlas="true"/>
+        <resource name="icon_arrow_down" type="Image" path="icons/icon_arrow_down.png" allow_atlas="true"/>
     </resources>
 </res_pak>
