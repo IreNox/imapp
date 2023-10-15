@@ -196,8 +196,9 @@ ImAppImage* ImAppResourceStorageImageFindOrLoad( ImAppResourceStorage* storage, 
 
 	ImAppResource* image = (ImAppResource*)ImUiMemoryAllocZero( storage->allocator, IMUI_OFFSETOF( ImAppResource, resourceName ) + resourceName.length + 1u );
 	image->image.resourceName	= ImUiStringViewCreateLength( image->resourceName, resourceName.length );
-	image->image.pTexture		= texture;
-	image->image.size			= ImUiSizeCreate( (float)width, (float)height );
+	image->image.texture		= texture;
+	image->image.width			= width;
+	image->image.height			= height;
 
 	memcpy( image->resourceName, resourceName.data, resourceName.length );
 
@@ -216,8 +217,9 @@ ImAppImage* ImAppResourceStorageImageCreateRaw( ImAppResourceStorage* storage, c
 	}
 
 	ImAppResource* image = IMUI_MEMORY_NEW_ZERO( storage->allocator, ImAppResource );
-	image->image.pTexture	= texture;
-	image->image.size		= ImUiSizeCreate( (float)width, (float)height );
+	image->image.texture	= texture;
+	image->image.width		= width;
+	image->image.height		= height;
 
 	ImAppResourceStorageChangeState( storage, image, ImAppImageState_Default );
 
@@ -235,8 +237,9 @@ ImAppImage* ImAppResourceStorageImageCreatePng( ImAppResourceStorage* storage, c
 	}
 
 	ImAppResource* image = IMUI_MEMORY_NEW_ZERO( storage->allocator, ImAppResource );
-	image->image.pTexture	= texture;
-	image->image.size		= ImUiSizeCreate( (float)width, (float)height );
+	image->image.texture	= texture;
+	image->image.width		= width;
+	image->image.height		= height;
 
 	ImAppResourceStorageChangeState( storage, image, ImAppImageState_Default );
 
@@ -392,8 +395,9 @@ ImUiFont* ImAppResourceStorageFontCreate( ImAppResourceStorage* storage, ImUiStr
 	}
 
 	ImUiTexture uiTexture;
-	uiTexture.data = texture;
-	uiTexture.size = ImUiSizeCreate( (float)width, (float)height );
+	uiTexture.data		= texture;
+	uiTexture.width		= width;
+	uiTexture.height	= height;
 
 	ImUiFont* font = ImUiFontCreateTrueType( storage->imui, image, uiTexture );
 
@@ -415,8 +419,8 @@ static void ImAppResourceStorageFreeImageInternal( ImAppResourceStorage* storage
 
 	ImUiHashMapRemove( &storage->imageMap, &image );
 
-	ImAppRendererTextureDestroy( storage->renderer, image->image.pTexture );
-	image->image.pTexture = NULL;
+	ImAppRendererTextureDestroy( storage->renderer, image->image.texture );
+	image->image.texture = NULL;
 
 	ImUiMemoryFree( storage->allocator, image );
 }

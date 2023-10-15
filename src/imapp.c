@@ -371,16 +371,15 @@ void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )
 ImUiTexture ImAppImageGetTexture( const ImAppImage* image )
 {
 	ImUiTexture texture;
-
 	if( image )
 	{
-		texture.data	= image->pTexture;
-		texture.size	= image->size;
+		texture.data	= image->texture;
+		texture.width	= image->width;
+		texture.height	= image->height;
 	}
 	else
 	{
-		texture.data	= NULL;
-		texture.size	= ImUiSizeCreateZero();
+		memset( &texture, 0, sizeof( texture ) );
 	}
 
 	return texture;

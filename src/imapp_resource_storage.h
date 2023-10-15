@@ -18,8 +18,9 @@ struct ImAppImage
 {
 	ImUiStringView			resourceName;
 
-	ImAppRendererTexture*	pTexture;
-	ImUiSize				size;
+	ImAppRendererTexture*	texture;
+	uint32_t				width;
+	uint32_t				height;
 };
 
 ImAppResourceStorage*		ImAppResourceStorageCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
