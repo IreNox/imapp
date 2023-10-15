@@ -11,10 +11,6 @@ module:add_files( "include/imapp/*.h" )
 module:add_files( "src/*.h" )
 module:add_files( "src/*.c" )
 
-module:add_files( 'src/android/*.c' )
-module:add_files( 'src/windows/*.c' )
-module:add_files( 'src/sdl/*.c' )
-
 module:add_external( "local://submodules/imui" )
 module:add_external( "local://submodules/libspng" )
 
