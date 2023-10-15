@@ -1,9 +1,8 @@
 #pragma once
 
-#include "resource_toolbox_config.h"
+#include "resource_theme.h"
 
 #include <imapp/imapp.h>
-#include <imui/imui_cpp.h>
 
 #include <tiki/tiki_dynamic_string.h>
 
@@ -18,7 +17,7 @@ namespace imapp
 	using namespace tiki;
 	using namespace tinyxml2;
 
-	class ResourceToolboxConfig;
+	class ResourceTheme;
 
 	enum class ResourceType
 	{
@@ -37,9 +36,9 @@ namespace imapp
 		JPEG
 	};
 
-	ArrayView< StringView >	getResourceTypeStrings();
-	bool					parseResourceType( ResourceType& type, const StringView& string );
-	StringView				getResourceTypeString( ResourceType type );
+	ArrayView< StringView >		getResourceTypeStrings();
+	bool						parseResourceType( ResourceType& type, const StringView& string );
+	StringView					getResourceTypeString( ResourceType type );
 
 	class Resource
 	{
@@ -62,20 +61,30 @@ namespace imapp
 
 		ResourceType			getType() const { return m_type; }
 
-		StringView				getImageSourcePath() const { return m_imageSourcePath; }
-		void					setImageSourcePath( const StringView& value );
+		StringView				getFileSourcePath() const { return m_fileSourcePath; }
+		void					setFileSourcePath( const StringView& value );
+
+		TikiHash32				getFileHash() const { return m_fileHash; }
+		ArrayView< byte >		getFileData() const { return m_fileData; }
 
 		bool					getImageAllowAtlas() const { return m_imageAllowAtlas; }
-		void					setImageAllowAtlas( bool value ) { m_imageAllowAtlas = value; }
+		void					setImageAllowAtlas( bool value );
 
 		ImAppImage*				getImage() const { return m_image; }
+		ArrayView< byte >		getImageData() const { return m_imageData; }
+		uint32					getImageWidth() const;
+		uint32					getImageHeight() const;
+
+		float					getFontSize() const { return m_fontSize; }
+		void					setFontSize( float value );
 
 		StringView				getSkinImageName() const { return m_skinImageName; }
 		void					setSkinImageName( const StringView& value );
 
 		UiBorder&				getSkinBorder() { return m_skinBorder; }
 
-		ResourceToolboxConfig&	getConfig() { return m_config; }
+		ResourceTheme&			getTheme() { return m_theme; }
+		const ResourceTheme&	getTheme() const { return m_theme; }
 
 	private:
 
@@ -88,24 +97,31 @@ namespace imapp
 
 		XMLElement*				m_xml				= nullptr;
 
+		DynamicString			m_fileSourcePath;
 		ByteArray				m_fileData;
-		ImUiHash				m_fileHash			= 0u;
+		TikiHash32				m_fileHash			= 0u;
 		float					m_fileCheckTime		= -1000.0f;
 
-		DynamicString			m_imageSourcePath;
 		ResourceImageFormat		m_imageFormat;
 		ByteArray				m_imageData;
 		ImAppImage*				m_image				= nullptr;
 		bool					m_imageAllowAtlas	= true;
 
+		float					m_fontSize			= 0.0f;
+
 		DynamicString			m_skinImageName;
 		UiBorder				m_skinBorder;
 
-		ResourceToolboxConfig	m_config;
+		ResourceTheme			m_theme;
 
 		bool					loadImageXml();
 		bool					loadSkinXml();
+		bool					loadFontXml();
 		void					serializeImageXml();
 		void					serializeSkinXml();
+		void					serializeFontXml();
+
+		void					updateImageFileData( ImAppContext* imapp );
+		void					updateFontFileData( ImAppContext* imapp );
 	};
 }

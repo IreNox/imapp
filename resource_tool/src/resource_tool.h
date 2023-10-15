@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resource.h"
+#include "resource_compiler.h"
 #include "resource_package.h"
 
 #include <tiki/tiki_dynamic_string.h>
@@ -77,8 +78,8 @@ namespace imapp
 			uintsize		selectedImage;
 		};
 
-		DynamicString		m_packagePath;
 		ResourcePackage		m_package;
+		ResourceCompiler	m_compiler;
 
 		const ImAppImage*	m_icon				= nullptr;
 

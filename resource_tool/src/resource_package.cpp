@@ -16,6 +16,8 @@ namespace imapp
 
 	bool ResourcePackage::load( const StringView& filename )
 	{
+		m_resources.clear();
+
 		m_path = filename;
 
 		if( m_xml.LoadFile( filename.getData() ) != XML_SUCCESS )
@@ -38,6 +40,7 @@ namespace imapp
 
 				if( !resource.load( resourceNode ) )
 				{
+					m_resources.popBack();
 					return false;
 				}
 			}

@@ -1,7 +1,7 @@
 #include "resource_tool.h"
 
 #include "resource_helpers.h"
-#include "resource_toolbox_config.h"
+#include "resource_theme.h"
 
 #include "file_dialog.h"
 
@@ -19,6 +19,7 @@ namespace imapp
 	using namespace imui::toolbox;
 
 	ResourceTool::ResourceTool()
+		: m_compiler( m_package )
 	{
 	}
 
@@ -26,7 +27,7 @@ namespace imapp
 	{
 		if( !m_package.load( (RtStr)filename ) )
 		{
-			showError( "Failed to load '%s'.", filename );
+			showError( "Failed to load package '%s'.", filename );
 		}
 
 		updateResourceNamesByType();
@@ -51,15 +52,15 @@ namespace imapp
 
 		{
 			UiWidgetLayoutHorizontal titleLayout( window, 8.0f );
+			titleLayout.setStretchHorizontal();
 
 			if( window.buttonLabel( "Open" ) )
 			{
 				const ArrayView< StringView > filters = { "I'm App Resource Package(*.imappresx)", "*.imappresx" };
 				const DynamicString filePath = openFileDialog( "Open package...", "", filters );
-				if( filePath.hasElements() &&
-					!m_package.load( filePath ) )
+				if( filePath.hasElements() )
 				{
-					showError( "Failed to save package: %s", filePath.toConstCharPointer() );
+					load( filePath );
 				}
 			}
 
@@ -85,6 +86,21 @@ namespace imapp
 			}
 
 			window.label( "Project Name" );
+
+			window.strecher( 1.0f, 0.0f );
+
+			window.checkBoxState( "Auto Compile" );
+
+			if( m_compiler.isRunning() )
+			{
+				window.progressBar( -1.0f );
+				window.label( "Compiling..." );
+			}
+			else if( window.buttonLabel( "Compile" ) )
+			{
+				const Path outputPath = Path( m_package.getPath() ).replaceExtension( ".iarespak" );
+				m_compiler.startCompile( outputPath.getGenericPath() );
+			}
 		}
 
 		{
@@ -317,11 +333,11 @@ namespace imapp
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
 			pathLayout.setStretch( UiSize::Horizontal );
 
-			const RtStr newPath = window.textEditState( 256u, (RtStr)resource.getImageSourcePath() );
-			if( newPath != resource.getImageSourcePath() &&
+			const RtStr newPath = window.textEditState( 256u, (RtStr)resource.getFileSourcePath() );
+			if( newPath != resource.getFileSourcePath() &&
 				window.buttonLabel( "Change" ) )
 			{
-				resource.setImageSourcePath( newPath );
+				resource.setFileSourcePath( newPath );
 			}
 		}
 
@@ -335,7 +351,7 @@ namespace imapp
 			ImageViewWidget imageView( window );
 
 			UiWidget image( window );
-			image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
+			image.setFixedSize( (UiSize)imageTexture * imageView.getZoom() );
 
 			image.drawWidgetTexture( imageTexture );
 		}
@@ -389,7 +405,7 @@ namespace imapp
 					borderLayout.setStretch( UiSize::Horizontal );
 
 					window.label( border.title );
-					window.slider( border.value, 0.0f, imageTexture.size.height );
+					window.slider( border.value, 0.0f, (float)imageTexture.height );
 					border.value = floorf( border.value );
 					doFloatTextEdit( window, border.value );
 				}
@@ -400,7 +416,7 @@ namespace imapp
 			ImageViewWidget imageView( window );
 
 			UiWidget image( window );
-			image.setFixedSize( (UiSize)imageTexture.size * imageView.getZoom() );
+			image.setFixedSize( (UiSize)imageTexture * imageView.getZoom() );
 
 			if( previewSkin )
 			{
@@ -440,15 +456,16 @@ namespace imapp
 	{
 		UiToolboxScrollArea scrollArea( window );
 		scrollArea.setStretch( UiSize::One );
+		scrollArea.enableSpacing( true, false );
 
 		UiWidgetLayoutVertical scrollLayout( window );
 		scrollLayout.setStretch( UiSize::Horizontal );
 		scrollLayout.setLayoutVertical();
 
 		bool skipGroup = false;
-		for( ResourceToolboxConfigField& field : resource.getConfig().getFields() )
+		for( ResourceThemeField& field : resource.getTheme().getFields() )
 		{
-			if( field.type == ResourceToolboxConfigFieldType::Group )
+			if( field.type == ResourceThemeFieldType::Group )
 			{
 				skipGroup = !window.checkBoxState( (RtStr)field.name, true );
 			}
@@ -463,10 +480,10 @@ namespace imapp
 
 			switch( field.type )
 			{
-			case ResourceToolboxConfigFieldType::Group:
+			case ResourceThemeFieldType::Group:
 				break;
 
-			case ResourceToolboxConfigFieldType::Font:
+			case ResourceThemeFieldType::Font:
 				{
 					const StringView fontName = doResourceSelect( window, ResourceType::Font, *field.data.fontNamePtr );
 					if( *field.data.fontNamePtr != fontName )
@@ -476,7 +493,7 @@ namespace imapp
 				}
 				break;
 
-			case ResourceToolboxConfigFieldType::Color:
+			case ResourceThemeFieldType::Color:
 				{
 					UiWidgetLayoutHorizontal colorLayout( window, 4.0f );
 					colorLayout.setStretch( UiSize::Horizontal );
@@ -515,7 +532,7 @@ namespace imapp
 				}
 				break;
 
-			case ResourceToolboxConfigFieldType::Skin:
+			case ResourceThemeFieldType::Skin:
 				{
 					UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
 					skinLayout.setStretch( UiSize::Horizontal );
@@ -556,23 +573,23 @@ namespace imapp
 				}
 				break;
 
-			case ResourceToolboxConfigFieldType::Float:
+			case ResourceThemeFieldType::Float:
 				doFloatTextEdit( window, *field.data.floatPtr );
 				break;
 
-			case ResourceToolboxConfigFieldType::Border:
+			case ResourceThemeFieldType::Border:
 				doFloatTextEdit( window, field.data.borderPtr->top );
 				doFloatTextEdit( window, field.data.borderPtr->left );
 				doFloatTextEdit( window, field.data.borderPtr->right );
 				doFloatTextEdit( window, field.data.borderPtr->bottom );
 				break;
 
-			case ResourceToolboxConfigFieldType::Size:
+			case ResourceThemeFieldType::Size:
 				doFloatTextEdit( window, field.data.sizePtr->width );
 				doFloatTextEdit( window, field.data.sizePtr->height );
 				break;
 
-			case ResourceToolboxConfigFieldType::Image:
+			case ResourceThemeFieldType::Image:
 				{
 					UiWidgetLayoutHorizontal imageLayout( window, 4.0f );
 					imageLayout.setStretch( UiSize::Horizontal );
@@ -587,7 +604,7 @@ namespace imapp
 						{
 							const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
 
-							const float width = (previewWidget.getRect().size.height / imageTexture.size.height) * imageTexture.size.width;
+							const float width = (previewWidget.getRect().size.height / float( imageTexture.height )) * float( imageTexture.width );
 							previewWidget.setFixedWidth( width );
 
 							previewWidget.drawWidgetTexture( imageTexture );
@@ -606,7 +623,7 @@ namespace imapp
 				}
 				break;
 
-			case ResourceToolboxConfigFieldType::UInt32:
+			case ResourceThemeFieldType::UInt32:
 				break;
 			}
 		}
@@ -699,7 +716,7 @@ namespace imapp
 		Resource& resource = m_package.addResource( filename, ResourceType::Image );
 		updateResourceNamesByType();
 
-		resource.setImageSourcePath( remainingPath );
+		resource.setFileSourcePath( remainingPath );
 
 		m_selecedResource = m_package.getResourceCount() - 1u;
 	}
@@ -739,7 +756,7 @@ namespace imapp
 
 		m_scrollArea.setStretch( UiSize::One );
 		m_scrollArea.setLayoutScroll( m_state->offset );
-		m_scrollArea.drawWidgetColor( UiColor::Black );
+		//m_scrollArea.drawWidgetColor( UiColor::Black );
 
 		ImUiWidgetInputState widgetInput;
 		m_scrollArea.getInputState( widgetInput );
@@ -778,6 +795,9 @@ namespace imapp
 		UiToolboxWindow window = getWindow();
 
 		UiWidgetLayoutHorizontal buttonsLayout( window );
+		buttonsLayout.setPadding( UiBorder( 4.0f ) );
+
+		buttonsLayout.drawWidgetColor( UiColor::CreateBlack( 0x80u ) );
 
 		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
 		//{

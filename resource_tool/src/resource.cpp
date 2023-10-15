@@ -80,14 +80,17 @@ namespace imapp
 
 		switch( m_type )
 		{
-		case imapp::ResourceType::Image:
+		case ResourceType::Image:
 			return loadImageXml();
 
-		case imapp::ResourceType::Skin:
+		case ResourceType::Skin:
 			return loadSkinXml();
 
-		case imapp::ResourceType::Theme:
-			return m_config.load( m_xml );
+		case ResourceType::Font:
+			return loadFontXml();
+
+		case ResourceType::Theme:
+			return m_theme.load( m_xml );
 		}
 
 		return false;
@@ -114,8 +117,12 @@ namespace imapp
 			serializeSkinXml();
 			break;
 
+		case ResourceType::Font:
+			serializeFontXml();
+			break;
+
 		case ResourceType::Theme:
-			m_config.serialize( m_xml );
+			m_theme.serialize( m_xml );
 			break;
 		}
 
@@ -133,7 +140,7 @@ namespace imapp
 
 	void Resource::updateFileData( ImAppContext* imapp, const StringView& packagePath, float time )
 	{
-		if( m_type != ResourceType::Image ||
+		if( (m_type != ResourceType::Image && m_type != ResourceType::Font) ||
 			time - m_fileCheckTime < FileCheckInterval )
 		{
 			return;
@@ -143,7 +150,7 @@ namespace imapp
 
 		m_fileCheckTime = time;
 
-		const Path imagePath = Path( packagePath ).getParent().push( m_imageSourcePath );
+		const Path imagePath = Path( packagePath ).getParent().push( m_fileSourcePath );
 		FILE* file = fopen( imagePath.getNativePath().getData(), "rb" );
 		if( !file )
 		{
@@ -170,13 +177,21 @@ namespace imapp
 			return;
 		}
 
-		if( m_image )
+		switch( m_type )
 		{
-			ImAppImageFree( imapp, m_image );
-			m_image = nullptr;
-		}
+		case ResourceType::Image:
+			updateImageFileData( imapp );
+			break;
 
-		m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
+		case ResourceType::Font:
+			// ???
+			break;
+
+		case ResourceType::Skin:
+		case ResourceType::Theme:
+		case ResourceType::Count:
+			break;
+		}
 
 		m_fileHash = newFileHash;
 	}
@@ -187,9 +202,43 @@ namespace imapp
 		m_isDirty = true;
 	}
 
-	void Resource::setImageSourcePath( const StringView& value )
+	void Resource::setFileSourcePath( const StringView& value )
 	{
-		m_imageSourcePath = value;
+		m_fileSourcePath = value;
+		m_isDirty = true;
+	}
+
+	void Resource::setImageAllowAtlas( bool value )
+	{
+		m_imageAllowAtlas = value;
+		m_isDirty = true;
+	}
+
+	uint32 Resource::getImageWidth() const
+	{
+		if( m_image )
+		{
+			const ImUiTexture image = ImAppImageGetTexture( m_image );
+			return image.width;
+		}
+
+		return 0u;
+	}
+
+	uint32 Resource::getImageHeight() const
+	{
+		if( m_image )
+		{
+			const ImUiTexture image = ImAppImageGetTexture( m_image );
+			return image.height;
+		}
+
+		return 0u;
+	}
+
+	void Resource::setFontSize( float value )
+	{
+		m_fontSize = value;
 		m_isDirty = true;
 	}
 
@@ -206,7 +255,7 @@ namespace imapp
 		{
 			return false;
 		}
-		m_imageSourcePath = path;
+		m_fileSourcePath = path;
 
 		m_xml->QueryBoolAttribute( "allow_atlas", &m_imageAllowAtlas );
 
@@ -228,9 +277,14 @@ namespace imapp
 			m_xml->QueryFloatAttribute( "right", &m_skinBorder.right ) == XML_SUCCESS;
 	}
 
+	bool Resource::loadFontXml()
+	{
+		return true;
+	}
+
 	void Resource::serializeImageXml()
 	{
-		m_xml->SetAttribute( "path", m_imageSourcePath );
+		m_xml->SetAttribute( "path", m_fileSourcePath );
 		m_xml->SetAttribute( "allow_atlas", m_imageAllowAtlas );
 	}
 
@@ -242,5 +296,21 @@ namespace imapp
 		m_xml->SetAttribute( "left", m_skinBorder.left );
 		m_xml->SetAttribute( "bottom", m_skinBorder.bottom );
 		m_xml->SetAttribute( "right", m_skinBorder.right );
+	}
+
+	void Resource::serializeFontXml()
+	{
+		m_xml->SetAttribute( "path", m_fileSourcePath );
+	}
+
+	void Resource::updateImageFileData( ImAppContext* imapp )
+	{
+		if( m_image )
+		{
+			ImAppImageFree( imapp, m_image );
+			m_image = nullptr;
+		}
+
+		m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
 	}
 }
