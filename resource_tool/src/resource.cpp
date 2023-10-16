@@ -140,7 +140,7 @@ namespace imapp
 		}
 	}
 
-	void Resource::updateFileData( ImAppContext* imapp, const StringView& packagePath, float time )
+	void Resource::updateFileData( ImAppContext* imapp, const Path& packagePath, float time )
 	{
 		if( (m_type != ResourceType::Image && m_type != ResourceType::Font) ||
 			time - m_fileCheckTime < FileCheckInterval )
@@ -152,7 +152,7 @@ namespace imapp
 
 		m_fileCheckTime = time;
 
-		const Path imagePath = Path( packagePath ).getParent().push( m_fileSourcePath );
+		const Path imagePath = packagePath.getParent().push( m_fileSourcePath );
 		FILE* file = fopen( imagePath.getNativePath().getData(), "rb" );
 		if( !file )
 		{
@@ -220,7 +220,7 @@ namespace imapp
 	{
 		if( m_image )
 		{
-			const ImUiTexture image = ImAppImageGetTexture( m_image );
+			const ImUiTexture image = ImAppImageGetImage( m_image );
 			return image.width;
 		}
 
@@ -231,7 +231,7 @@ namespace imapp
 	{
 		if( m_image )
 		{
-			const ImUiTexture image = ImAppImageGetTexture( m_image );
+			const ImUiTexture image = ImAppImageGetImage( m_image );
 			return image.height;
 		}
 

@@ -4,6 +4,7 @@
 
 #include <tiki/tiki_dynamic_string.h>
 #include <tiki/tiki_hash_map.h>
+#include <tiki/tiki_path.h>
 
 #include <imapp/../../src/imapp_res_pak.h>
 
@@ -115,7 +116,7 @@ namespace imapp
 		using ResourceTypeIndexArray = StaticArray< DynamicArray< uint16 >, ImAppResPakType_MAX >;
 		using ResourceTypeIndexMap = StaticArray< HashMap< DynamicString, uint16 >, ImAppResPakType_MAX >;
 
-		DynamicString		m_outputPath;
+		Path				m_outputPath;
 		ResourceMap			m_resources;
 		ByteArray			m_buffer;
 

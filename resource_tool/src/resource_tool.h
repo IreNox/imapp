@@ -86,7 +86,7 @@ namespace imapp
 		PopupState			m_popupState		= PopupState::Home;
 		DynamicString		m_errorMessage;
 
-		size_t				m_selecedResource	= (size_t)-1;
+		size_t				m_selecedEntry	= (size_t)-1;
 
 		TypeNameArray		m_resourceNamesByType;
 
@@ -96,6 +96,7 @@ namespace imapp
 		void				doPopupStateError( UiSurface& surface );
 
 		void				doView( UiToolboxWindow& window );
+		void				doViewPackage( UiToolboxWindow& window );
 		void				doViewImage( UiToolboxWindow& window, Resource& resource );
 		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
 		void				doViewConfig( UiToolboxWindow& window, Resource& resource );

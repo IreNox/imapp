@@ -55,7 +55,7 @@ namespace imapp
 
 			if( window.buttonLabel( "Open" ) )
 			{
-				const ArrayView< StringView > filters = { "I'm App Resource Package(*.imappresx)", "*.imappresx" };
+				const ArrayView< StringView > filters = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
 				const DynamicString filePath = openFileDialog( "Open package...", "", filters );
 				if( filePath.hasElements() )
 				{
@@ -74,7 +74,7 @@ namespace imapp
 				}
 				else
 				{
-					const ArrayView< StringView > filters ={ "I'm App Resource Package(*.imappresx)", "*.imappresx" };
+					const ArrayView< StringView > filters ={ "I'm App Resource Package(*.iaresx)", "*.iaresx" };
 					const DynamicString filePath = saveFileDialog( "Save package as...", "", filters );
 					if( filePath.hasElements() &&
 						!m_package.saveAs( filePath ) )
@@ -84,21 +84,26 @@ namespace imapp
 				}
 			}
 
-			window.label( "Project Name" );
+			window.label( (RtStr)m_package.getName() );
 
 			window.strecher( 1.0f, 0.0f );
 
-			window.checkBoxState( "Auto Compile" );
+			window.progressBar( -1.0f );
 
-			if( m_compiler.isRunning() )
+			if( m_package.getOutputPath().hasElements() )
 			{
-				window.progressBar( -1.0f );
-				window.label( "Compiling..." );
-			}
-			else if( window.buttonLabel( "Compile" ) )
-			{
-				const Path outputPath = Path( m_package.getPath() ).replaceExtension( ".iarespak" );
-				m_compiler.startCompile( outputPath.getGenericPath(), m_package );
+				window.checkBoxState( "Auto Compile" );
+
+				if( m_compiler.isRunning() )
+				{
+					window.progressBar( -1.0f );
+					window.label( "Compiling..." );
+				}
+				else if( window.buttonLabel( "Compile" ) )
+				{
+					const Path outputPath = m_package.getPath().getParent().push( m_package.getOutputPath() );
+					m_compiler.startCompile( outputPath.getGenericPath(), m_package );
+				}
 			}
 		}
 
@@ -111,11 +116,14 @@ namespace imapp
 				leftLayout.setStretch( UiSize::Vertical );
 
 				{
-					UiToolboxList list( window, 20.0f, m_package.getResourceCount() );
+					UiToolboxList list( window, 20.0f, m_package.getResourceCount() + 1u );
 					list.setStretch( UiSize::One );
 					list.setMinWidth( 150.0f );
 
-					list.setSelectedIndex( m_selecedResource );
+					list.setSelectedIndex( m_selecedEntry );
+
+					list.nextItem();
+					window.label( "Package" );
 
 					for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
 					{
@@ -126,7 +134,7 @@ namespace imapp
 						window.label( (RtStr)resource.getName() );
 					}
 
-					m_selecedResource = list.getSelectedIndex();
+					m_selecedEntry = list.getSelectedIndex();
 				}
 
 				{
@@ -257,13 +265,14 @@ namespace imapp
 	{
 		UiToolboxPopup popup( surface );
 
-		if( m_selecedResource >= m_package.getResourceCount() )
+		const uintsize selectedResource = m_selecedEntry - 1u;
+		if( selectedResource >= m_package.getResourceCount() )
 		{
 			m_popupState = PopupState::Home;
 			return;
 		}
 
-		const Resource& resource = m_package.getResource( m_selecedResource );
+		const Resource& resource = m_package.getResource( selectedResource );
 		popup.labelFormat( "Do you really want to delete '%s'?", resource.getName().toConstCharPointer() );
 
 		popup.spacer( 1.0f, 8.0f );
@@ -274,7 +283,8 @@ namespace imapp
 		{
 			if( buttonIndex == 0u )
 			{
-				m_package.removeResource( m_selecedResource );
+				m_package.removeResource( selectedResource );
+				m_selecedEntry--;
 			}
 			m_popupState = PopupState::Home;
 		}
@@ -301,13 +311,20 @@ namespace imapp
 
 	void ResourceTool::doView( UiToolboxWindow& window )
 	{
-		if( m_selecedResource >= m_package.getResourceCount() )
+		if( m_selecedEntry == 0u )
+		{
+			doViewPackage( window );
+			return;
+		}
+
+		const uintsize selectedResource = m_selecedEntry - 1u;
+		if( selectedResource >= m_package.getResourceCount() )
 		{
 			window.label( "No resource selected." );
 			return;
 		}
 
-		Resource& resource = m_package.getResource( m_selecedResource );
+		Resource& resource = m_package.getResource( selectedResource );
 
 		window.label( "Name:" );
 		{
@@ -338,6 +355,35 @@ namespace imapp
 		}
 	}
 
+	void ResourceTool::doViewPackage( UiToolboxWindow& window )
+	{
+		window.label( "Name:" );
+		{
+			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
+			pathLayout.setStretch( UiSize::Horizontal );
+
+			const RtStr newName = window.textEditState( 256u, (RtStr)m_package.getName() );
+			if( newName != m_package.getName() &&
+				window.buttonLabel( "Change" ) )
+			{
+				m_package.setName( newName );
+			}
+		}
+
+		window.label( "Output Path:" );
+		{
+			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
+			pathLayout.setStretch( UiSize::Horizontal );
+
+			const RtStr newPath = window.textEditState( 256u, (RtStr)m_package.getOutputPath() );
+			if( newPath != m_package.getOutputPath() &&
+				window.buttonLabel( "Change" ) )
+			{
+				m_package.setOutputPath( newPath );
+			}
+		}
+	}
+
 	void ResourceTool::doViewImage( UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Path:" );
@@ -357,7 +403,7 @@ namespace imapp
 		window.checkBox( allowAtlas, "Allow Atlas" );
 		resource.setImageAllowAtlas( allowAtlas );
 
-		const ImUiTexture imageTexture = ImAppImageGetTexture( resource.getImage() );
+		const ImUiTexture imageTexture = ImAppImageGetImage( resource.getImage() );
 
 		{
 			ImageViewWidget imageView( window );
@@ -378,7 +424,7 @@ namespace imapp
 
 			skinResource.setSkinImageName( resource.getName() );
 
-			m_selecedResource = m_package.getResourceCount() - 1u;
+			m_selecedEntry = m_package.getResourceCount() - 1u;
 		}
 	}
 
@@ -394,7 +440,7 @@ namespace imapp
 		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
 		if( imageResource )
 		{
-			const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+			const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
 
 			UiBorder& skinBorder = resource.getSkinBorder();
 			{
@@ -574,7 +620,7 @@ namespace imapp
 
 						if( skinResource && imageResource )
 						{
-							const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+							const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
 
 							ImUiSkin skin;
 							skin.texture	= imageTexture;
@@ -635,7 +681,7 @@ namespace imapp
 						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
 						if( imageResource )
 						{
-							const ImUiTexture imageTexture = ImAppImageGetTexture( imageResource->getImage() );
+							const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
 
 							const float width = (previewWidget.getRect().size.height / float( imageTexture.height )) * float( imageTexture.width );
 							previewWidget.setFixedWidth( width );
@@ -725,7 +771,7 @@ namespace imapp
 
 	void ResourceTool::handleDrop( const char* dropData )
 	{
-		const Path packageDir = Path( m_package.getPath() ).getParent();
+		const Path packageDir = m_package.getPath().getParent();
 
 		Path path( dropData );
 		if( !path.getGenericPath().startsWithNoCase( packageDir.getGenericPath() ) )
@@ -755,7 +801,7 @@ namespace imapp
 
 		resource.setFileSourcePath( remainingPath );
 
-		m_selecedResource = m_package.getResourceCount() - 1u;
+		m_selecedEntry = m_package.getResourceCount();
 	}
 
 	void ResourceTool::showError( const char* format, ... )

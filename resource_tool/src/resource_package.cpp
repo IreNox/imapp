@@ -20,7 +20,7 @@ namespace imapp
 
 		m_path = filename;
 
-		if( m_xml.LoadFile( filename.getData() ) != XML_SUCCESS )
+		if( m_xml.LoadFile( m_path.getNativePath().getData() ) != XML_SUCCESS )
 		{
 			return false;
 		}
@@ -29,6 +29,24 @@ namespace imapp
 		if( !rootNode )
 		{
 			return false;
+		}
+
+		{
+			const char* name;
+			if( rootNode->QueryStringAttribute( "name", &name ) != XML_SUCCESS )
+			{
+				return false;
+			}
+			m_name = name;
+		}
+
+		{
+			const char* outputPath;
+			if( rootNode->QueryStringAttribute( "outputPath", &outputPath ) != XML_SUCCESS )
+			{
+				return false;
+			}
+			m_outputPath = outputPath;
 		}
 
 		XMLElement* resourcesNode = rootNode->FirstChildElement( "resources" );
@@ -57,17 +75,23 @@ namespace imapp
 	bool ResourcePackage::save()
 	{
 		TIKI_ASSERT( hasPath() );
-		return saveAs( m_path );
+		return saveAs( m_path.getGenericPath() );
 	}
 
 	bool ResourcePackage::saveAs( const StringView& filename )
 	{
 		XMLElement* rootNode = findOrCreateElement( &m_xml, "res_pak" );
 
-		if( m_name.hasElements() )
+		m_path = filename;
+
+		if( m_outputPath.isEmpty() )
 		{
-			rootNode->SetAttribute( "name", m_name );
+			const Path outputPath = m_path.replaceExtension( ".iarespak" );
+			m_outputPath = outputPath.getFilename();
 		}
+
+		rootNode->SetAttribute( "name", m_name );
+		rootNode->SetAttribute( "outputPath", m_outputPath );
 
 		XMLElement* resourcesNode = findOrCreateElement( rootNode, "resources" );
 
@@ -76,15 +100,27 @@ namespace imapp
 			resource.serialize( resourcesNode );
 		}
 
-		return m_xml.SaveFile( filename.getData() ) == XML_SUCCESS;
+		return m_xml.SaveFile( m_path.getNativePath().getData() ) == XML_SUCCESS;
 	}
 
 	void ResourcePackage::updateFileData( ImAppContext* imapp, float time )
 	{
 		for( Resource& resource : m_resources )
 		{
-			resource.updateFileData( imapp, m_path, time );
+			resource.updateFileData( imapp, m_path.getGenericPath(), time );
 		}
+	}
+
+	void ResourcePackage::setName( const StringView& value )
+	{
+		m_name = value;
+		m_revision++;
+	}
+
+	void ResourcePackage::setOutputPath( const StringView& value )
+	{
+		m_outputPath = value;
+		m_revision++;
 	}
 
 	Resource& ResourcePackage::addResource( const StringView& name, ResourceType type )

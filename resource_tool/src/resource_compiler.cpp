@@ -185,10 +185,12 @@ namespace imapp
 		bufferHeader.resourcesOffset = (uint32)m_buffer.getLength();
 		writeResourceData( bufferResources, compiledResources, resourceIndexMapping );
 
-		FILE* file = fopen( m_outputPath.getData(), "wb" );
+		//mkdir( m_outputPath.getParent().getNativePath().getData() );
+
+		FILE* file = fopen( m_outputPath.getNativePath().getData(), "wb" );
 		if( !file )
 		{
-			pushOutput( ResourceErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getData() );
+			pushOutput( ResourceErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getGenericPath().getData() );
 			return;
 		}
 

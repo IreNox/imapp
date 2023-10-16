@@ -1,4 +1,4 @@
-<res_pak>
+<res_pak name="Resource Tool" outputPath="../assets/resource_tool.iarespak">
     <resources>
         <resource name="test" type="Image" path="images/test.png" allow_atlas="true"/>
         <resource name="icon_check" type="Image" path="icons/icon_check.png" allow_atlas="true"/>

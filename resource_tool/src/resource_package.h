@@ -2,8 +2,8 @@
 
 #include "resource_helpers.h"
 
-#include <tiki/tiki_dynamic_array.h>
 #include <tiki/tiki_dynamic_string.h>
+#include <tiki/tiki_path.h>
 
 #include <tinyxml2.h>
 
@@ -32,8 +32,13 @@ namespace imapp
 
 		void					updateFileData( ImAppContext* imapp, float time );
 
-		StringView				getPath() const { return m_path; }
+		const Path&				getPath() const { return m_path; }
+
 		StringView				getName() const { return m_name; }
+		void					setName( const StringView& value );
+
+		StringView				getOutputPath() const { return m_outputPath; }
+		void					setOutputPath( const StringView& value );
 
 		Resource&				addResource( const StringView& name, ResourceType type );
 		Resource&				getResource( uintsize index );
@@ -49,12 +54,13 @@ namespace imapp
 
 		using ResourceArray = DynamicArray< Resource >;
 
-		uint32					m_revision;
+		uint32					m_revision	= 0u;
 
-		DynamicString			m_path;
+		Path					m_path;
 		XMLDocument				m_xml;
 
 		DynamicString			m_name;
+		DynamicString			m_outputPath;
 		ResourceArray			m_resources;
 	};
 }

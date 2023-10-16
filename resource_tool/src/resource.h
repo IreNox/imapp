@@ -10,6 +10,11 @@
 
 struct ImAppImage;
 
+namespace tiki
+{
+	class Path;
+}
+
 namespace imapp
 {
 	using namespace imui::toolbox;
@@ -52,7 +57,7 @@ namespace imapp
 		void					serialize( XMLElement* resourcesNode );
 		void					remove();
 
-		void					updateFileData( ImAppContext* imapp, const StringView& packagePath, float time );
+		void					updateFileData( ImAppContext* imapp, const Path& packagePath, float time );
 
 		StringView				getName() const { return m_name; }
 		void					setName( const StringView& value );
