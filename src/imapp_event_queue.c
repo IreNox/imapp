@@ -7,7 +7,7 @@
 typedef struct ImAppEventQueueChunk ImAppEventQueueChunk;
 struct ImAppEventQueueChunk
 {
-	ImAppEventQueueChunk*	pNext;
+	ImAppEventQueueChunk*	nextChunk;
 
 	ImAppEvent				data[ IMAPP_EVENT_QUEUE_CHUNK_SIZE ];
 	size_t					top;
@@ -15,71 +15,60 @@ struct ImAppEventQueueChunk
 	size_t					length;
 };
 
-struct ImAppEventQueue
+void ImAppEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator )
 {
-	ImUiAllocator*			pAllocator;
-
-	ImAppEventQueueChunk*	pCurrentChunk;
-};
-
-ImAppEventQueue* ImAppEventQueueCreate( ImUiAllocator* pAllocator )
-{
-	ImAppEventQueue* pQueue = IMUI_MEMORY_NEW_ZERO( pAllocator, ImAppEventQueue );
-	pQueue->pAllocator = pAllocator;
-
-	return pQueue;
+	queue->allocator	= allocator;
+	queue->currentChunk	= NULL;
 }
 
-void ImAppEventQueueDestroy( ImAppEventQueue* pQueue )
+void ImAppEventQueueDestruct( ImAppEventQueue* queue )
 {
-	ImAppEventQueueChunk* pChunk = pQueue->pCurrentChunk;
-	while( pChunk != NULL )
+	ImAppEventQueueChunk* chunk = queue->currentChunk;
+	while( chunk != NULL )
 	{
-		ImAppEventQueueChunk* pNextChunk = pChunk->pNext;
-		ImUiMemoryFree( pQueue->pAllocator, pChunk );
-		pChunk = pNextChunk;
+		ImAppEventQueueChunk* nextChunk = chunk->nextChunk;
+		ImUiMemoryFree( queue->allocator, chunk );
+		chunk = nextChunk;
+	}
+}
+
+void ImAppEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 )
+{
+	if( queue->currentChunk == NULL ||
+		queue->currentChunk->length == IMAPP_EVENT_QUEUE_CHUNK_SIZE )
+	{
+		ImAppEventQueueChunk* newChunk = IMUI_MEMORY_NEW_ZERO( queue->allocator, ImAppEventQueueChunk );
+
+		newChunk->nextChunk = queue->currentChunk;
+		queue->currentChunk = newChunk;
 	}
 
-	ImUiMemoryFree( pQueue->pAllocator, pQueue );
+	ImAppEventQueueChunk* chunk = queue->currentChunk;
+
+	chunk->data[ chunk->bottom ] = *event2;
+	chunk->bottom = (chunk->bottom + 1u) & (IMAPP_EVENT_QUEUE_CHUNK_SIZE - 1u);
+	chunk->length++;
 }
 
-void ImAppEventQueuePush( ImAppEventQueue* pQueue, const ImAppEvent* pEvent )
+bool ImAppEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent )
 {
-	if( pQueue->pCurrentChunk == NULL ||
-		pQueue->pCurrentChunk->length == IMAPP_EVENT_QUEUE_CHUNK_SIZE )
-	{
-		ImAppEventQueueChunk* pNewChunk = IMUI_MEMORY_NEW_ZERO( pQueue->pAllocator, ImAppEventQueueChunk );
-
-		pNewChunk->pNext = pQueue->pCurrentChunk;
-		pQueue->pCurrentChunk = pNewChunk;
-	}
-
-	ImAppEventQueueChunk* pChunk = pQueue->pCurrentChunk;
-
-	pChunk->data[ pChunk->bottom ]	= *pEvent;
-	pChunk->bottom = (pChunk->bottom + 1u) & (IMAPP_EVENT_QUEUE_CHUNK_SIZE - 1u);
-	pChunk->length++;
-}
-
-bool ImAppEventQueuePop( ImAppEventQueue* pQueue, ImAppEvent* pEvent )
-{
-	if( pQueue->pCurrentChunk == NULL ||
-		pQueue->pCurrentChunk->length == 0u )
+	if( queue->currentChunk == NULL ||
+		queue->currentChunk->length == 0u )
 	{
 		return false;
 	}
 
-	ImAppEventQueueChunk* pChunk = pQueue->pCurrentChunk;
+	ImAppEventQueueChunk* chunk = queue->currentChunk;
 
-	*pEvent = pChunk->data[ pChunk->top ];
+	*outEvent = chunk->data[ chunk->top ];
 
-	pChunk->top = (pChunk->top + 1u) & (IMAPP_EVENT_QUEUE_CHUNK_SIZE - 1u);
-	pChunk->length--;
+	chunk->top = (chunk->top + 1u) & (IMAPP_EVENT_QUEUE_CHUNK_SIZE - 1u);
+	chunk->length--;
 
-	if( pChunk->length == 0u )
+	if( chunk->length == 0u )
 	{
-		pQueue->pCurrentChunk = pChunk->pNext;
-		ImUiMemoryFree( pQueue->pAllocator, pChunk );
+		queue->currentChunk = chunk->nextChunk;
+		ImUiMemoryFree( queue->allocator, chunk );
 	}
 
 	return true;

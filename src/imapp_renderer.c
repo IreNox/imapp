@@ -387,7 +387,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUi
 {
 	int width;
 	int height;
-	ImAppPlatformWindowGetSize( &width, &height, window );
+	ImAppPlatformWindowGetSize( window, &width, &height );
 
 	glViewport( 0, 0, width, height );
 

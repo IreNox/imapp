@@ -4,10 +4,17 @@
 
 #include "imapp_event.h"
 
-typedef struct ImAppEventQueue ImAppEventQueue;
+typedef struct ImAppEventQueueChunk ImAppEventQueueChunk;
 
-ImAppEventQueue*	ImAppEventQueueCreate( ImUiAllocator* pAllocator );
-void				ImAppEventQueueDestroy( ImAppEventQueue* pQueue );
+typedef struct ImAppEventQueue
+{
+	ImUiAllocator*			allocator;
 
-void				ImAppEventQueuePush( ImAppEventQueue* pQueue, const ImAppEvent* pEvent );
-bool				ImAppEventQueuePop( ImAppEventQueue* pQueue, ImAppEvent* pEvent );
+	ImAppEventQueueChunk*	currentChunk;
+} ImAppEventQueue;
+
+void	ImAppEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator );
+void	ImAppEventQueueDestruct( ImAppEventQueue* queue );
+
+void	ImAppEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 );
+bool	ImAppEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent );

@@ -2,7 +2,7 @@
 
 local imapp_path = module.config.base_path
 
-tiki.use_sdl = (tiki.target_platform == Platforms.Windows)
+tiki.use_sdl = (tiki.target_platform == Platforms.Linux)
 --tiki.use_lib = false
 
 module:add_include_dir( "include" )
@@ -15,13 +15,15 @@ module:add_external( "local://submodules/imui" )
 module:add_external( "local://submodules/libspng" )
 
 if tiki.use_sdl then
-	module:set_define( "IMAPP_PLATFORM_SDL", "1" );
+	module:set_define( "IMAPP_PLATFORM_SDL", "TIKI_ON" );
 
 	module:add_external( "https://github.com/libsdl-org/SDL@2.28.3" )
 end
 
 if tiki.target_platform == Platforms.Windows then
 	module:add_external( "https://github.com/nigels-com/glew@2.2.0" )
+
+	module:set_define( "WIN32_LEAN_AND_MEAN" );
 
 	module:add_library_file( "opengl32" )
 	

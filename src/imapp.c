@@ -82,12 +82,13 @@ void ImAppTick( void* arg )
 {
 	ImAppInternal* imapp = (ImAppInternal*)arg;
 
-	imapp->lastTickValue = ImAppPlatformWindowTick( imapp->window, imapp->lastTickValue, imapp->tickIntervalMs );
+	imapp->lastTickValue = ImAppPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
 
+	ImAppPlatformWindowUpdate( imapp->window );
 	ImAppResourceStorageUpdate( imapp->resources );
 	ImAppHandleEvents( imapp );
 
-	ImAppPlatformWindowGetViewRect( &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height, imapp->window );
+	ImAppPlatformWindowGetViewRect( imapp->window, &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height );
 
 	// UI
 	const ImUiDrawData* drawData = NULL;
@@ -127,44 +128,6 @@ void ImAppTick( void* arg )
 		}
 	}
 }
-
-//static const ImAppInputShortcut s_inputShortcuts[] =
-//{
-//	{ 0u,													ImUiInputKey_LeftShift,	NK_KEY_SHIFT },
-//	{ 0u,													ImUiInputKey_RightShift,	NK_KEY_SHIFT },
-//	{ 0u,													ImUiInputKey_LeftControl,	NK_KEY_CTRL },
-//	{ 0u,													ImUiInputKey_RightControl,	NK_KEY_CTRL },
-//	{ 0u,													ImUiInputKey_Delete,		NK_KEY_DEL },
-//	{ 0u,													ImUiInputKey_Enter,		NK_KEY_ENTER },
-//	{ 0u,													ImUiInputKey_Tab,			NK_KEY_TAB },
-//	{ 0u,													ImUiInputKey_Backspace,	NK_KEY_BACKSPACE },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_C,			NK_KEY_COPY },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_X,			NK_KEY_CUT },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_V,			NK_KEY_PASTE },
-//	{ 0u,													ImUiInputKey_Up,			NK_KEY_UP },
-//	{ 0u,													ImUiInputKey_Down,			NK_KEY_DOWN },
-//	{ 0u,													ImUiInputKey_Left,			NK_KEY_LEFT },
-//	{ 0u,													ImUiInputKey_Right,		NK_KEY_RIGHT },
-//																						/* Shortcuts: text field */
-//	{ 0u,													ImUiInputKey_Insert,		NK_KEY_TEXT_INSERT_MODE },
-//	{ 0u,													ImUiInputKey_None,			NK_KEY_TEXT_REPLACE_MODE },
-//	{ 0u,													ImUiInputKey_None,			NK_KEY_TEXT_RESET_MODE },
-//	{ 0u,													ImUiInputKey_Home,			NK_KEY_TEXT_LINE_START },
-//	{ 0u,													ImUiInputKey_End,			NK_KEY_TEXT_LINE_END },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Home,			NK_KEY_TEXT_START },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_End,			NK_KEY_TEXT_END },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Z,			NK_KEY_TEXT_UNDO },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Y,			NK_KEY_TEXT_REDO },
-//	{ ImAppInputModifier_Ctrl | ImAppInputModifier_Shift,	ImUiInputKey_Z,			NK_KEY_TEXT_REDO },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_A,			NK_KEY_TEXT_SELECT_ALL },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Left,			NK_KEY_TEXT_WORD_LEFT },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Right,		NK_KEY_TEXT_WORD_RIGHT },
-//																						/* Shortcuts: scrollbar */
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Home,			NK_KEY_SCROLL_START },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_End,			NK_KEY_SCROLL_END },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Down,			NK_KEY_SCROLL_DOWN },
-//	{ ImAppInputModifier_Ctrl,								ImUiInputKey_Up,			NK_KEY_SCROLL_UP },
-//};
 
 static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 {
@@ -243,6 +206,12 @@ static void ImAppCleanup( ImAppInternal* imapp )
 	{
 		ImAppProgramShutdown( &imapp->context, imapp->programContext );
 		imapp->programContext = NULL;
+	}
+
+	if( imapp->defaultFont )
+	{
+		ImUiFontDestroy( imapp->context.imui, imapp->defaultFont );
+		imapp->defaultFont = NULL;
 	}
 
 	if( imapp->resources != NULL )

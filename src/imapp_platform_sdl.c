@@ -40,7 +40,7 @@ struct ImAppPlatform
 	SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
 
-static const SDL_SystemCursor s_systemCursorMapping[] =
+static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
 {
 	SDL_SYSTEM_CURSOR_ARROW,
 	SDL_SYSTEM_CURSOR_WAIT,
@@ -54,7 +54,7 @@ static const SDL_SystemCursor s_systemCursorMapping[] =
 	SDL_SYSTEM_CURSOR_SIZENS,
 	SDL_SYSTEM_CURSOR_SIZEALL
 };
-static_assert( IMAPP_ARRAY_COUNT( s_systemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
+static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
 
 int main( int argc, char* argv[] )
 {
@@ -200,7 +200,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 
 	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
 	{
-		platform->systemCursors[ i ] = SDL_CreateSystemCursor( s_systemCursorMapping[ i ] );
+		platform->systemCursors[ i ] = SDL_CreateSystemCursor( s_sdlSystemCursorMapping[ i ] );
 	}
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
@@ -268,6 +268,27 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
+int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickInterval )
+{
+	int64_t currentTick			= (int64_t)SDL_GetTicks64();
+	const int64_t deltaTicks	= currentTick - lastTickValue;
+	int64_t timeToWait = IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
+
+	if( tickInterval == 0 )
+	{
+		timeToWait = INT_MAX;
+	}
+
+	if( timeToWait > 1 )
+	{
+		SDL_WaitEventTimeout( NULL, (int)timeToWait - 1 );
+
+		currentTick = (int64_t)SDL_GetTicks64();
+	}
+
+	return (int64_t)currentTick;
+}
+
 void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* pMessage )
 {
 	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
@@ -285,7 +306,7 @@ struct ImAppWindow
 {
 	ImUiAllocator*		allocator;
 	ImAppPlatform*		platform;
-	ImAppEventQueue*	eventQueue;
+	ImAppEventQueue		eventQueue;
 
 	SDL_Window*			sdlWindow;
 	SDL_GLContext		glContext;
@@ -304,7 +325,6 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	window->allocator		= platform->allocator;
 	window->platform		= platform;
-	window->eventQueue		= ImAppEventQueueCreate( platform->allocator );
 
 	Uint32 flags = SDL_WINDOW_OPENGL;
 	switch( state )
@@ -335,6 +355,8 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
+	ImAppEventQueueConstruct( &window->eventQueue, platform->allocator );
+
 	return window;
 }
 
@@ -342,18 +364,14 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
 	IMAPP_ASSERT( window->glContext == NULL );
 
+	ImAppEventQueueDestruct( &window->eventQueue );
+
 	ImUiMemoryFree( window->allocator, window->dropBuffer );
 
 	if( window->sdlWindow != NULL )
 	{
 		SDL_DestroyWindow( window->sdlWindow );
 		window->sdlWindow = NULL;
-	}
-
-	if( window->eventQueue != NULL )
-	{
-		ImAppEventQueueDestroy( window->eventQueue );
-		window->eventQueue = NULL;
 	}
 
 	ImUiMemoryFree( window->allocator, window );
@@ -392,23 +410,11 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	}
 }
 
-int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval )
+void ImAppPlatformWindowUpdate( ImAppWindow* window )
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	SDL_GL_SetSwapInterval( 1 );
 #endif
-
-	const int64_t nextTick = (int64_t)SDL_GetTicks64();
-
-	int64_t timeToWait = tickInterval - (nextTick - lastTickValue);
-	timeToWait = timeToWait < 0 ? 0 : timeToWait;
-
-	if( tickInterval == 0 )
-	{
-		timeToWait = INT_MAX;
-	}
-
-	SDL_WaitEventTimeout( NULL, (int)timeToWait );
 
 	SDL_Event sdlEvent;
 	while( SDL_PollEvent( &sdlEvent ) )
@@ -426,7 +432,7 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
 					const bool repeate				= sdlKeyEvent->repeat != 0;
 					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
-					ImAppEventQueuePush( window->eventQueue, &keyEvent );
+					ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 				}
 			}
 			break;
@@ -438,7 +444,7 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
 				{
 					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
-					ImAppEventQueuePush( window->eventQueue, &charEvent );
+					ImAppEventQueuePush( &window->eventQueue, &charEvent );
 				}
 			}
 			break;
@@ -448,7 +454,7 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
 
 				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
-				ImAppEventQueuePush( window->eventQueue, &motionEvent );
+				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
 			}
 			break;
 
@@ -472,28 +478,28 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 
 				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
 				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
-				ImAppEventQueuePush( window->eventQueue, &buttonEvent );
+				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			break;
 
 		case SDL_MOUSEWHEEL:
 			{
-				const SDL_MouseWheelEvent* wheelEvent = &sdlEvent.wheel;
+				const SDL_MouseWheelEvent* sdlWheelEvent = &sdlEvent.wheel;
 
-				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = wheelEvent->x, .y = wheelEvent->y } };
-				ImAppEventQueuePush( window->eventQueue, &scrollEvent );
+				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
+				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			break;
 
 		case SDL_WINDOWEVENT:
 			{
-				const SDL_WindowEvent* windowEvent = &sdlEvent.window;
-				switch( windowEvent->event )
+				const SDL_WindowEvent* sdlWindowEvent = &sdlEvent.window;
+				switch( sdlWindowEvent->event )
 				{
 				case SDL_WINDOWEVENT_CLOSE:
 					{
 						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
-						ImAppEventQueuePush( window->eventQueue, &closeEvent );
+						ImAppEventQueuePush( &window->eventQueue, &closeEvent );
 					}
 					break;
 
@@ -518,7 +524,7 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 
 				const ImAppEventType type = sdlEvent.type == SDL_DROPFILE ? ImAppEventType_DropFile : ImAppEventType_DropText;
 				const ImAppEvent dropEvent = { .drop = {.type = type, .pathOrText = window->dropBuffer } };
-				ImAppEventQueuePush( window->eventQueue, &dropEvent );
+				ImAppEventQueuePush( &window->eventQueue, &dropEvent );
 			}
 			break;
 
@@ -531,37 +537,35 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 			break;
 		}
 	}
-
-	return (int64_t)nextTick;
 }
 
-bool ImAppPlatformWindowPresent( ImAppWindow* pWindow )
+bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
-	SDL_GL_SwapWindow( pWindow->sdlWindow );
+	SDL_GL_SwapWindow( window->sdlWindow );
 	return true;
 }
 
-ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* pWindow )
+ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
-	return pWindow->eventQueue;
+	return &window->eventQueue;
 }
 
-void ImAppPlatformWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
-	*pX = 0;
-	*pY = 0;
+	*outX = 0;
+	*outY = 0;
 
-	ImAppPlatformWindowGetSize( pWidth, pHeight, pWindow );
+	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-void ImAppPlatformWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetSize( ImAppWindow* window, int* outWidth, int* outHeight )
 {
-	SDL_GetWindowSize( pWindow->sdlWindow, pWidth, pHeight );
+	SDL_GetWindowSize( window->sdlWindow, outWidth, outHeight );
 }
 
-void ImAppPlatformWindowGetPosition( int* pX, int* pY, ImAppWindow* pWindow )
+void ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY )
 {
-	SDL_GetWindowPosition( pWindow->sdlWindow, pX, pY );
+	SDL_GetWindowPosition( window->sdlWindow, outX, outY );
 }
 
 ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* pWindow )
@@ -582,13 +586,12 @@ ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* pWindow )
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView resourceName )
+ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	wchar_t* pTargetBuffer = platform->resourcePath + platform->resourceBasePathLength;
 	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, resourceName.data, (int)resourceName.length, pTargetBuffer, (int)targetLengthInCharacters );
-	pTargetBuffer[ resourceName.length ] = L'\0';
+	MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pTargetBuffer, (int)targetLengthInCharacters );
 
 	while( *pTargetBuffer != L'\0' )
 	{
@@ -632,13 +635,12 @@ ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView res
 #endif
 }
 
-ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, ImUiStringView resourceName )
+ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	wchar_t* pTargetBuffer = platform->fontPath + platform->fontBasePathLength;
 	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontPath ) - platform->fontBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, resourceName.data, (int)resourceName.length, pTargetBuffer, (int)targetLengthInCharacters );
-	pTargetBuffer[ resourceName.length ] = L'\0';
+	MultiByteToWideChar( CP_UTF8, 0, fontName, -1, pTargetBuffer, (int)targetLengthInCharacters );
 
 	while( *pTargetBuffer != L'\0' )
 	{
