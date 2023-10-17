@@ -16,15 +16,17 @@ extern "C"
 typedef struct ImAppContext ImAppContext;
 typedef struct ImAppImage ImAppImage;
 typedef struct ImAppWindow ImAppWindow;
+typedef struct ImAppResPak ImAppResPak;
 
 typedef struct ImAppParameters ImAppParameters;
 struct ImAppParameters
 {
-	ImUiAllocator				allocator;			// Override memory Allocator. Default use malloc/free
+	ImUiAllocator				allocator;			// Override memory Allocator. Default: malloc/free
 
 	int							tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 
-	const char*					resourcePath;		// Path where resources loaded from. use ./ for relative to executable. default: {exe_dir}/assets
+	const char*					resPath;			// Path where resources loaded from. use ./ for relative to executable. default: {exe_dir}/assets
+	const char*					defaultResPak;
 
 	const char*					defaultFontName;	// default: arial.ttf;
 	float						defaultFontSize;	// default: 16
@@ -67,22 +69,57 @@ void						ImAppQuit( ImAppContext* imapp );
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-// Blocking Image
-ImAppImage*					ImAppImageLoadResource( ImAppContext* imapp, ImUiStringView resourceName );
+// Resource Package
+#define IMAPP_RES_PAK_INVALID_INDEX	0xffffu
+
+typedef enum ImAppResPakType
+{
+	ImAppResPakType_Texture,
+	ImAppResPakType_Image,
+	ImAppResPakType_Skin,
+	ImAppResPakType_Font,
+	ImAppResPakType_Theme,
+	ImAppResPakType_Blob,
+
+	ImAppResPakType_MAX
+} ImAppResPakType;
+
+typedef struct ImAppBlob
+{
+	const void*			data;
+	size_t				size;
+} ImAppBlob;
+
+ImAppResPak*				ImAppResourceGetDefaultPak( ImAppContext* imapp );
+ImAppResPak*				ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath );
+void						ImAppResourceClosePak( ImAppContext* imapp );
+
+bool						ImAppResPakIsLoaded( const ImAppResPak* pak );											// returns true when res pak meta data are loaded
+bool						ImAppResPakPreloadResource( ImAppResPak* pak, ImAppResPakType type, const char* name );	// returns true when the resource is loaded
+uint16_t					ImAppResPakFindResource( ImAppResPak* pak, ImAppResPakType type, const char* name );
+
+ImUiTexture					ImAppResPakGetImage( ImAppResPak* pak, const char* name );
+ImUiTexture					ImAppResPakGetImageIndex( ImAppResPak* pak, uint16_t index );
+ImUiSkin					ImAppResPakGetSkin( ImAppResPak* pak, const char* name );
+ImUiSkin					ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t index );
+ImUiFont*					ImAppResPakGetFont( ImAppResPak* pak, const char* name );
+ImUiFont*					ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t index );
+const ImUiToolboxConfig*	ImAppResPakGetTheme( ImAppResPak* pak, const char* name );
+const ImUiToolboxConfig*	ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t index );
+ImAppBlob					ImAppResPakGetBlob( ImAppResPak* pak, const char* name );
+ImAppBlob					ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t index );
+
+void						ImAppResPakActivateTheme( ImAppResPak* pak, const char* name );
+
+// Image
+ImAppImage*					ImAppImageLoadResource( ImAppContext* imapp, const char* resourcePath );
 ImAppImage*					ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height );
 ImAppImage*					ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
 //ImAppImage*					ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
+bool						ImAppImageIsLoaded( ImAppContext* imapp, ImAppImage* image );
 void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
-ImUiTexture					ImAppImageGetTexture( const ImAppImage* image );
-
-// Loads async and returns the Image Resource. While the Image is loading returns an default image with given attributes.
-ImUiTexture					ImAppImageGet( ImAppContext* imapp, ImUiStringView resourceName, int defaultWidth, int defaultHeight, ImUiColor defaultColor );
-
-// Loads blocking and returns the given Image Resource.
-ImUiTexture					ImAppImageGetBlocking( ImAppContext* imapp, ImUiStringView resourceName );
-
-ImUiFont*					ImAppFontGet( ImAppContext* imapp, ImUiStringView fontName, float fontSize );
+ImUiTexture					ImAppImageGetImage( const ImAppImage* image );
 
 //////////////////////////////////////////////////////////////////////////
 // Input

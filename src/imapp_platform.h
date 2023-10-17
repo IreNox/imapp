@@ -1,6 +1,6 @@
 #pragma once
 
-#include "imapp_defines.h"
+#include "imapp_types.h"
 #include "imapp_main.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@ typedef struct ImAppPlatform ImAppPlatform;
 bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
-int64_t					ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickInterval );
+sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 
@@ -51,6 +51,7 @@ ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
 // Resources
 
 ImAppBlob				ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName );
+ImAppBlob				ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length );
 ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName );
 
 //////////////////////////////////////////////////////////////////////////
@@ -58,6 +59,7 @@ ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const
 
 typedef struct ImAppThread ImAppThread;
 typedef struct ImAppMutex ImAppMutex;
+typedef struct ImAppSemaphore ImAppSemaphore;
 
 typedef void (*ImAppThreadFunc)( void* arg );
 
@@ -68,11 +70,19 @@ typedef struct
 
 ImAppThread*			ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg );
 void					ImAppPlatformThreadDestroy( ImAppThread* thread );
+bool					ImAppPlatformThreadIsRunning( const ImAppThread* thread );
 
 ImAppMutex*				ImAppPlatformMutexCreate( ImAppPlatform* platform );
 void					ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex );
+void					ImAppPlatformMutexLock( ImAppMutex* mutex );
+void					ImAppPlatformMutexUnlock( ImAppMutex* mutex );
 
-uint32					ImAppPlatformAtomicGet( ImAppAtomic32* atomic );
+ImAppSemaphore*			ImAppPlatformSemaphoreCreate( ImAppPlatform* platform );
+void					ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore );
+void					ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore );
+bool					ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait );
+
+uint32					ImAppPlatformAtomicGet( const ImAppAtomic32* atomic );
 uint32					ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value );
 uint32					ImAppPlatformAtomicInc( ImAppAtomic32* atomic );
 uint32					ImAppPlatformAtomicDec( ImAppAtomic32* atomic );

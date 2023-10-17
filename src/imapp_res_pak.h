@@ -10,20 +10,6 @@ extern "C"
 
 #include <stdint.h>
 
-#define IMAPP_RES_PAK_INVALID_INDEX	0xffffu
-
-typedef enum ImAppResPakType ImAppResPakType;
-enum ImAppResPakType
-{
-	ImAppResPakType_Texture,
-	ImAppResPakType_Image,
-	ImAppResPakType_Skin,
-	ImAppResPakType_Font,
-	ImAppResPakType_Theme,
-
-	ImAppResPakType_MAX
-};
-
 typedef struct ImAppResPakHeader ImAppResPakHeader;
 struct ImAppResPakHeader
 {

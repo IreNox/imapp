@@ -11,7 +11,8 @@
 #include <shellapi.h>
 #include <windowsx.h>
 
-static LRESULT CALLBACK		ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+static DWORD WINAPI			ImAppPlatformThreadEntry( void* voidThread );
 //static bool					ImAppWindowHandleMessage( ImAppWindow* pWindow, UINT message, WPARAM wParam, LPARAM lParam );
 //static bool					ImAppInputHandleMessage( ImAppInputPlatform* pInput, UINT message, WPARAM wParam, LPARAM lParam );
 
@@ -22,15 +23,27 @@ struct ImAppPlatform
 	uint8			inputKeyMapping[ 255u ];	// ImUiInputKey
 
 	wchar_t			resourcePath[ MAX_PATH ];
-	size_t			resourceBasePathLength;
+	uintsize			resourceBasePathLength;
 
 	wchar_t			fontPath[ MAX_PATH ];
-	size_t			fontBasePathLength;
+	uintsize			fontBasePathLength;
 
 	HCURSOR			cursors[ ImUiInputMouseCursor_MAX ];
 	HCURSOR			currentCursor;
 
 	int64_t			tickFrequency;
+};
+
+struct ImAppThread
+{
+	ImAppPlatform*	platform;
+
+	HANDLE			handle;
+
+	ImAppThreadFunc	func;
+	void*			arg;
+
+	ImAppAtomic32	isRunning;
 };
 
 static const LPWSTR s_windowsSystemCursorMapping[] =
@@ -53,7 +66,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 {
 	ImAppPlatform platform = { 0 };
 
-	for( size_t i = 0u; i < ImUiInputKey_MAX; ++i )
+	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
 	{
 		const ImUiInputKey keyValue = (ImUiInputKey)i;
 
@@ -173,7 +186,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
 		argv = (char**)malloc( sizeof( char* ) * argc );
 
-		for( size_t i = 0u; i < argc; ++i )
+		for( uintsize i = 0u; i < argc; ++i )
 		{
 			const int argLength = WideCharToMultiByte( CP_UTF8, 0u, ppWideArgs[ i ], -1, NULL, 0, NULL, NULL );
 
@@ -192,7 +205,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
 	const int result = ImAppMain( &platform, argc, argv );
 
-	for( size_t i = 0u; i < argc; ++i )
+	for( uintsize i = 0u; i < argc; ++i )
 	{
 		free( argv[ i ] );
 	}
@@ -237,7 +250,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 			return false;
 		}
 
-		for( size_t i = 0; i < convertResult - 1; ++i )
+		for( uintsize i = 0; i < convertResult - 1; ++i )
 		{
 			if( pTargetPath[ i ] == L'/' )
 			{
@@ -245,7 +258,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 			}
 		}
 
-		platform->resourceBasePathLength += (size_t)convertResult - 1;
+		platform->resourceBasePathLength += (uintsize)convertResult - 1;
 
 		if( platform->resourcePath[ platform->resourceBasePathLength - 1u ] != L'/' )
 		{
@@ -278,14 +291,14 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickInterval )
+sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
 	LARGE_INTEGER currentPerformanceCounterValue;
 	QueryPerformanceCounter( &currentPerformanceCounterValue );
 
-	int64_t currentTickValue	= currentPerformanceCounterValue.QuadPart / platform->tickFrequency;
-	const int64_t deltaTicks	= currentTickValue - lastTickValue;
-	int64_t waitTicks			= IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
+	sint64 currentTickValue	= currentPerformanceCounterValue.QuadPart / platform->tickFrequency;
+	const sint64 deltaTicks	= currentTickValue - lastTickValue;
+	sint64 waitTicks		= IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
 
 	if( tickInterval == 0u )
 	{
@@ -352,7 +365,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize			= sizeof( WNDCLASSEXW );
 	windowClass.hInstance		= hInstance;
-	windowClass.lpfnWndProc		= &ImAppWindowProc;
+	windowClass.lpfnWndProc		= &ImAppPlatformWindowProc;
 	windowClass.lpszClassName	= s_pWindowClass;
 	windowClass.hbrBackground	= (HBRUSH)COLOR_WINDOW;
 	windowClass.hCursor			= platform->cursors[ ImUiInputMouseCursor_Arrow ];
@@ -510,91 +523,7 @@ ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* window )
 	return window->state;
 }
 
-ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
-{
-	wchar_t* pTargetBuffer = platform->resourcePath + platform->resourceBasePathLength;
-	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pTargetBuffer, (int)targetLengthInCharacters );
-
-	while( *pTargetBuffer != L'\0' )
-	{
-		if( *pTargetBuffer == L'/' )
-		{
-			*pTargetBuffer = L'\\';
-		}
-		pTargetBuffer++;
-	}
-
-	const HANDLE fileHandle = CreateFileW( platform->resourcePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if( fileHandle == INVALID_HANDLE_VALUE )
-	{
-		const ImAppBlob result ={ NULL, 0u };
-		return result;
-	}
-
-	LARGE_INTEGER fileSize;
-	GetFileSizeEx( fileHandle, &fileSize );
-
-	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize.QuadPart );
-
-	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
-	CloseHandle( fileHandle );
-
-	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
-	{
-		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result ={ NULL, 0u };
-		return result;
-	}
-
-	const ImAppBlob result ={ memory, (size_t)fileSize.QuadPart };
-	return result;
-}
-
-ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
-{
-	wchar_t* pTargetBuffer = platform->fontPath + platform->fontBasePathLength;
-	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontPath ) - platform->fontBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, fontName, -1, pTargetBuffer, (int)targetLengthInCharacters );
-
-	while( *pTargetBuffer != L'\0' )
-	{
-		if( *pTargetBuffer == L'/' )
-		{
-			*pTargetBuffer = L'\\';
-		}
-		pTargetBuffer++;
-	}
-
-	const HANDLE fileHandle = CreateFileW( platform->fontPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if( fileHandle == INVALID_HANDLE_VALUE )
-	{
-		const ImAppBlob result ={ NULL, 0u };
-		return result;
-	}
-
-	LARGE_INTEGER fileSize;
-	GetFileSizeEx( fileHandle, &fileSize );
-
-	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize.QuadPart );
-
-	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
-	CloseHandle( fileHandle );
-
-	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
-	{
-		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result ={ NULL, 0u };
-		return result;
-	}
-
-	const ImAppBlob result ={ memory, (size_t)fileSize.QuadPart };
-	return result;
-}
-
-static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
+static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
 	ImAppWindow* window = (ImAppWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 	if( window != NULL )
@@ -648,7 +577,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = x, .y = y } };
+				const ImAppEvent motionEvent ={ .motion = {.type = ImAppEventType_Motion, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
 			}
 			return 0;
@@ -669,13 +598,13 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 
 					for( int i = 0u; i < length; ++i )
 					{
-						const ImAppEvent characterEvent = { .character = {.type = ImAppEventType_Character, .character = targetString[ i ] } };
+						const ImAppEvent characterEvent ={ .character = {.type = ImAppEventType_Character, .character = targetString[ i ] } };
 						ImAppEventQueuePush( &window->eventQueue, &characterEvent );
 					}
 				}
 				else
 				{
-					const ImAppEvent characterEvent = { .character = {.type = ImAppEventType_Character, .character = (char)wParam } };
+					const ImAppEvent characterEvent ={ .character = {.type = ImAppEventType_Character, .character = (char)wParam } };
 					ImAppEventQueuePush( &window->eventQueue, &characterEvent );
 				}
 			}
@@ -690,7 +619,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 					key = ImUiInputKey_Numpad_Enter;
 				}
 
-				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key } };
+				const ImAppEvent keyEvent ={ .key = {.type = ImAppEventType_KeyDown, .key = key } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
 			return 0;
@@ -704,7 +633,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 					key = ImUiInputKey_Numpad_Enter;
 				}
 
-				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyUp, .key = key } };
+				const ImAppEvent keyEvent ={ .key = {.type = ImAppEventType_KeyUp, .key = key } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
 			return 0;
@@ -713,7 +642,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -722,7 +651,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -731,7 +660,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -740,7 +669,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -749,7 +678,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -758,7 +687,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -767,7 +696,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -776,7 +705,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -786,7 +715,7 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 				//GET_WHEEL_DELTA_WPARAM
 				const int xDelta = GET_X_LPARAM( lParam );
 				const int yDelta = GET_Y_LPARAM( lParam );
-				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = xDelta, .y = yDelta } };
+				const ImAppEvent scrollEvent ={ .scroll = {.type = ImAppEventType_Scroll, .x = xDelta, .y = yDelta } };
 				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			return 0;
@@ -811,8 +740,224 @@ static LRESULT CALLBACK ImAppWindowProc( HWND hWnd, UINT message, WPARAM wParam,
 	return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
-//ImAppInputPlatform* ImAppInputPlatformCreate();
-//void ImAppInputPlatformDestroy( ImAppInputPlatform* pPlatformState );
-//void ImAppInputPlatformApply( ImAppInputPlatform* pPlatformState, struct nk_context* pNkContext );
+ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+{
+	return ImAppPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
+}
+
+ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+{
+	ImAppBlob result = { NULL, 0u };
+
+	wchar_t pathBuffer[ MAX_PATH ];
+	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourcePath, platform->resourceBasePathLength );
+	{
+		wchar_t* pathNamePart = pathBuffer + platform->resourceBasePathLength;
+		const uintsize remainingLengthInCharacters = IMAPP_ARRAY_COUNT( pathBuffer ) - platform->resourceBasePathLength;
+		MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pathNamePart, (int)remainingLengthInCharacters );
+
+		for( ; pathNamePart != L'\0'; ++pathNamePart )
+		{
+			if( *pathNamePart == L'/' )
+			{
+				*pathNamePart = L'\\';
+			}
+		}
+	}
+
+	const HANDLE fileHandle = CreateFileW( pathBuffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if( fileHandle == INVALID_HANDLE_VALUE )
+	{
+		return result;
+	}
+
+	if( length == (uintsize)-1 )
+	{
+		LARGE_INTEGER fileSize;
+		GetFileSizeEx( fileHandle, &fileSize );
+
+		length = fileSize.QuadPart - offset;
+	}
+
+	if( offset != 0u &&
+		SetFilePointer( fileHandle, (LONG)offset, NULL, FILE_BEGIN ) == INVALID_SET_FILE_POINTER )
+	{
+		CloseHandle( fileHandle );
+		return result;
+	}
+
+	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	if( !memory )
+	{
+		CloseHandle( fileHandle );
+		return result;
+	}
+
+	DWORD bytesRead = 0u;
+	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)length, &bytesRead, NULL );
+	CloseHandle( fileHandle );
+
+	if( !readResult || bytesRead != (DWORD)length )
+	{
+		ImUiMemoryFree( platform->allocator, memory );
+		return result;
+	}
+
+	result.data	= memory;
+	result.size	= length;
+	return result;
+}
+
+ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+{
+	wchar_t* pTargetBuffer = platform->fontPath + platform->fontBasePathLength;
+	const uintsize targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontPath ) - platform->fontBasePathLength;
+	MultiByteToWideChar( CP_UTF8, 0, fontName, -1, pTargetBuffer, (int)targetLengthInCharacters );
+
+	while( *pTargetBuffer != L'\0' )
+	{
+		if( *pTargetBuffer == L'/' )
+		{
+			*pTargetBuffer = L'\\';
+		}
+		pTargetBuffer++;
+	}
+
+	const HANDLE fileHandle = CreateFileW( platform->fontPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if( fileHandle == INVALID_HANDLE_VALUE )
+	{
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	LARGE_INTEGER fileSize;
+	GetFileSizeEx( fileHandle, &fileSize );
+
+	void* memory = ImUiMemoryAlloc( platform->allocator, (uintsize)fileSize.QuadPart );
+
+	DWORD bytesRead = 0u;
+	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
+	CloseHandle( fileHandle );
+
+	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
+	{
+		ImUiMemoryFree( platform->allocator, memory );
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	const ImAppBlob result ={ memory, (uintsize)fileSize.QuadPart };
+	return result;
+}
+
+ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+{
+	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
+	if( !thread )
+	{
+		return NULL;
+	}
+
+	ImAppPlatformAtomicSet( &thread->isRunning, 1 );
+
+	thread->platform	= platform;
+	thread->func		= func;
+	thread->arg			= arg;
+	thread->handle		= CreateThread( NULL, 0u, ImAppPlatformThreadEntry, thread, 0u, NULL );
+
+	//SetThreadDescription( thread->handle, name );
+
+	return thread;
+}
+
+void ImAppPlatformThreadDestroy( ImAppThread* thread )
+{
+	WaitForSingleObject( thread->handle, INFINITE );
+	CloseHandle( thread->handle );
+
+	ImUiMemoryFree( thread->platform->allocator, thread );
+}
+
+bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
+{
+	return ImAppPlatformAtomicGet( &thread->isRunning );
+}
+
+static DWORD WINAPI ImAppPlatformThreadEntry( void* voidThread )
+{
+	ImAppThread* thread = (ImAppThread*)voidThread;
+
+	thread->func( thread->arg );
+
+	ImAppPlatformAtomicSet( &thread->isRunning, 0 );
+
+	return 0u;
+}
+
+ImAppMutex* ImAppPlatformMutexCreate( ImAppPlatform* platform )
+{
+	CRITICAL_SECTION* cs = IMUI_MEMORY_NEW_ZERO( platform->allocator, CRITICAL_SECTION );
+
+	InitializeCriticalSection( cs );
+
+	return (ImAppMutex*)cs;
+}
+
+void ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+{
+	ImUiMemoryFree( platform->allocator, mutex );
+}
+
+void ImAppPlatformMutexLock( ImAppMutex* mutex )
+{
+	CRITICAL_SECTION* cs = (CRITICAL_SECTION*)mutex;
+	EnterCriticalSection( cs );
+}
+
+void ImAppPlatformMutexUnlock( ImAppMutex* mutex )
+{
+	CRITICAL_SECTION* cs = (CRITICAL_SECTION*)mutex;
+	LeaveCriticalSection( cs );
+}
+
+ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
+{
+	return (ImAppSemaphore*)CreateSemaphore( NULL, 0, LONG_MAX, NULL );
+}
+
+void ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+{
+	CloseHandle( (HANDLE)semaphore );
+}
+
+void ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+{
+	ReleaseSemaphore( (HANDLE)semaphore, 1, NULL );
+}
+
+bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+{
+	return WaitForSingleObject( (HANDLE)semaphore, wait ? INFINITE : 0u ) == WAIT_OBJECT_0;
+}
+
+uint32 ImAppPlatformAtomicGet( const ImAppAtomic32* atomic )
+{
+	return InterlockedOrNoFence( (volatile long*)&atomic->value, 0u );
+}
+
+uint32 ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value )
+{
+	return InterlockedExchangeNoFence( (volatile long*)&atomic->value, value );
+}
+
+uint32 ImAppPlatformAtomicInc( ImAppAtomic32* atomic )
+{
+	return InterlockedIncrementNoFence( (volatile long*)&atomic->value ) - 1u;
+}
+
+uint32 ImAppPlatformAtomicDec( ImAppAtomic32* atomic )
+{
+	return InterlockedDecrementNoFence( (volatile long*)&atomic->value ) + 1u;
+}
 
 #endif

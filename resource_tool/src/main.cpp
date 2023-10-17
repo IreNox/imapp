@@ -4,8 +4,9 @@
 
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
-	parameters->tickIntervalMs		= 1;
-	parameters->resourcePath		= "./../../../../assets";
+	parameters->tickIntervalMs		= 15;
+	parameters->resPath				= "./../../../../assets";
+	parameters->defaultResPak		= "resource_tool";
 	parameters->windowTitle			= "I'm App Resource Tool";
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
@@ -23,6 +24,9 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface )
 {
 	imapp::ResourceTool* context = (imapp::ResourceTool*)programContext;
+
+	ImAppResPak* respak = ImAppResourceGetDefaultPak( imapp );
+	ImAppResPakActivateTheme( respak, "config" );
 
 	imui::UiSurface surfaceClass( surface );
 	context->doUi( imapp, surfaceClass );

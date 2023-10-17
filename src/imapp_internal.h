@@ -13,11 +13,10 @@
 
 typedef struct ImAppPlatform ImAppPlatform;
 typedef struct ImAppRenderer ImAppRenderer;
-typedef struct ImAppResourceStorage ImAppResourceStorage;
+typedef struct ImAppResSys ImAppResSys;
 typedef struct ImAppWindow ImAppWindow;
 
-typedef struct ImAppInternal ImAppInternal;
-struct ImAppInternal
+typedef struct ImAppInternal
 {
 	ImAppContext			context;		// must be at offset 0
 
@@ -37,9 +36,10 @@ struct ImAppInternal
 	ImAppPlatform*			platform;
 	ImAppWindow*			window;
 	ImAppRenderer*			renderer;
-	ImAppResourceStorage*	resources;
+	ImAppResSys*			ressys;
 
+	ImAppResPak*			defaultResPak;
 	ImUiFont*				defaultFont;
 
 	void*					programContext;
-};
+} ImAppInternal;

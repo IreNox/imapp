@@ -4,7 +4,7 @@
 #include "imapp_internal.h"
 #include "imapp_platform.h"
 #include "imapp_renderer.h"
-#include "imapp_resource_storage.h"
+#include "imapp_res_sys.h"
 
 #if IMAPP_ENABLED(  IMAPP_PLATFORM_WEB )
 #	include <emscripten.h>
@@ -49,7 +49,7 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 		imapp->platform			= platform;
 		imapp->programContext	= programContext;
 
-		if( !ImAppPlatformInitialize( platform, &imapp->allocator, parameters.resourcePath ) )
+		if( !ImAppPlatformInitialize( platform, &imapp->allocator, parameters.resPath ) )
 		{
 			ImAppPlatformShowError( imapp->platform, "Failed to initialize Platform." );
 			ImAppCleanup( imapp );
@@ -85,7 +85,7 @@ void ImAppTick( void* arg )
 	imapp->lastTickValue = ImAppPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
 
 	ImAppPlatformWindowUpdate( imapp->window );
-	ImAppResourceStorageUpdate( imapp->resources );
+	ImAppResSysUpdate( imapp->ressys );
 	ImAppHandleEvents( imapp );
 
 	ImAppPlatformWindowGetViewRect( imapp->window, &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height );
@@ -121,7 +121,7 @@ void ImAppTick( void* arg )
 			return;
 		}
 
-		if( !ImAppResourceStorageRecreateEverything( imapp->resources ) )
+		if( !ImAppResSysRecreateEverything( imapp->ressys ) )
 		{
 			ImAppQuit( &imapp->context );
 			return;
@@ -134,7 +134,7 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	memset( parameters, 0, sizeof( *parameters ) );
 
 	parameters->tickIntervalMs		= 0;
-	parameters->resourcePath		= "./assets";
+	parameters->resPath				= "./assets";
 	parameters->defaultFontName		= "arial.ttf";
 	parameters->defaultFontSize		= 16.0f;
 	parameters->windowEnable		= true;
@@ -179,8 +179,8 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 		return false;
 	}
 
-	imapp->resources = ImAppResourceStorageCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->context.imui );
-	if( imapp->resources == NULL )
+	imapp->ressys = ImAppResSysCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->context.imui );
+	if( imapp->ressys == NULL )
 	{
 		ImAppPlatformShowError( imapp->platform, "Failed to create Image Storage." );
 		return false;
@@ -188,9 +188,7 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 
 	if( parameters->defaultFontName )
 	{
-		const ImUiStringView resourceName = ImUiStringViewCreate( parameters->defaultFontName );
-
-		imapp->defaultFont = ImAppResourceStorageFontCreate( imapp->resources, resourceName, parameters->defaultFontSize );
+		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize );
 
 		ImUiToolboxConfig toolboxConfig;
 		ImUiToolboxFillDefaultConfig( &toolboxConfig, imapp->defaultFont );
@@ -214,10 +212,10 @@ static void ImAppCleanup( ImAppInternal* imapp )
 		imapp->defaultFont = NULL;
 	}
 
-	if( imapp->resources != NULL )
+	if( imapp->ressys != NULL )
 	{
-		ImAppResourceStorageDestroy( imapp->resources );
-		imapp->resources = NULL;
+		ImAppResSysDestroy( imapp->ressys );
+		imapp->ressys = NULL;
 	}
 
 	if( imapp->renderer != NULL )
@@ -298,19 +296,24 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 
 void ImAppQuit( ImAppContext* imapp )
 {
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	emscripten_cancel_main_loop();
 #endif
-	pImApp->running = false;
+	imappInternal->running = false;
 }
 
-ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, ImUiStringView resourceName )
+ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )
 {
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	return imappInternal->defaultResPak;
+}
 
-	ImAppImage* pImage = ImAppResourceStorageImageFindOrLoad( pImApp->resources, resourceName, false );
+ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceName )
+{
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	ImAppImage* pImage = ImAppResSysImageCreateResource( imappInternal->ressys, resourceName );
 	if( pImage == NULL )
 	{
 		return NULL;
@@ -321,26 +324,33 @@ ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, ImUiStringView resource
 
 ImAppImage* ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height )
 {
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-	return ImAppResourceStorageImageCreateRaw( pImApp->resources, imageData, width, height );
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	return ImAppResSysImageCreateRaw( imappInternal->ressys, imageData, width, height );
 }
 
 ImAppImage* ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-	return ImAppResourceStorageImageCreatePng( pImApp->resources, imageData, imageDataSize );
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	return ImAppResSysImageCreatePng( imappInternal->ressys, imageData, imageDataSize );
+}
+
+bool ImAppImageIsLoaded( ImAppContext* imapp, ImAppImage* image )
+{
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	return ImAppResSysImageIsLoaded( imappInternal->ressys, image );
 }
 
 void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )
 {
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-	ImAppResourceStorageImageFree( pImApp->resources, image );
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	ImAppResSysImageFree( imappInternal->ressys, image );
 }
 
-ImUiTexture ImAppImageGetTexture( const ImAppImage* image )
+ImUiTexture ImAppImageGetImage( const ImAppImage* image )
 {
 	ImUiTexture texture;
-	if( image )
+	if( image &&
+		image->texture )
 	{
 		texture.data	= image->texture;
 		texture.width	= image->width;
@@ -354,23 +364,23 @@ ImUiTexture ImAppImageGetTexture( const ImAppImage* image )
 	return texture;
 }
 
-ImUiTexture ImAppImageGet( ImAppContext* imapp, ImUiStringView resourceName, int defaultWidth, int defaultHeight, ImUiColor defaultColor )
-{
-	// TODO: implement async loading
-	return ImAppImageGetBlocking( imapp, resourceName );
-}
-
-ImUiTexture ImAppImageGetBlocking( ImAppContext* imapp, ImUiStringView resourceName )
-{
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-
-	const ImAppImage* pImage = ImAppResourceStorageImageFindOrLoad( pImApp->resources, resourceName, false );
-	return ImAppImageGetTexture( pImage );
-}
-
-ImUiFont* ImAppFontGet( ImAppContext* imapp, ImUiStringView fontName, float fontSize )
-{
-	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-
-	return ImAppResourceStorageFontCreate( pImApp->resources, fontName, fontSize );
-}
+//ImUiTexture ImAppImageGet( ImAppContext* imapp, ImUiStringView resourceName, int defaultWidth, int defaultHeight, ImUiColor defaultColor )
+//{
+//	// TODO: implement async loading
+//	return ImAppImageGetBlocking( imapp, resourceName );
+//}
+//
+//ImUiTexture ImAppImageGetBlocking( ImAppContext* imapp, ImUiStringView resourceName )
+//{
+//	ImAppInternal* pImApp = (ImAppInternal*)imapp;
+//
+//	const ImAppImage* pImage = ImAppResSysImageFindOrLoad( pImApp->resources, resourceName, false );
+//	return ImAppImageGetImage( pImage );
+//}
+//
+//ImUiFont* ImAppFontGet( ImAppContext* imapp, ImUiStringView fontName, float fontSize )
+//{
+//	ImAppInternal* pImApp = (ImAppInternal*)imapp;
+//
+//	return ImAppResSysFontCreate( pImApp->resources, fontName, fontSize );
+//}

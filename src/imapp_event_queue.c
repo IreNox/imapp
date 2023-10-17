@@ -65,7 +65,8 @@ bool ImAppEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent )
 	chunk->top = (chunk->top + 1u) & (IMAPP_EVENT_QUEUE_CHUNK_SIZE - 1u);
 	chunk->length--;
 
-	if( chunk->length == 0u )
+	if( chunk->length == 0u &&
+		chunk->nextChunk != NULL )
 	{
 		queue->currentChunk = chunk->nextChunk;
 		ImUiMemoryFree( queue->allocator, chunk );
