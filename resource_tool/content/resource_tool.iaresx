@@ -1,6 +1,6 @@
 <res_pak name="Resource Tool" outputPath="../assets/resource_tool.iarespak">
     <resources>
-        <resource name="test" type="Image" path="images/test.png" allow_atlas="true"/>
+        <resource name="test" type="Image" path="images/test.png" allow_atlas="false"/>
         <resource name="icon_check" type="Image" path="icons/icon_check.png" allow_atlas="true"/>
         <resource name="icon_cross" type="Image" path="icons/icon_cross.png" allow_atlas="true"/>
         <resource name="icon_gear" type="Image" path="icons/icon_gear.png" allow_atlas="true"/>
