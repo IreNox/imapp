@@ -165,10 +165,10 @@ namespace imapp
 		prepareCompiledResources( compiledResources, resourceIndexMapping, resourcesByType );
 
 		ImAppResPakHeader& bufferHeader = preallocateToBuffer< ImAppResPakHeader >();
-		bufferHeader.magic[ 0u ]	= 'I';
-		bufferHeader.magic[ 1u ]	= 'A';
-		bufferHeader.magic[ 2u ]	= 'R';
-		bufferHeader.magic[ 3u ]	= '1';
+		{
+			const char* magic = IMAPP_RES_PAK_MAGIC;
+			memcpy( bufferHeader.magic, magic, sizeof( bufferHeader.magic ) );
+		}
 		bufferHeader.resourceCount	= (uint16)compiledResources.getLength();
 
 		Array< ImAppResPakResource > bufferResources = preallocateArrayToBuffer< ImAppResPakResource >( compiledResources.getLength() );
@@ -182,6 +182,8 @@ namespace imapp
 		}
 
 		writeResourceNames( compiledResources );
+		writeResourceHeaders( bufferResources, compiledResources, resourceIndexMapping );
+
 		bufferHeader.resourcesOffset = (uint32)m_buffer.getLength();
 		writeResourceData( bufferResources, compiledResources, resourceIndexMapping );
 
@@ -395,7 +397,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceCompiler::writeResourceData( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	void ResourceCompiler::writeResourceHeaders( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
 	{
 		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
 		{
@@ -405,23 +407,23 @@ namespace imapp
 			ImAppResPakResource& targetResource = targetResources[ compiledResourceIndex ];
 
 			targetResource.type			= compiledResource.type;
-			targetResource.offset		= 0u;
-			targetResource.size			= 0u;
 			targetResource.nameOffset	= compiledResource.nameOffset;
 			targetResource.nameLength	= compiledResource.nameLength;
+			targetResource.headerOffset	= 0u;
+			targetResource.headerSize	= 0u;
+			targetResource.dataOffset	= 0u;
+			targetResource.dataSize		= 0u;
 
 			switch( compiledResource.type )
 			{
 			case ImAppResPakType_Texture:
 				{
-					ImAppResPakTextureData& textureData = preallocateToBufferOffset< ImAppResPakTextureData >( targetResource.offset );
-					textureData.format	= ImAppResPakTextureFormat_RGBA8;
-					textureData.width	= data.image.width;
-					textureData.width	= data.image.height;
+					ImAppResPakTextureHeader& textureHeader = preallocateToBufferOffset< ImAppResPakTextureHeader >( targetResource.headerOffset );
+					textureHeader.format	= ImAppResPakTextureFormat_RGBA8;
+					textureHeader.width	= data.image.width;
+					textureHeader.width	= data.image.height;
 
-					writeArrayToBuffer< byte >( data.image.imageData );
-
-					targetResource.size = uint32( sizeof( textureData ) + data.image.imageData.getLength() );
+					targetResource.headerSize = sizeof( textureHeader );
 				}
 				break;
 
@@ -429,7 +431,7 @@ namespace imapp
 				{
 					targetResource.textureIndex = compiledResource.refIndex;
 
-					ImAppResPakImageData& imageData = preallocateToBufferOffset< ImAppResPakImageData >( targetResource.offset );
+					ImAppResPakImageHeader& imageHeader = preallocateToBufferOffset< ImAppResPakImageHeader >( targetResource.headerOffset );
 					if( data.image.allowAtlas )
 					{
 						const AtlasImage* atlasImage = m_atlasImages.find( data.name );
@@ -439,31 +441,31 @@ namespace imapp
 							continue;
 						}
 
-						imageData.x			= atlasImage->x;
-						imageData.y			= atlasImage->y;
-						imageData.width		= atlasImage->width;
-						imageData.height	= atlasImage->height;
+						imageHeader.x		= atlasImage->x;
+						imageHeader.y		= atlasImage->y;
+						imageHeader.width	= atlasImage->width;
+						imageHeader.height	= atlasImage->height;
 					}
 					else
 					{
-						imageData.x			= 0u;
-						imageData.y			= 0u;
-						imageData.width		= (uint16)data.image.width;
-						imageData.height	= (uint16)data.image.height;
+						imageHeader.x		= 0u;
+						imageHeader.y		= 0u;
+						imageHeader.width	= (uint16)data.image.width;
+						imageHeader.height	= (uint16)data.image.height;
 					}
 
-					targetResource.size = sizeof( imageData );
+					targetResource.headerSize = sizeof( imageHeader );
 				}
 				break;
 
 			case ImAppResPakType_Skin:
 				{
-					ImAppResPakSkinData& skinData = preallocateToBufferOffset< ImAppResPakSkinData >( targetResource.offset );
+					ImAppResPakSkinHeader& skinHeader = preallocateToBufferOffset< ImAppResPakSkinHeader >( targetResource.headerOffset );
 
-					skinData.top	= data.skin.border.top;
-					skinData.left	= data.skin.border.left;
-					skinData.right	= data.skin.border.right;
-					skinData.bottom	= data.skin.border.bottom;
+					skinHeader.top		= data.skin.border.top;
+					skinHeader.left		= data.skin.border.left;
+					skinHeader.right	= data.skin.border.right;
+					skinHeader.bottom	= data.skin.border.bottom;
 
 					uint16 imageIndex;
 					if( !findResourceIndex( imageIndex, resourceIndexMapping, ImAppResPakType_Image, data.skin.imageName, data.name ) )
@@ -481,62 +483,104 @@ namespace imapp
 							continue;
 						}
 
-						skinData.x		= atlasImage->x;
-						skinData.y		= atlasImage->y;
-						skinData.width	= atlasImage->width;
-						skinData.height	= atlasImage->height;
+						skinHeader.x		= atlasImage->x;
+						skinHeader.y		= atlasImage->y;
+						skinHeader.width	= atlasImage->width;
+						skinHeader.height	= atlasImage->height;
 					}
 					else
 					{
-						skinData.x		= 0u;
-						skinData.y		= 0u;
-						skinData.width	= (uint16)imageResource.data->image.width;
-						skinData.height	= (uint16)imageResource.data->image.height;
+						skinHeader.x		= 0u;
+						skinHeader.y		= 0u;
+						skinHeader.width	= (uint16)imageResource.data->image.width;
+						skinHeader.height	= (uint16)imageResource.data->image.height;
 					}
 
-					targetResource.size = sizeof( skinData );
+					targetResource.headerSize = sizeof( skinHeader );
 				}
 				break;
 
 			case ImAppResPakType_Font:
+				// TODO
 				break;
 
 			case ImAppResPakType_Theme:
 				{
-					ImAppResPakThemeData& themeData = preallocateToBufferOffset< ImAppResPakThemeData >( targetResource.offset );
+					ImAppResPakThemeHeader& themeHeader = preallocateToBufferOffset< ImAppResPakThemeHeader >( targetResource.headerOffset );
 
 					const ResourceTheme& theme = *compiledResource.data->theme.theme;
 					const UiToolboxConfig& config = theme.getConfig();
 
-					findResourceIndex( themeData.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name );
+					// TODO: HashSet
+					HashMap< uint16_t, byte > referencesSet;
+					findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name );
+					referencesSet.insert( themeHeader.fontIndex );
 
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeData.colors ); ++i )
+					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.colors ); ++i )
 					{
-						themeData.colors[ i ] = config.colors[ i ];
+						themeHeader.colors[ i ] = config.colors[ i ];
 					}
 
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeData.skinIndices ); ++i )
+					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.skinIndices ); ++i )
 					{
-						findResourceIndex( themeData.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, theme.getSkinName( (ImUiToolboxSkin)i ), data.name );
+						findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, theme.getSkinName( (ImUiToolboxSkin)i ), data.name );
+						referencesSet.insert( themeHeader.skinIndices[ i ], 1 );
 					}
 
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeData.imageIndices ); ++i )
+					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.imageIndices ); ++i )
 					{
-						findResourceIndex( themeData.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, theme.getImageName( (ImUiToolboxImage)i ), data.name );
+						findResourceIndex( themeHeader.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, theme.getImageName( (ImUiToolboxImage)i ), data.name );
+						referencesSet.insert( themeHeader.imageIndices[ i ], 1 );
 					}
 
-					themeData.button		= config.button;
-					themeData.checkBox		= config.checkBox;
-					themeData.slider		= config.slider;
-					themeData.textEdit		= config.textEdit;
-					themeData.progressBar	= config.progressBar;
-					themeData.scrollArea	= config.scrollArea;
-					themeData.list			= config.list;
-					themeData.dropDown		= config.dropDown;
-					themeData.popup			= config.popup;
+					themeHeader.referencesCount	= (uint16_t)referencesSet.getLength();
 
-					targetResource.size = sizeof( themeData );
+					themeHeader.button			= config.button;
+					themeHeader.checkBox		= config.checkBox;
+					themeHeader.slider			= config.slider;
+					themeHeader.textEdit		= config.textEdit;
+					themeHeader.progressBar		= config.progressBar;
+					themeHeader.scrollArea		= config.scrollArea;
+					themeHeader.list			= config.list;
+					themeHeader.dropDown		= config.dropDown;
+					themeHeader.popup			= config.popup;
+
+					targetResource.headerSize = sizeof( themeHeader );
 				}
+				break;
+
+			case ImAppResPakType_MAX:
+				break;
+			}
+		}
+	}
+
+	void ResourceCompiler::writeResourceData( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	{
+		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
+		{
+			const CompiledResource& compiledResource = compiledResources[ compiledResourceIndex ];
+			const ResourceData& data = *compiledResource.data;
+
+			ImAppResPakResource& targetResource = targetResources[ compiledResourceIndex ];
+			switch( compiledResource.type )
+			{
+			case ImAppResPakType_Texture:
+				targetResource.dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
+				targetResource.dataSize		= data.image.imageData.getSizeInBytes();
+				break;
+
+			case ImAppResPakType_Image:
+				break;
+
+			case ImAppResPakType_Skin:
+				break;
+
+			case ImAppResPakType_Font:
+				// TODO
+				break;
+
+			case ImAppResPakType_Theme:
 				break;
 
 			case ImAppResPakType_MAX:

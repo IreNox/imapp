@@ -3,6 +3,7 @@
 #include "imapp/imapp.h"
 
 #include "imapp_types.h"
+#include "imapp_res_pak.h"
 
 typedef struct ImAppRendererTexture ImAppRendererTexture;
 typedef struct ImAppRes ImAppRes;
@@ -11,17 +12,21 @@ typedef struct ImAppResPak ImAppResPak;
 typedef enum ImAppResEventType
 {
 	ImAppResEventType_OpenResPak,
-	ImAppResEventType_LoadRes,
+	ImAppResEventType_LoadResData,
 	ImAppResEventType_LoadImage,
 	ImAppResEventType_DecodePng,
-	ImAppResEventType_DecodeJpeg,
+	ImAppResEventType_DecodeJpeg
 } ImAppResEventType;
 
-typedef struct ImAppResEventResPakData
+typedef struct ImAppResEventPakData
 {
-	ImAppResPak*			respak;
-	uint16					resIndex;
-} ImAppResEventResPakData;
+	ImAppResPak*			pak;
+} ImAppResEventPakData;
+
+typedef struct ImAppResEventResData
+{
+	ImAppRes*				res;
+} ImAppResEventResData;
 
 typedef struct ImAppResEventImageData
 {
@@ -31,50 +36,71 @@ typedef struct ImAppResEventImageData
 typedef struct ImAppResEventDecodeData
 {
 	ImAppImage*				image;
-	const void*				sourceData;
-	uintsize				sourceDataSize;
+	ImAppBlob				sourceData;
 } ImAppResEventDecodeData;
 
 typedef union ImAppResEventData
 {
-	ImAppResEventResPakData	respak;
+	ImAppResEventPakData	pak;
+	ImAppResEventResData	res;
 	ImAppResEventImageData	image;
 	ImAppResEventDecodeData	decode;
 } ImAppResEventData;
+
+typedef struct ImAppResEventResultLoadResData
+{
+	ImAppBlob					data;
+} ImAppResEventResultLoadResData;
+
+typedef struct ImAppResEventResultImageData
+{
+	uint32						width;
+	uint32						height;
+	ImAppRendererFormat			format;
+	ImAppBlob					data;
+} ImAppResEventResultImageData;
+
+typedef union ImAppResEventResultData
+{
+	ImAppResEventResultLoadResData	loadRes;
+	ImAppResEventResultImageData	image;
+} ImAppResEventResultData;
 
 typedef struct ImAppResEvent
 {
 	ImAppResEventType		type;
 	ImAppResEventData		data;
+	ImAppResEventResultData	result;
+	bool					success;
 } ImAppResEvent;
 
-typedef enum ImAppResState
+typedef enum ImAppResUsage
 {
-	ImAppResState_Invalid,
-	ImAppResState_Used,
-	ImAppResState_Unused
-} ImAppResState;
+	ImAppResUsage_Invalid,
+	ImAppResUsage_Used,
+	ImAppResUsage_Unused
+} ImAppResUsage;
 
 typedef struct ImAppResTextureData
 {
-	ImAppRendererTexture*	texture;
+	ImUiTexture				texture;
 } ImAppResTextureData;
 
 typedef struct ImAppResImageData
 {
-	ImAppRes*				texture;
-	ImUiTexture				image;
+	ImAppRes*				textureRes;
+	ImUiImage				image;
 } ImAppResImageData;
 
 typedef struct ImAppResSkinData
 {
-	ImAppRes*				texture;
+	ImAppRes*				textureRes;
 	ImUiSkin				skin;
 } ImAppResSkinData;
 
 typedef struct ImAppResFontData
 {
-	ImAppRes*				texture;
+	ImAppRes*				textureRes;
 	ImUiFont*				font;
 } ImAppResFontData;
 
@@ -100,19 +126,24 @@ typedef union ImAppResData
 	ImAppResBlobData		blob;
 } ImAppResData;
 
+typedef struct ImAppResKey
+{
+	uint16					index;
+	ImAppResPakType			type;
+	ImUiStringView			name;
+	ImAppResPak*			pak;
+} ImAppResKey;
+
 typedef struct ImAppRes
 {
-	ImUiHash				key;
-	ImUiStringView			name;
-	ImAppResPakType			type;
+	ImAppResKey				key;
 
-	ImAppRes*				prevLoadedRes;
-	ImAppRes*				nextLoadedRes;
 	ImAppRes*				prevUsageRes;
 	ImAppRes*				nextUsageRes;
 
 	uint32					refCount;
-	ImAppResState			state;
+	uint8					usage;			// ImAppResUsage
+	uint8					state;			// ImAppResState
 	uint64					lastUseTime;
 
 	ImAppResData			data;
@@ -122,10 +153,16 @@ struct ImAppResPak
 {
 	ImAppResSys*			ressys;
 
-	void*					metadata;
-	uintsize				metadataSize;
+	ImAppResPak*			prevResPak;
+	ImAppResPak*			nextResPak;
 
-	ImAppRes*				firstLoadedRes;
+	ImAppResState			state;
+
+	ImAppRes*				resources;
+	uintsize				resourceCount;
+
+	byte*					metadata;
+	uintsize				metadataSize;
 
 	char					resourceName[ 1u ];
 };

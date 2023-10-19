@@ -133,6 +133,7 @@ namespace imapp
 		bool				updateImageAtlas();
 		void				prepareCompiledResources( CompiledResourceArray& compiledResources, ResourceTypeIndexMap& resourceIndexMapping, ResourceTypeIndexArray& resourcesByType );
 		void				writeResourceNames( CompiledResourceArray& compiledResources );
+		void				writeResourceHeaders( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
 		void				writeResourceData( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
 
 		template< typename T >

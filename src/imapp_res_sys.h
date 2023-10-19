@@ -1,8 +1,8 @@
 #pragma once
 
-#include "imapp_defines.h"
+#include "imapp/imapp.h"
 
-#include <imui/imui.h>
+#include "imapp_types.h"
 
 #include <stdbool.h>
 
@@ -16,8 +16,10 @@ typedef struct ImUiContext ImUiContext;
 struct ImAppImage
 {
 	ImAppRendererTexture*	texture;
-	uint32_t				width;
-	uint32_t				height;
+	uint32					width;
+	uint32					height;
+
+	ImAppResState			state;
 
 	char					resourceName[ 1u ];
 };
@@ -31,11 +33,11 @@ bool			ImAppResSysRecreateEverything( ImAppResSys* ressys );
 ImAppResPak*	ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName );
 void			ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
 
-ImAppImage*		ImAppResSysImageCreateResource( ImAppResSys* ressys, const char* resourceName );
 ImAppImage*		ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height );
-ImAppImage*		ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, size_t imageDataSize );
-//ImAppImage*		ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, size_t imageDataSize );
-bool			ImAppResSysImageIsLoaded( ImAppResSys* ressys, ImAppImage* image );
+ImAppImage*		ImAppResSysImageCreateResource( ImAppResSys* ressys, const char* resourceName );
+ImAppImage*		ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImAppImage*		ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImAppResState	ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
 void			ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
 
 ImUiFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );

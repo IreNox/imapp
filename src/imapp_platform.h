@@ -1,5 +1,7 @@
 #pragma once
 
+#include "imapp/imapp.h"
+
 #include "imapp_types.h"
 #include "imapp_main.h"
 
@@ -50,9 +52,15 @@ ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
+typedef struct ImAppFile ImAppFile;
+
 ImAppBlob				ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName );
 ImAppBlob				ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length );
+ImAppFile*				ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName );
+uintsize				ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset );
+void					ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file );
 ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName );
+void					ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob );
 
 //////////////////////////////////////////////////////////////////////////
 // Threading

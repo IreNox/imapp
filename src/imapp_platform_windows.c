@@ -749,6 +749,43 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 {
 	ImAppBlob result = { NULL, 0u };
 
+	ImAppFile* file = ImAppPlatformResourceOpen( platform, resourceName );
+	if( !file )
+	{
+		return result;
+	}
+
+	if( length == (uintsize)-1 )
+	{
+		LARGE_INTEGER fileSize;
+		GetFileSizeEx( (HANDLE)file, &fileSize );
+
+		length = fileSize.QuadPart - offset;
+	}
+
+	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	if( !memory )
+	{
+		ImAppPlatformResourceClose( platform, file );
+		return result;
+	}
+
+	const uintsize readResult = ImAppPlatformResourceRead( file, memory, length, offset );
+	ImAppPlatformResourceClose( platform, file );
+
+	if( readResult != length )
+	{
+		ImUiMemoryFree( platform->allocator, memory );
+		return result;
+	}
+
+	result.data	= memory;
+	result.size	= length;
+	return result;
+}
+
+ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+{
 	wchar_t pathBuffer[ MAX_PATH ];
 	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourcePath, platform->resourceBasePathLength );
 	{
@@ -768,44 +805,36 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	const HANDLE fileHandle = CreateFileW( pathBuffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
 	if( fileHandle == INVALID_HANDLE_VALUE )
 	{
-		return result;
+		return NULL;
 	}
 
-	if( length == (uintsize)-1 )
-	{
-		LARGE_INTEGER fileSize;
-		GetFileSizeEx( fileHandle, &fileSize );
+	return (ImAppFile*)fileHandle;
+}
+uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+{
+	const HANDLE fileHandle = (HANDLE)file;
 
-		length = fileSize.QuadPart - offset;
-	}
-
-	if( offset != 0u &&
-		SetFilePointer( fileHandle, (LONG)offset, NULL, FILE_BEGIN ) == INVALID_SET_FILE_POINTER )
+	if( SetFilePointer( fileHandle, (LONG)offset, NULL, FILE_BEGIN ) == INVALID_SET_FILE_POINTER )
 	{
-		CloseHandle( fileHandle );
-		return result;
-	}
-
-	void* memory = ImUiMemoryAlloc( platform->allocator, length );
-	if( !memory )
-	{
-		CloseHandle( fileHandle );
-		return result;
+		return 0u;
 	}
 
 	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)length, &bytesRead, NULL );
+	const BOOL readResult = ReadFile( fileHandle, outData, (DWORD)length, &bytesRead, NULL );
 	CloseHandle( fileHandle );
 
 	if( !readResult || bytesRead != (DWORD)length )
 	{
-		ImUiMemoryFree( platform->allocator, memory );
-		return result;
+		return 0u;
 	}
 
-	result.data	= memory;
-	result.size	= length;
-	return result;
+	return bytesRead;
+}
+
+void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+{
+	const HANDLE fileHandle = (HANDLE)file;
+	CloseHandle( fileHandle );
 }
 
 ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
@@ -848,6 +877,11 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 
 	const ImAppBlob result ={ memory, (uintsize)fileSize.QuadPart };
 	return result;
+}
+
+void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+{
+	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
 ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )

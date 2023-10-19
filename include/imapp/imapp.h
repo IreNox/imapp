@@ -84,6 +84,13 @@ typedef enum ImAppResPakType
 	ImAppResPakType_MAX
 } ImAppResPakType;
 
+typedef enum ImAppResState
+{
+	ImAppResState_Loading,
+	ImAppResState_Ready,
+	ImAppResState_Error
+} ImAppResState;
+
 typedef struct ImAppBlob
 {
 	const void*			data;
@@ -94,20 +101,21 @@ ImAppResPak*				ImAppResourceGetDefaultPak( ImAppContext* imapp );
 ImAppResPak*				ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath );
 void						ImAppResourceClosePak( ImAppContext* imapp );
 
-bool						ImAppResPakIsLoaded( const ImAppResPak* pak );											// returns true when res pak meta data are loaded
-bool						ImAppResPakPreloadResource( ImAppResPak* pak, ImAppResPakType type, const char* name );	// returns true when the resource is loaded
-uint16_t					ImAppResPakFindResource( ImAppResPak* pak, ImAppResPakType type, const char* name );
+ImAppResState				ImAppResPakGetState( const ImAppResPak* pak );												// returns true when res pak meta data are loaded
+bool						ImAppResPakPreloadResourceIndex( ImAppResPak* pak, uint16_t resIndex );						// returns true when the resource is loaded
+bool						ImAppResPakPreloadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name );	// returns true when the resource is loaded
+uint16_t					ImAppResPakFindResourceIndex( const ImAppResPak* pak, ImAppResPakType type, const char* name );
 
 ImUiTexture					ImAppResPakGetImage( ImAppResPak* pak, const char* name );
-ImUiTexture					ImAppResPakGetImageIndex( ImAppResPak* pak, uint16_t index );
+ImUiTexture					ImAppResPakGetImageIndex( ImAppResPak* pak, uint16_t resIndex );
 ImUiSkin					ImAppResPakGetSkin( ImAppResPak* pak, const char* name );
-ImUiSkin					ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t index );
+ImUiSkin					ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t resIndex );
 ImUiFont*					ImAppResPakGetFont( ImAppResPak* pak, const char* name );
-ImUiFont*					ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t index );
+ImUiFont*					ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t resIndex );
 const ImUiToolboxConfig*	ImAppResPakGetTheme( ImAppResPak* pak, const char* name );
-const ImUiToolboxConfig*	ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t index );
+const ImUiToolboxConfig*	ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t resIndex );
 ImAppBlob					ImAppResPakGetBlob( ImAppResPak* pak, const char* name );
-ImAppBlob					ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t index );
+ImAppBlob					ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex );
 
 void						ImAppResPakActivateTheme( ImAppResPak* pak, const char* name );
 
@@ -115,8 +123,8 @@ void						ImAppResPakActivateTheme( ImAppResPak* pak, const char* name );
 ImAppImage*					ImAppImageLoadResource( ImAppContext* imapp, const char* resourcePath );
 ImAppImage*					ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height );
 ImAppImage*					ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
-//ImAppImage*					ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
-bool						ImAppImageIsLoaded( ImAppContext* imapp, ImAppImage* image );
+ImAppImage*					ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize );
+ImAppResState				ImAppImageGetState( ImAppContext* imapp, ImAppImage* image );
 void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
 ImUiTexture					ImAppImageGetImage( const ImAppImage* image );

@@ -334,10 +334,16 @@ ImAppImage* ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, siz
 	return ImAppResSysImageCreatePng( imappInternal->ressys, imageData, imageDataSize );
 }
 
-bool ImAppImageIsLoaded( ImAppContext* imapp, ImAppImage* image )
+ImAppImage* ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
 	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return ImAppResSysImageIsLoaded( imappInternal->ressys, image );
+	return ImAppResSysImageCreateJpeg( imappInternal->ressys, imageData, imageDataSize );
+}
+
+ImAppResState ImAppImageGetState( ImAppContext* imapp, ImAppImage* image )
+{
+	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	return ImAppResSysImageGetState( imappInternal->ressys, image );
 }
 
 void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )
