@@ -81,14 +81,17 @@ namespace imapp
 		ResourcePackage		m_package;
 		ResourceCompiler	m_compiler;
 
-		const ImAppImage*	m_icon				= nullptr;
+		bool				m_autoCompile			= false;
+		uint32				m_lastCompileRevision	= 0u;
 
-		PopupState			m_popupState		= PopupState::Home;
+		PopupState			m_popupState			= PopupState::Home;
 		DynamicString		m_errorMessage;
 
-		size_t				m_selecedEntry	= (size_t)-1;
+		size_t				m_selecedEntry			= (size_t)-1;
 
 		TypeNameArray		m_resourceNamesByType;
+
+		void				update( ImAppContext* imapp, float time );
 
 		void				doPopupState( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );

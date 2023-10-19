@@ -34,20 +34,7 @@ namespace imapp
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
 	{
-		{
-			ImAppDropData dropData;
-			while( ImAppWindowPopDropData( imapp->defaultWindow, &dropData ) )
-			{
-				if( dropData.type == ImAppDropType_Text )
-				{
-					continue;
-				}
-
-				handleDrop( dropData.pathOrText );
-			}
-		}
-
-		m_package.updateFileData( imapp, surface.getTime() );
+		update( imapp, surface.getTime() );
 
 		doPopupState( surface );
 
@@ -96,11 +83,11 @@ namespace imapp
 
 			window.strecher( 1.0f, 0.0f );
 
-			window.progressBar( -1.0f );
+			//window.progressBar( -1.0f );
 
 			if( m_package.getOutputPath().hasElements() )
 			{
-				window.checkBoxState( "Auto Compile" );
+				window.checkBox( m_autoCompile, "Auto Compile" );
 
 				if( m_compiler.isRunning() )
 				{
@@ -109,8 +96,7 @@ namespace imapp
 				}
 				else if( window.buttonLabel( "Compile" ) )
 				{
-					const Path outputPath = m_package.getPath().getParent().push( m_package.getOutputPath() );
-					m_compiler.startCompile( outputPath.getGenericPath(), m_package );
+					m_compiler.startCompile( m_package );
 				}
 			}
 		}
@@ -179,6 +165,36 @@ namespace imapp
 				outputList.nextItem();
 
 				window.label( (RtStr)output.message );
+			}
+		}
+	}
+
+	void ResourceTool::update( ImAppContext* imapp, float time )
+	{
+		m_package.updateFileData( imapp, time );
+
+		{
+			const uint32 revision = m_package.getRevision();
+
+			if( m_autoCompile &&
+				!m_compiler.isRunning() &&
+				m_lastCompileRevision != revision )
+			{
+				m_compiler.startCompile( m_package );
+				m_lastCompileRevision = revision;
+			}
+		}
+
+		{
+			ImAppDropData dropData;
+			while( ImAppWindowPopDropData( imapp->defaultWindow, &dropData ) )
+			{
+				if( dropData.type == ImAppDropType_Text )
+				{
+					continue;
+				}
+
+				handleDrop( dropData.pathOrText );
 			}
 		}
 	}

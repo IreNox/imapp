@@ -196,6 +196,7 @@ namespace imapp
 		}
 
 		m_fileHash = newFileHash;
+		m_revision++;
 	}
 
 	void Resource::setName( const StringView& value )
@@ -212,8 +213,8 @@ namespace imapp
 
 	void Resource::setImageAllowAtlas( bool value )
 	{
+		m_revision += (value != m_imageAllowAtlas);
 		m_imageAllowAtlas = value;
-		m_revision++;
 	}
 
 	void Resource::setFontSize( float value )

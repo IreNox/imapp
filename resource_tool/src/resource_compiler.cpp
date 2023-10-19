@@ -33,14 +33,14 @@ namespace imapp
 		}
 	}
 
-	bool ResourceCompiler::startCompile( const StringView& outputPath, const ResourcePackage& package )
+	bool ResourceCompiler::startCompile( const ResourcePackage& package )
 	{
 		if( isRunning() )
 		{
 			return false;
 		}
 
-		m_outputPath = outputPath;
+		m_outputPath = package.getPath().getParent().push( package.getOutputPath() );
 
 		//HashSet< DynamicString > removedResources;
 		//for( ResourceMap::ConstIterator it : m_resources )
@@ -51,6 +51,7 @@ namespace imapp
 		for( const Resource& resource : package.getResources() )
 		{
 			ResourceData& data = m_resources[ resource.getName() ];
+			_CrtCheckMemory();
 
 			data.type = resource.getType();
 			data.name = resource.getName();
@@ -100,6 +101,7 @@ namespace imapp
 				break;
 			}
 
+			_CrtCheckMemory();
 			//removedResources.remove();
 		}
 
@@ -485,6 +487,12 @@ namespace imapp
 					uint16 imageIndex;
 					if( !findResourceIndex( imageIndex, resourceIndexMapping, ImAppResPakType_Image, data.skin.imageName, data.name ) )
 					{
+						continue;
+					}
+
+					if( imageIndex == IMAPP_RES_PAK_INVALID_INDEX )
+					{
+						pushOutput( ResourceErrorLevel::Error, data.name, "Could not find image '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
 						continue;
 					}
 

@@ -43,7 +43,7 @@ namespace imapp
 							ResourceCompiler();
 							~ResourceCompiler();
 
-		bool				startCompile( const StringView& outputPath, const ResourcePackage& package );
+		bool				startCompile( const ResourcePackage& package );
 		bool				isRunning();
 		bool				getResult() const { return m_result; }
 
