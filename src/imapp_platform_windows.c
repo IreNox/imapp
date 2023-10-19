@@ -727,7 +727,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					key = ImUiInputKey_Numpad_Enter;
 				}
 
-				const ImAppEvent keyEvent ={ .key = {.type = ImAppEventType_KeyDown, .key = key } };
+				const ImAppEvent keyEvent ={ .key = { .type = ImAppEventType_KeyDown, .key = key } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
 			return 0;
@@ -741,7 +741,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					key = ImUiInputKey_Numpad_Enter;
 				}
 
-				const ImAppEvent keyEvent ={ .key = {.type = ImAppEventType_KeyUp, .key = key } };
+				const ImAppEvent keyEvent ={ .key = { .type = ImAppEventType_KeyUp, .key = key } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
 			return 0;
@@ -750,7 +750,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -759,7 +759,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -768,7 +768,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -777,7 +777,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -786,7 +786,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -795,7 +795,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -804,7 +804,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -813,17 +813,23 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
-				const ImAppEvent buttonEvent ={ .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
+				const ImAppEvent buttonEvent ={ .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+			}
+			return 0;
+
+		case WM_MOUSEWHEEL:
+			{
+				const int yDelta = GET_WHEEL_DELTA_WPARAM( wParam ) / WHEEL_DELTA;
+				const ImAppEvent scrollEvent ={ .scroll = { .type = ImAppEventType_Scroll, .x = 0, .y = yDelta } };
+				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			return 0;
 
 		case WM_MOUSEHWHEEL:
 			{
-				//GET_WHEEL_DELTA_WPARAM
-				const int xDelta = GET_X_LPARAM( lParam );
-				const int yDelta = GET_Y_LPARAM( lParam );
-				const ImAppEvent scrollEvent ={ .scroll = {.type = ImAppEventType_Scroll, .x = xDelta, .y = yDelta } };
+				const int xDelta = GET_WHEEL_DELTA_WPARAM( wParam );
+				const ImAppEvent scrollEvent ={ .scroll = {.type = ImAppEventType_Scroll, .x = xDelta, .y = 0 } };
 				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			return 0;
