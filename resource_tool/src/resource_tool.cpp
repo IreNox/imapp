@@ -410,15 +410,15 @@ namespace imapp
 		window.checkBox( allowAtlas, "Allow Atlas" );
 		resource.setImageAllowAtlas( allowAtlas );
 
-		const ImUiTexture imageTexture = ImAppImageGetImage( resource.getImage() );
+		const ImUiImage image = ImAppImageGetImage( resource.getImage() );
 
 		{
 			ImageViewWidget imageView( window );
 
-			UiWidget image( window );
-			image.setFixedSize( (UiSize)imageTexture * imageView.getZoom() );
+			UiWidget imageWidget( window );
+			imageWidget.setFixedSize( (UiSize)image * imageView.getZoom() );
 
-			image.drawWidgetTexture( imageTexture );
+			imageWidget.drawWidgetImage( image );
 		}
 
 		if( window.buttonLabel( "Create Skin" ) )
@@ -447,7 +447,7 @@ namespace imapp
 		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
 		if( imageResource )
 		{
-			const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
+			const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
 
 			UiBorder& skinBorder = resource.getSkinBorder();
 			{
@@ -471,7 +471,7 @@ namespace imapp
 
 					window.label( border.title );
 
-					if( window.slider( border.value, 0.0f, (float)imageTexture.height ) )
+					if( window.slider( border.value, 0.0f, (float)image.height ) )
 					{
 						border.value = floorf( border.value );
 						resource.increaseRevision();
@@ -488,21 +488,23 @@ namespace imapp
 
 			ImageViewWidget imageView( window );
 
-			UiWidget image( window );
-			image.setFixedSize( (UiSize)imageTexture * imageView.getZoom() );
+			UiWidget imageWidget( window );
+			imageWidget.setFixedSize( (UiSize)image * imageView.getZoom() );
 
 			if( previewSkin )
 			{
 				ImUiSkin skin;
-				skin.texture	= imageTexture;
-				skin.border		= skinBorder;
-				skin.uv			= UiTexCoord::ZeroToOne;
+				skin.textureData	= image.textureData;
+				skin.width			= image.width;
+				skin.height			= image.height;
+				skin.border			= skinBorder;
+				skin.uv				= image.uv;
 
-				image.drawWidgetSkin( skin );
+				imageWidget.drawWidgetSkin( skin );
 			}
 			else
 			{
-				image.drawWidgetTexture( imageTexture );
+				imageWidget.drawWidgetImage( image );
 
 				UiBorder drawBorder = skinBorder;
 				drawBorder.top *= imageView.getZoom();
@@ -510,13 +512,13 @@ namespace imapp
 				drawBorder.right *= imageView.getZoom();
 				drawBorder.bottom *= imageView.getZoom();
 
-				const UiRect imageRect = image.getRect();
+				const UiRect imageRect = imageWidget.getRect();
 				const UiRect innerRect = imageRect.shrinkBorder( drawBorder );
 				const UiColor color = UiColor( (uint8)0x30u, 0x90u, 0xe0u );
-				image.drawLine( UiPos( imageRect.pos.x, innerRect.pos.y ), UiPos( imageRect.getRight(), innerRect.pos.y ), color );
-				image.drawLine( UiPos( innerRect.pos.x, imageRect.pos.y ), UiPos( innerRect.pos.x, imageRect.getBottom() ), color );
-				image.drawLine( UiPos( innerRect.getRight(), imageRect.pos.y ), UiPos( innerRect.getRight(), imageRect.getBottom() ), color );
-				image.drawLine( UiPos( imageRect.pos.x, innerRect.getBottom() ), UiPos( imageRect.getRight(), innerRect.getBottom() ), color );
+				imageWidget.drawLine( UiPos( imageRect.pos.x, innerRect.pos.y ), UiPos( imageRect.getRight(), innerRect.pos.y ), color );
+				imageWidget.drawLine( UiPos( innerRect.pos.x, imageRect.pos.y ), UiPos( innerRect.pos.x, imageRect.getBottom() ), color );
+				imageWidget.drawLine( UiPos( innerRect.getRight(), imageRect.pos.y ), UiPos( innerRect.getRight(), imageRect.getBottom() ), color );
+				imageWidget.drawLine( UiPos( imageRect.pos.x, innerRect.getBottom() ), UiPos( imageRect.getRight(), innerRect.getBottom() ), color );
 			}
 		}
 		else
@@ -627,12 +629,14 @@ namespace imapp
 
 						if( skinResource && imageResource )
 						{
-							const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
+							const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
 
 							ImUiSkin skin;
-							skin.texture	= imageTexture;
-							skin.border		= skinResource->getSkinBorder();
-							skin.uv			= UiTexCoord::ZeroToOne;
+							skin.textureData	= image.textureData;
+							skin.width			= image.width;
+							skin.height			= image.height;
+							skin.border			= skinResource->getSkinBorder();
+							skin.uv				= image.uv;
 							previewWidget.drawWidgetSkin( skin );
 						}
 						else
@@ -688,12 +692,12 @@ namespace imapp
 						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
 						if( imageResource )
 						{
-							const ImUiTexture imageTexture = ImAppImageGetImage( imageResource->getImage() );
+							const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
 
-							const float width = (previewWidget.getRect().size.height / float( imageTexture.height )) * float( imageTexture.width );
+							const float width = (previewWidget.getRect().size.height / float( image.height )) * float( image.width );
 							previewWidget.setFixedWidth( width );
 
-							previewWidget.drawWidgetTexture( imageTexture );
+							previewWidget.drawWidgetImage( image );
 						}
 						else
 						{

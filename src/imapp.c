@@ -10,6 +10,7 @@
 #	include <emscripten.h>
 #endif
 
+#include <stdio.h>
 #include <string.h>
 
 static void		ImAppFillDefaultParameters( ImAppParameters* parameters );
@@ -197,6 +198,14 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 		ImUiToolboxSetConfig( &toolboxConfig );
 	}
 
+	if( parameters->defaultResPak )
+	{
+		char buffer[ 256u ];
+		snprintf( buffer, IMAPP_ARRAY_COUNT( buffer ), "%s.iarespak", parameters->defaultResPak );
+
+		imapp->defaultResPak = ImAppResSysOpen( imapp->ressys, buffer );
+	}
+
 	return true;
 }
 
@@ -212,6 +221,12 @@ static void ImAppCleanup( ImAppInternal* imapp )
 	{
 		ImUiFontDestroy( imapp->context.imui, imapp->defaultFont );
 		imapp->defaultFont = NULL;
+	}
+
+	if( imapp->defaultResPak )
+	{
+		ImAppResSysClose( imapp->ressys, imapp->defaultResPak );
+		imapp->defaultResPak = NULL;
 	}
 
 	if( imapp->ressys != NULL )
@@ -296,24 +311,36 @@ bool ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 
 void ImAppQuit( ImAppContext* imapp )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	emscripten_cancel_main_loop();
 #endif
-	imappInternal->running = false;
+	imappInt->running = false;
 }
 
 ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return imappInternal->defaultResPak;
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return imappInt->defaultResPak;
+}
+
+ImAppResPak* ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath )
+{
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysOpen( imappInt->ressys, resourcePath );
+}
+
+void ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak )
+{
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	ImAppResSysClose( imappInt->ressys, pak );
 }
 
 ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceName )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	ImAppImage* pImage = ImAppResSysImageCreateResource( imappInternal->ressys, resourceName );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	ImAppImage* pImage = ImAppResSysImageCreateResource( imappInt->ressys, resourceName );
 	if( pImage == NULL )
 	{
 		return NULL;
@@ -324,69 +351,45 @@ ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceNam
 
 ImAppImage* ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return ImAppResSysImageCreateRaw( imappInternal->ressys, imageData, width, height );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysImageCreateRaw( imappInt->ressys, imageData, width, height );
 }
 
 ImAppImage* ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return ImAppResSysImageCreatePng( imappInternal->ressys, imageData, imageDataSize );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysImageCreatePng( imappInt->ressys, imageData, imageDataSize );
 }
 
 ImAppImage* ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return ImAppResSysImageCreateJpeg( imappInternal->ressys, imageData, imageDataSize );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysImageCreateJpeg( imappInt->ressys, imageData, imageDataSize );
 }
 
 ImAppResState ImAppImageGetState( ImAppContext* imapp, ImAppImage* image )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	return ImAppResSysImageGetState( imappInternal->ressys, image );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysImageGetState( imappInt->ressys, image );
 }
 
 void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )
 {
-	ImAppInternal* imappInternal = (ImAppInternal*)imapp;
-	ImAppResSysImageFree( imappInternal->ressys, image );
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	ImAppResSysImageFree( imappInt->ressys, image );
 }
 
-ImUiTexture ImAppImageGetImage( const ImAppImage* image )
+ImUiImage ImAppImageGetImage( const ImAppImage* image )
 {
-	ImUiTexture texture;
-	if( image &&
-		image->texture )
+	ImUiImage result;
+	if( image && image->state == ImAppResState_Ready )
 	{
-		texture.data	= image->texture;
-		texture.width	= image->width;
-		texture.height	= image->height;
+		return image->data;
 	}
 	else
 	{
-		memset( &texture, 0, sizeof( texture ) );
+		memset( &result, 0, sizeof( result ) );
 	}
 
-	return texture;
+	return result;
 }
-
-//ImUiTexture ImAppImageGet( ImAppContext* imapp, ImUiStringView resourceName, int defaultWidth, int defaultHeight, ImUiColor defaultColor )
-//{
-//	// TODO: implement async loading
-//	return ImAppImageGetBlocking( imapp, resourceName );
-//}
-//
-//ImUiTexture ImAppImageGetBlocking( ImAppContext* imapp, ImUiStringView resourceName )
-//{
-//	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-//
-//	const ImAppImage* pImage = ImAppResSysImageFindOrLoad( pImApp->resources, resourceName, false );
-//	return ImAppImageGetImage( pImage );
-//}
-//
-//ImUiFont* ImAppFontGet( ImAppContext* imapp, ImUiStringView fontName, float fontSize )
-//{
-//	ImAppInternal* pImApp = (ImAppInternal*)imapp;
-//
-//	return ImAppResSysFontCreate( pImApp->resources, fontName, fontSize );
-//}

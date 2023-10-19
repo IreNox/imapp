@@ -15,10 +15,7 @@ typedef struct ImUiContext ImUiContext;
 
 struct ImAppImage
 {
-	ImAppRendererTexture*	texture;
-	uint32					width;
-	uint32					height;
-
+	ImUiImage				data;
 	ImAppResState			state;
 
 	char					resourceName[ 1u ];

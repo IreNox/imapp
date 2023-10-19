@@ -15,7 +15,8 @@ typedef enum ImAppResEventType
 	ImAppResEventType_LoadResData,
 	ImAppResEventType_LoadImage,
 	ImAppResEventType_DecodePng,
-	ImAppResEventType_DecodeJpeg
+	ImAppResEventType_DecodeJpeg,
+	ImAppResEventType_Quit
 } ImAppResEventType;
 
 typedef struct ImAppResEventPakData
@@ -54,8 +55,8 @@ typedef struct ImAppResEventResultLoadResData
 
 typedef struct ImAppResEventResultImageData
 {
-	uint32						width;
-	uint32						height;
+	uint16						width;
+	uint16						height;
 	ImAppRendererFormat			format;
 	ImAppBlob					data;
 } ImAppResEventResultImageData;
@@ -83,7 +84,9 @@ typedef enum ImAppResUsage
 
 typedef struct ImAppResTextureData
 {
-	ImUiTexture				texture;
+	ImAppRendererTexture*	texture;
+	uint32					width;
+	uint32					height;
 } ImAppResTextureData;
 
 typedef struct ImAppResImageData
@@ -106,8 +109,6 @@ typedef struct ImAppResFontData
 
 typedef struct ImAppResThemeData
 {
-	ImAppRes**				refRes;
-	uintsize				refResCount;
 	ImUiToolboxConfig*		config;
 } ImAppResThemeData;
 
@@ -172,6 +173,8 @@ typedef struct ImAppResEventQueue
 	ImAppSemaphore*		semaphore;
 	ImAppMutex*			mutex;
 	ImAppResEvent*		events;
-	uintsize			eventCount;
-	uintsize			eventCapacity;
+	uintsize			top;
+	uintsize			bottom;
+	uintsize			count;
+	uintsize			capacity;
 } ImAppResEventQueue;

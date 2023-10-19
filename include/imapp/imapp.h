@@ -113,17 +113,17 @@ typedef struct ImAppBlob
 
 ImAppResPak*				ImAppResourceGetDefaultPak( ImAppContext* imapp );
 ImAppResPak*				ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath );
-void						ImAppResourceClosePak( ImAppContext* imapp );
+void						ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak );
 
 ImAppResState				ImAppResPakGetState( const ImAppResPak* pak );												// returns true when res pak meta data are loaded
 bool						ImAppResPakPreloadResourceIndex( ImAppResPak* pak, uint16_t resIndex );						// returns true when the resource is loaded
 bool						ImAppResPakPreloadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name );	// returns true when the resource is loaded
 uint16_t					ImAppResPakFindResourceIndex( const ImAppResPak* pak, ImAppResPakType type, const char* name );
 
-ImUiTexture					ImAppResPakGetImage( ImAppResPak* pak, const char* name );
-ImUiTexture					ImAppResPakGetImageIndex( ImAppResPak* pak, uint16_t resIndex );
-ImUiSkin					ImAppResPakGetSkin( ImAppResPak* pak, const char* name );
-ImUiSkin					ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t resIndex );
+const ImUiImage*			ImAppResPakGetImage( ImAppResPak* pak, const char* name );
+const ImUiImage*			ImAppResPakGetImageIndex( ImAppResPak* pak, uint16_t resIndex );
+const ImUiSkin*				ImAppResPakGetSkin( ImAppResPak* pak, const char* name );
+const ImUiSkin*				ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t resIndex );
 ImUiFont*					ImAppResPakGetFont( ImAppResPak* pak, const char* name );
 ImUiFont*					ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t resIndex );
 const ImUiToolboxConfig*	ImAppResPakGetTheme( ImAppResPak* pak, const char* name );
@@ -141,8 +141,7 @@ ImAppImage*					ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData
 ImAppResState				ImAppImageGetState( ImAppContext* imapp, ImAppImage* image );
 void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
-ImUiTexture					ImAppImageGetImage( const ImAppImage* image );
-
+ImUiImage					ImAppImageGetImage( const ImAppImage* image );
 
 //////////////////////////////////////////////////////////////////////////
 // Types
