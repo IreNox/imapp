@@ -216,28 +216,6 @@ namespace imapp
 		m_revision++;
 	}
 
-	uint32 Resource::getImageWidth() const
-	{
-		if( m_image )
-		{
-			const ImUiTexture image = ImAppImageGetImage( m_image );
-			return image.width;
-		}
-
-		return 0u;
-	}
-
-	uint32 Resource::getImageHeight() const
-	{
-		if( m_image )
-		{
-			const ImUiTexture image = ImAppImageGetImage( m_image );
-			return image.height;
-		}
-
-		return 0u;
-	}
-
 	void Resource::setFontSize( float value )
 	{
 		m_fontSize = value;
@@ -356,7 +334,8 @@ namespace imapp
 			return;
 		}
 
-		m_image = ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), ihdr.width, ihdr.height );
-		//m_image = ImAppImageCreatePng( imapp, m_fileData.getData(), m_fileData.getLength() );
+		m_image			= ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), ihdr.width, ihdr.height );
+		m_imageWidth	= ihdr.width;
+		m_imageHeight	= ihdr.height;
 	}
 }

@@ -11,7 +11,7 @@ namespace imapp
 	ResourceTheme::ResourceTheme()
 		: m_config( nullptr )
 	{
-		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1128u );
+		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1176u );
 
 		setFields();
 	}

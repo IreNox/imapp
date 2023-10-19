@@ -55,8 +55,8 @@ namespace imapp
 
 		struct ImageData
 		{
-			uint16			width			= 0u;
-			uint16			height			= 0u;
+			uint32			width			= 0u;
+			uint32			height			= 0u;
 			bool			allowAtlas		= false;
 			bool			isAtlas			= false;
 			ByteArray		imageData;
@@ -86,6 +86,8 @@ namespace imapp
 			ImUiHash		fileHash		= 0u;
 			ByteArray		fileData;
 
+			ByteArray		compiledData;
+
 			ImageData		image;
 			FontData		font;
 			SkinData		skin;
@@ -103,10 +105,10 @@ namespace imapp
 
 		struct AtlasImage
 		{
-			uint16			x		= 0u;
-			uint16			y		= 0u;
-			uint16			width	= 0u;
-			uint16			height	= 0u;
+			uint32			x		= 0u;
+			uint32			y		= 0u;
+			uint32			width	= 0u;
+			uint32			height	= 0u;
 		};
 
 		using ResourceMap = HashMap< DynamicString, ResourceData >;
@@ -133,17 +135,17 @@ namespace imapp
 		bool				updateImageAtlas();
 		void				prepareCompiledResources( CompiledResourceArray& compiledResources, ResourceTypeIndexMap& resourceIndexMapping, ResourceTypeIndexArray& resourcesByType );
 		void				writeResourceNames( CompiledResourceArray& compiledResources );
-		void				writeResourceHeaders( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
-		void				writeResourceData( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
+		void				writeResourceHeaders( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
+		void				writeResourceData( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
 
 		template< typename T >
-		T&					preallocateToBuffer( uintsize alignment = 1u );
+		T&					getBufferData( uint32 offset );
 		template< typename T >
-		T&					preallocateToBufferOffset( uint32& offset, uintsize alignment = 1u );
+		T&		 			getBufferArrayElement( uint32 offset, uintsize index );
 		template< typename T >
-		Array< T >			preallocateArrayToBuffer( uintsize length, uintsize alignment = 1u );
+		uint32				preallocateToBuffer( uintsize alignment = 1u );
 		template< typename T >
-		Array< T >			preallocateArrayToBufferOffset( uintsize length, uint32& offset, uintsize alignment = 1u );
+		uint32				preallocateArrayToBuffer( uintsize length, uintsize alignment = 1u );
 		template< typename T >
 		uint32				writeToBuffer( const T& value, uintsize alignment = 1u );
 		template< typename T >

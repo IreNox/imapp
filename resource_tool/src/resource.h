@@ -75,8 +75,8 @@ namespace imapp
 
 		ImAppImage*				getImage() const { return m_image; }
 		ArrayView< byte >		getImageData() const { return m_imageData; }
-		uint32					getImageWidth() const;
-		uint32					getImageHeight() const;
+		uint32					getImageWidth() const { return m_imageWidth; }
+		uint32					getImageHeight() const { return m_imageHeight; }
 
 		float					getFontSize() const { return m_fontSize; }
 		void					setFontSize( float value );
@@ -111,6 +111,8 @@ namespace imapp
 
 		ResourceImageFormat		m_imageFormat;
 		ByteArray				m_imageData;
+		uint32					m_imageWidth		= 0u;
+		uint32					m_imageHeight		= 0u;
 		ImAppImage*				m_image				= nullptr;
 		bool					m_imageAllowAtlas	= true;
 

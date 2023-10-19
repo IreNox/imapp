@@ -5,6 +5,8 @@
 
 #include "thread.h"
 
+#include <tiki/tiki_hash_set.h>
+
 #define K15_IA_IMPLEMENTATION
 #include <K15_ImageAtlas.h>
 
@@ -48,14 +50,6 @@ namespace imapp
 
 		for( const Resource& resource : package.getResources() )
 		{
-			if( resource.getType() != ResourceType::Image &&
-				resource.getType() != ResourceType::Font &&
-				resource.getType() != ResourceType::Skin &&
-				resource.getType() != ResourceType::Theme )
-			{
-				continue;
-			}
-
 			ResourceData& data = m_resources[ resource.getName() ];
 
 			data.type = resource.getType();
@@ -164,28 +158,39 @@ namespace imapp
 
 		prepareCompiledResources( compiledResources, resourceIndexMapping, resourcesByType );
 
-		ImAppResPakHeader& bufferHeader = preallocateToBuffer< ImAppResPakHeader >();
+		const uint32 headerOffset = preallocateToBuffer< ImAppResPakHeader >();
 		{
+			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
+
 			const char* magic = IMAPP_RES_PAK_MAGIC;
 			memcpy( bufferHeader.magic, magic, sizeof( bufferHeader.magic ) );
+
+			bufferHeader.resourceCount	= (uint16)compiledResources.getLength();
 		}
-		bufferHeader.resourceCount	= (uint16)compiledResources.getLength();
 
-		Array< ImAppResPakResource > bufferResources = preallocateArrayToBuffer< ImAppResPakResource >( compiledResources.getLength() );
+		const uint32 resourcesOffset = preallocateArrayToBuffer< ImAppResPakResource >( compiledResources.getLength() );
 
-		for( uintsize i = 0u; i < resourcesByType.getLength(); ++i )
 		{
-			const DynamicArray< uint16 >& indices = resourcesByType[ i ];
+			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
 
-			bufferHeader.resourcesByTypeIndexOffset[ i ]	= writeArrayToBuffer< uint16 >( indices );
-			bufferHeader.resourcesbyTypeCount[ i ]			= (uint16)indices.getLength();
+			for( uintsize i = 0u; i < resourcesByType.getLength(); ++i )
+			{
+				const DynamicArray< uint16 >& indices = resourcesByType[ i ];
+
+				bufferHeader.resourcesByTypeIndexOffset[ i ]	= writeArrayToBuffer< uint16 >( indices );
+				bufferHeader.resourcesbyTypeCount[ i ]			= (uint16)indices.getLength();
+			}
 		}
 
 		writeResourceNames( compiledResources );
-		writeResourceHeaders( bufferResources, compiledResources, resourceIndexMapping );
+		writeResourceHeaders( resourcesOffset, compiledResources, resourceIndexMapping );
 
-		bufferHeader.resourcesOffset = (uint32)m_buffer.getLength();
-		writeResourceData( bufferResources, compiledResources, resourceIndexMapping );
+		{
+			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
+			bufferHeader.resourcesOffset = (uint32)m_buffer.getLength();
+		}
+
+		writeResourceData( resourcesOffset, compiledResources, resourceIndexMapping );
 
 		//mkdir( m_outputPath.getParent().getNativePath().getData() );
 
@@ -203,7 +208,7 @@ namespace imapp
 	bool ResourceCompiler::updateImageAtlas()
 	{
 		bool isAtlasUpToDate = true;
-		DynamicArray< const ResourceData* > images;
+		DynamicArray< ResourceData* > images;
 		for( ResourceMap::Iterator it = m_resources.getBegin(); it != m_resources.getEnd(); ++it )
 		{
 			if( it->type != ResourceType::Image ||
@@ -216,8 +221,8 @@ namespace imapp
 			AtlasImage* atlasImage = m_atlasImages.find( it.getKey() );
 			if( atlasImage )
 			{
-				isAtlasUpToDate &= atlasImage->width == it->image.width;
-				isAtlasUpToDate &= atlasImage->height == it->image.width;
+				isAtlasUpToDate &= atlasImage->width + 2u == it->image.width;
+				isAtlasUpToDate &= atlasImage->height + 2u == it->image.width;
 			}
 			else
 			{
@@ -248,24 +253,26 @@ namespace imapp
 			return false;
 		}
 
-		ByteArray imageData;
-		for( const ResourceData* image : images )
+		for( ResourceData* image : images )
 		{
+			const ArrayView< uint32 > sourceData = image->image.imageData.cast< uint32 >();
+
 			const uintsize sourceLineSize		= image->image.width;
 			const uintsize sourceImageSize		= sourceLineSize * image->image.height;
 			const uintsize targetLineSize		= image->image.width + 2u;
 			const uintsize targetImageSize		= targetLineSize * (image->image.height + 2u);
 
-			imageData.clear();
-			imageData.setLengthUninitialized( targetImageSize * 4u );
+			image->compiledData.clear();
+			image->compiledData.setLengthUninitialized( targetImageSize * 4u );
+			Array< uint32 > targetData = image->compiledData.cast< uint32 >();
 
 			// <= to compensate start at 1
 			for( uintsize y = 1u; y <= image->image.height; ++y )
 			{
-				const uint32* sourceLineData	= (const uint32*)&image->image.imageData[ y * sourceLineSize ];
-				uint32* targetLineData			= (uint32*)&imageData[ y * targetLineSize ];
+				const uint32* sourceLineData	= &sourceData[ (y - 1u) * sourceLineSize ];
+				uint32* targetLineData			= &targetData[ y * targetLineSize ];
 
-				memcpy( targetLineData + 1u, sourceLineData, sourceLineSize );
+				memcpy( targetLineData + 1u, sourceLineData, sourceLineSize * sizeof( uint32 ) );
 
 				// fill first and list line border pixels
 				targetLineData[ 0u ] = sourceLineData[ 0u ];
@@ -273,12 +280,12 @@ namespace imapp
 			}
 
 			{
-				const uint32* sourceData	= (const uint32*)image->image.imageData.getData();
-				uint32* targetData			= (uint32*)imageData.getData();
+				const uintsize souceLastLineOffset = sourceImageSize - sourceLineSize;
+				const uintsize targetLastLineOffset = (targetImageSize + 1u) - targetLineSize;
 
 				// fill border first and last line
-				memcpy( targetData + 1u, sourceData, sourceLineSize );
-				memcpy( (targetData + targetImageSize + 1u) - targetLineSize, (sourceData + sourceImageSize) - sourceLineSize, sourceLineSize );
+				memcpy( &targetData[ 1u ], sourceData.getData(), sourceLineSize * sizeof( uint32 ) );
+				memcpy( &targetData[ targetLastLineOffset ], &sourceData[ souceLastLineOffset ], sourceLineSize * sizeof( uint32 ) );
 
 				// fill border corner pixels
 				targetData[ 0u ]								= sourceData[ 0u ];									// TL
@@ -289,7 +296,7 @@ namespace imapp
 
 			int x;
 			int y;
-			const kia_result imageResult = K15_IAAddImageToAtlas( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, imageData.getData(), image->image.width, image->image.height, &x, &y );
+			const kia_result imageResult = K15_IAAddImageToAtlas( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, targetData.getData(), image->image.width + 2u, image->image.height + 2u, &x, &y );
 			if( imageResult != K15_IA_RESULT_SUCCESS )
 			{
 				pushOutput( ResourceErrorLevel::Error, image->name, "Failed to add '%s' to atlas. Error: %d", image->name.getData(), imageResult );
@@ -300,8 +307,8 @@ namespace imapp
 			AtlasImage& atlasImage = m_atlasImages[ image->name ];
 			atlasImage.x		= (uint16)x;
 			atlasImage.y		= (uint16)y;
-			atlasImage.width	= (uint16)image->image.width;
-			atlasImage.height	= (uint16)image->image.height;
+			atlasImage.width	= (uint16)image->image.width + 2u;
+			atlasImage.height	= (uint16)image->image.height + 2u;
 		}
 
 		const kia_u32 atlasSize = K15_IACalculateAtlasPixelDataSizeInBytes( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8 );
@@ -394,44 +401,52 @@ namespace imapp
 
 			compiledResource.nameOffset	= writeArrayToBuffer< char >( compiledResource.data->name.getRangeView( 0u, 255u ) );
 			compiledResource.nameLength	= (uint8)min< uintsize >( compiledResource.data->name.getLength(), 255u );
+
+			writeToBuffer< char >( '\0' ); // string null terminator
 		}
 	}
 
-	void ResourceCompiler::writeResourceHeaders( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	void ResourceCompiler::writeResourceHeaders( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
 	{
 		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
 		{
 			const CompiledResource& compiledResource = compiledResources[ compiledResourceIndex ];
 			const ResourceData& data = *compiledResource.data;
 
-			ImAppResPakResource& targetResource = targetResources[ compiledResourceIndex ];
+			{
+				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
 
-			targetResource.type			= compiledResource.type;
-			targetResource.nameOffset	= compiledResource.nameOffset;
-			targetResource.nameLength	= compiledResource.nameLength;
-			targetResource.headerOffset	= 0u;
-			targetResource.headerSize	= 0u;
-			targetResource.dataOffset	= 0u;
-			targetResource.dataSize		= 0u;
+				targetResource.type			= compiledResource.type;
+				targetResource.nameOffset	= compiledResource.nameOffset;
+				targetResource.nameLength	= compiledResource.nameLength;
+				targetResource.headerOffset	= 0u;
+				targetResource.headerSize	= 0u;
+				targetResource.dataOffset	= 0u;
+				targetResource.dataSize		= 0u;
+			}
 
+			uint16 textureIndex = IMAPP_RES_PAK_INVALID_INDEX;
+			uint32 headerOffset = 0u;
+			uint32 headerSize = 0u;
 			switch( compiledResource.type )
 			{
 			case ImAppResPakType_Texture:
 				{
-					ImAppResPakTextureHeader& textureHeader = preallocateToBufferOffset< ImAppResPakTextureHeader >( targetResource.headerOffset );
+					ImAppResPakTextureHeader textureHeader;
 					textureHeader.format	= ImAppResPakTextureFormat_RGBA8;
-					textureHeader.width	= data.image.width;
-					textureHeader.width	= data.image.height;
+					textureHeader.width		= data.image.width;
+					textureHeader.height	= data.image.height;
 
-					targetResource.headerSize = sizeof( textureHeader );
+					headerOffset = writeToBuffer( textureHeader );
+					headerSize = sizeof( textureHeader );
 				}
 				break;
 
 			case ImAppResPakType_Image:
 				{
-					targetResource.textureIndex = compiledResource.refIndex;
+					textureIndex = compiledResource.refIndex;
 
-					ImAppResPakImageHeader& imageHeader = preallocateToBufferOffset< ImAppResPakImageHeader >( targetResource.headerOffset );
+					ImAppResPakImageHeader imageHeader;
 					if( data.image.allowAtlas )
 					{
 						const AtlasImage* atlasImage = m_atlasImages.find( data.name );
@@ -454,14 +469,14 @@ namespace imapp
 						imageHeader.height	= (uint16)data.image.height;
 					}
 
-					targetResource.headerSize = sizeof( imageHeader );
+					headerOffset = writeToBuffer( imageHeader );
+					headerSize = sizeof( imageHeader );
 				}
 				break;
 
 			case ImAppResPakType_Skin:
 				{
-					ImAppResPakSkinHeader& skinHeader = preallocateToBufferOffset< ImAppResPakSkinHeader >( targetResource.headerOffset );
-
+					ImAppResPakSkinHeader skinHeader;
 					skinHeader.top		= data.skin.border.top;
 					skinHeader.left		= data.skin.border.left;
 					skinHeader.right	= data.skin.border.right;
@@ -483,6 +498,8 @@ namespace imapp
 							continue;
 						}
 
+						textureIndex = 0u;
+
 						skinHeader.x		= atlasImage->x;
 						skinHeader.y		= atlasImage->y;
 						skinHeader.width	= atlasImage->width;
@@ -490,13 +507,19 @@ namespace imapp
 					}
 					else
 					{
+						if( !findResourceIndex( textureIndex, resourceIndexMapping, ImAppResPakType_Texture, data.skin.imageName, data.name ) )
+						{
+							continue;
+						}
+
 						skinHeader.x		= 0u;
 						skinHeader.y		= 0u;
 						skinHeader.width	= (uint16)imageResource.data->image.width;
 						skinHeader.height	= (uint16)imageResource.data->image.height;
 					}
 
-					targetResource.headerSize = sizeof( skinHeader );
+					headerOffset = writeToBuffer( skinHeader );
+					headerSize = sizeof( skinHeader );
 				}
 				break;
 
@@ -506,13 +529,12 @@ namespace imapp
 
 			case ImAppResPakType_Theme:
 				{
-					ImAppResPakThemeHeader& themeHeader = preallocateToBufferOffset< ImAppResPakThemeHeader >( targetResource.headerOffset );
+					ImAppResPakThemeHeader themeHeader;
 
 					const ResourceTheme& theme = *compiledResource.data->theme.theme;
 					const UiToolboxConfig& config = theme.getConfig();
 
-					// TODO: HashSet
-					HashMap< uint16_t, byte > referencesSet;
+					HashSet< uint16 > referencesSet;
 					findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name );
 					referencesSet.insert( themeHeader.fontIndex );
 
@@ -524,16 +546,26 @@ namespace imapp
 					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.skinIndices ); ++i )
 					{
 						findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, theme.getSkinName( (ImUiToolboxSkin)i ), data.name );
-						referencesSet.insert( themeHeader.skinIndices[ i ], 1 );
+						referencesSet.insert( themeHeader.skinIndices[ i ] );
 					}
 
 					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.imageIndices ); ++i )
 					{
 						findResourceIndex( themeHeader.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, theme.getImageName( (ImUiToolboxImage)i ), data.name );
-						referencesSet.insert( themeHeader.imageIndices[ i ], 1 );
+						referencesSet.insert( themeHeader.imageIndices[ i ] );
 					}
 
-					themeHeader.referencesCount	= (uint16_t)referencesSet.getLength();
+					DynamicArray< uint16 > references;
+					for( uint16 resIndex : referencesSet )
+					{
+						if( resIndex == IMAPP_RES_PAK_INVALID_INDEX )
+						{
+							continue;
+						}
+
+						references.pushBack( resIndex );
+					}
+					themeHeader.referencedCount	= (uint16_t)references.getLength();
 
 					themeHeader.button			= config.button;
 					themeHeader.checkBox		= config.checkBox;
@@ -545,29 +577,41 @@ namespace imapp
 					themeHeader.dropDown		= config.dropDown;
 					themeHeader.popup			= config.popup;
 
-					targetResource.headerSize = sizeof( themeHeader );
+					headerOffset = writeToBuffer( themeHeader );
+					headerSize = sizeof( themeHeader ) + (uint32)references.getSizeInBytes();
+
+					writeArrayToBuffer< uint16 >( references );
 				}
 				break;
 
 			case ImAppResPakType_MAX:
 				break;
 			}
+
+			{
+				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
+
+				targetResource.textureIndex	= textureIndex;
+				targetResource.headerOffset	= headerOffset;
+				targetResource.headerSize	= headerSize;
+			}
 		}
 	}
 
-	void ResourceCompiler::writeResourceData( Array< ImAppResPakResource >& targetResources, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	void ResourceCompiler::writeResourceData( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
 	{
 		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
 		{
 			const CompiledResource& compiledResource = compiledResources[ compiledResourceIndex ];
 			const ResourceData& data = *compiledResource.data;
 
-			ImAppResPakResource& targetResource = targetResources[ compiledResourceIndex ];
+			uint32 dataOffset = 0u;
+			uint32 dataSize = 0u;
 			switch( compiledResource.type )
 			{
 			case ImAppResPakType_Texture:
-				targetResource.dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
-				targetResource.dataSize		= data.image.imageData.getSizeInBytes();
+				dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
+				dataSize	= (uint32)data.image.imageData.getSizeInBytes();
 				break;
 
 			case ImAppResPakType_Image:
@@ -583,49 +627,57 @@ namespace imapp
 			case ImAppResPakType_Theme:
 				break;
 
+			case ImAppResPakType_Blob:
+				dataOffset	= writeArrayToBuffer< byte >( data.fileData );
+				dataSize	= (uint32)data.fileData.getSizeInBytes();
+				break;
+
 			case ImAppResPakType_MAX:
 				break;
+			}
+
+			{
+				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
+
+				targetResource.dataOffset	= dataOffset;
+				targetResource.dataSize		= dataSize;
 			}
 		}
 	}
 
 	template< typename T >
-	T& ResourceCompiler::preallocateToBuffer( uintsize alignment /*= 1u */ )
+	T& ResourceCompiler::getBufferData( uint32 offset )
 	{
-		uint32 offset;
-		return preallocateToBufferOffset< T >( offset );
+		return *(T*)&m_buffer[ offset ];
 	}
 
 	template< typename T >
-	T& ResourceCompiler::preallocateToBufferOffset( uint32& offset, uintsize alignment /* = 1u */ )
+	T& ResourceCompiler::getBufferArrayElement( uint32 offset, uintsize index )
 	{
-		return preallocateArrayToBufferOffset< T >( 1u, offset, alignment ).getFront();
+		return *(T*)&m_buffer[ offset + (sizeof( T ) * index) ];
 	}
 
 	template< typename T >
-	Array< T > ResourceCompiler::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
+	uint32 ResourceCompiler::preallocateToBuffer( uintsize alignment /*= 1u */ )
 	{
-		uint32 offset;
-		return preallocateArrayToBufferOffset< T >( length, offset, alignment );
+		return preallocateArrayToBuffer< T >( alignment );
 	}
 
 	template< typename T >
-	Array< T > ResourceCompiler::preallocateArrayToBufferOffset( uintsize length, uint32& offset, uintsize alignment /* = 1u */ )
+	uint32 ResourceCompiler::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
 	{
 		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
 		m_buffer.setLengthZero( alignedLength );
 
-		offset = (uint32)alignedLength;
-
-		Array< byte > data = m_buffer.pushRange( sizeof( T ) * length );
-		return Array< T >( (T*)data.getData(), length );
+		m_buffer.pushRange( sizeof( T ) * length );
+		return (uint32)alignedLength;
 	}
 
 	template< typename T >
 	uint32 ResourceCompiler::writeToBuffer( const T& value, uintsize alignment /* = 1u */ )
 	{
-		uint32 offset;
-		preallocateToBufferOffset< T >( offset, alignment ) = value;
+		const uint32 offset = preallocateToBuffer< T >( alignment );
+		getBufferData< T >( offset ) = value;
 		return offset;
 	}
 

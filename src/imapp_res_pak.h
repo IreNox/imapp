@@ -89,7 +89,7 @@ typedef struct ImAppResPakFontHeader
 
 typedef struct ImAppResPakThemeHeader
 {
-	uint16_t						referencesCount;
+	uint16_t						referencedCount;
 
 	ImUiColor						colors[ ImUiToolboxColor_MAX ];
 	uint16_t						skinIndices[ ImUiToolboxSkin_MAX ];
