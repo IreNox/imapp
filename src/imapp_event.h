@@ -6,10 +6,6 @@ enum ImAppEventType
 	// Window
 	ImAppEventType_WindowClose,
 
-	// Drop
-	ImAppEventType_DropFile,
-	ImAppEventType_DropText,
-
 	// Input
 	ImAppEventType_KeyDown,
 	ImAppEventType_KeyUp,
@@ -24,13 +20,6 @@ typedef struct ImAppWindowEvent ImAppWindowEvent;
 struct ImAppWindowEvent
 {
 	ImAppEventType			type;
-};
-
-typedef struct ImAppWindowDropEvent ImAppWindowDropEvent;
-struct ImAppWindowDropEvent
-{
-	ImAppEventType			type;
-	const char*				pathOrText;
 };
 
 typedef struct ImAppInputKeyEvent ImAppInputKeyEvent;
@@ -80,7 +69,6 @@ union ImAppEvent
 	ImAppEventType				type;
 
 	ImAppWindowEvent			window;
-	ImAppWindowDropEvent		drop;
 	ImAppInputKeyEvent			key;
 	ImAppInputCharacterEvent	character;
 	ImAppInputMotionEvent		motion;

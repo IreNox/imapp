@@ -44,6 +44,8 @@ bool					ImAppPlatformWindowPresent( ImAppWindow* window );
 
 ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
 
+bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );
+
 void					ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
 void					ImAppPlatformWindowGetSize( ImAppWindow* window, int* outWidth, int* outHeight );
 void					ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY );

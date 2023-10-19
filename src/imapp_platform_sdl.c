@@ -4,6 +4,7 @@
 
 #include "imapp_debug.h"
 #include "imapp_event_queue.h"
+#include "imapp_internal.h"
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <SDL2/SDL.h>
@@ -39,6 +40,42 @@ struct ImAppPlatform
 
 	SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
+
+typedef struct ImAppWindowDrop ImAppWindowDrop;
+typedef struct ImAppWindowDrop
+{
+	ImAppWindowDrop*	nextDrop;
+
+	ImAppDropType		type;
+	char				pathOrText[ 1u ];
+} ImAppWindowDrop;
+
+struct ImAppWindow
+{
+	ImUiAllocator*		allocator;
+	ImAppPlatform*		platform;
+	ImAppEventQueue		eventQueue;
+
+	SDL_Window*			sdlWindow;
+	SDL_GLContext		glContext;
+
+	ImAppWindowDrop*	firstNewDrop;
+	ImAppWindowDrop*	firstPopedDrop;
+};
+
+struct ImAppThread
+{
+	ImAppPlatform*	platform;
+
+	SDL_Thread*		sdlThread;
+
+	ImAppThreadFunc	func;
+	void*			arg;
+
+	ImAppAtomic32	isRunning;
+};
+
+static int SDLCALL	ImAppPlatformThreadEntry( void* voidThread );
 
 static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
 {
@@ -299,22 +336,6 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Window
-
-struct ImAppWindow
-{
-	ImUiAllocator*		allocator;
-	ImAppPlatform*		platform;
-	ImAppEventQueue		eventQueue;
-
-	SDL_Window*			sdlWindow;
-	SDL_GLContext		glContext;
-
-	char*				dropBuffer;
-	uintsize			dropBufferCapacity;
-};
-
 ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
@@ -364,9 +385,23 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
 	IMAPP_ASSERT( window->glContext == NULL );
 
-	ImAppEventQueueDestruct( &window->eventQueue );
+	while( window->firstNewDrop )
+	{
+		ImAppWindowDrop* drop = window->firstNewDrop;
+		window->firstNewDrop = drop->nextDrop;
 
-	ImUiMemoryFree( window->allocator, window->dropBuffer );
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
+
+	while( window->firstPopedDrop )
+	{
+		ImAppWindowDrop* drop = window->firstPopedDrop;
+		window->firstPopedDrop = drop->nextDrop;
+
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
+
+	ImAppEventQueueDestruct( &window->eventQueue );
 
 	if( window->sdlWindow != NULL )
 	{
@@ -415,6 +450,14 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window )
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	SDL_GL_SetSwapInterval( 1 );
 #endif
+
+	while( window->firstPopedDrop )
+	{
+		ImAppWindowDrop* drop = window->firstPopedDrop;
+		window->firstPopedDrop = drop->nextDrop;
+
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
 
 	SDL_Event sdlEvent;
 	while( SDL_PollEvent( &sdlEvent ) )
@@ -515,16 +558,14 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window )
 				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
 
 				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
-				if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( window->allocator, window->dropBuffer, window->dropBufferCapacity, textLength ) )
-				{
-					continue;
-				}
+				ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + textLength );
+				drop->type = sdlEvent.type == SDL_DROPFILE ? ImAppDropType_File : ImAppDropType_Text;
 
-				memcpy( window->dropBuffer, sdlDropEvent->file, textLength );
+				memcpy( drop->pathOrText, sdlDropEvent->file, textLength );
+				drop->pathOrText[ textLength ] = '\0';
 
-				const ImAppEventType type = sdlEvent.type == SDL_DROPFILE ? ImAppEventType_DropFile : ImAppEventType_DropText;
-				const ImAppEvent dropEvent = { .drop = {.type = type, .pathOrText = window->dropBuffer } };
-				ImAppEventQueuePush( &window->eventQueue, &dropEvent );
+				drop->nextDrop = window->firstNewDrop;
+				window->firstNewDrop = drop;
 			}
 			break;
 
@@ -548,6 +589,25 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
 	return &window->eventQueue;
+}
+
+bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+{
+	if( !window->firstNewDrop )
+	{
+		return false;
+	}
+
+	ImAppWindowDrop* drop = window->firstNewDrop;
+	outData->type		= drop->type;
+	outData->pathOrText	= drop->pathOrText;
+
+	window->firstNewDrop = drop->nextDrop;
+
+	drop->nextDrop = window->firstPopedDrop;
+	window->firstPopedDrop = drop;
+
+	return true;
 }
 
 void ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
@@ -583,56 +643,106 @@ ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* pWindow )
 	return ImAppWindowState_Default;
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Resources
 
 ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	wchar_t* pTargetBuffer = platform->resourcePath + platform->resourceBasePathLength;
-	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pTargetBuffer, (int)targetLengthInCharacters );
+	return ImAppPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
+}
 
-	while( *pTargetBuffer != L'\0' )
-	{
-		if( *pTargetBuffer == L'/' )
-		{
-			*pTargetBuffer = L'\\';
-		}
-		pTargetBuffer++;
-	}
+ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+{
+	ImAppBlob result ={ NULL, 0u };
 
-	const HANDLE fileHandle = CreateFileW( platform->resourcePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if( fileHandle == INVALID_HANDLE_VALUE )
+	ImAppFile* file = ImAppPlatformResourceOpen( platform, resourceName );
+	if( !file )
 	{
-		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	LARGE_INTEGER fileSize;
-	GetFileSizeEx( fileHandle, &fileSize );
+	if( length == (uintsize)-1 )
+	{
+		LARGE_INTEGER fileSize;
+		GetFileSizeEx( (HANDLE)file, &fileSize );
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize.QuadPart );
+		length = fileSize.QuadPart - offset;
+	}
 
-	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
-	CloseHandle( fileHandle );
+	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	if( !memory )
+	{
+		ImAppPlatformResourceClose( platform, file );
+		return result;
+	}
 
-	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
+	const uintsize readResult = ImAppPlatformResourceRead( file, memory, length, offset );
+	ImAppPlatformResourceClose( platform, file );
+
+	if( readResult != length )
 	{
 		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	const ImAppBlob result = { memory, (size_t)fileSize.QuadPart };
+	result.data	= memory;
+	result.size	= length;
 	return result;
-#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-	const ImAppBlob result = { NULL, 0u };
-	return result;
-#else
-#	error Not imeplemented
-#endif
+}
+
+ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+{
+	wchar_t pathBuffer[ MAX_PATH ];
+	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourcePath, platform->resourceBasePathLength );
+	{
+		wchar_t* pathNamePart = pathBuffer + platform->resourceBasePathLength;
+		const uintsize remainingLengthInCharacters = IMAPP_ARRAY_COUNT( pathBuffer ) - platform->resourceBasePathLength;
+		MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pathNamePart, (int)remainingLengthInCharacters );
+
+		for( ; *pathNamePart != L'\0'; ++pathNamePart )
+		{
+			if( *pathNamePart == L'/' )
+			{
+				*pathNamePart = L'\\';
+			}
+		}
+	}
+
+	const HANDLE fileHandle = CreateFileW( pathBuffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if( fileHandle == INVALID_HANDLE_VALUE )
+	{
+		return NULL;
+	}
+
+	return (ImAppFile*)fileHandle;
+}
+uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+{
+	const HANDLE fileHandle = (HANDLE)file;
+
+	if( SetFilePointer( fileHandle, (LONG)offset, NULL, FILE_BEGIN ) == INVALID_SET_FILE_POINTER )
+	{
+		return 0u;
+	}
+
+	DWORD bytesRead = 0u;
+	const BOOL readResult = ReadFile( fileHandle, outData, (DWORD)length, &bytesRead, NULL );
+
+	if( !readResult || bytesRead != (DWORD)length )
+	{
+		return 0u;
+	}
+
+	return bytesRead;
+}
+
+void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+{
+	const HANDLE fileHandle = (HANDLE)file;
+	CloseHandle( fileHandle );
+}
+
+void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+{
+	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
 ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
@@ -682,6 +792,122 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 #else
 #	error Not imeplemented
 #endif
+}
+
+ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+{
+	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
+	if( !thread )
+	{
+		return NULL;
+	}
+
+	ImAppPlatformAtomicSet( &thread->isRunning, 1 );
+
+	thread->platform	= platform;
+	thread->func		= func;
+	thread->arg			= arg;
+	thread->sdlThread	= SDL_CreateThread( ImAppPlatformThreadEntry, name, thread );
+
+	//SetThreadDescription( thread->handle, name );
+
+	return thread;
+}
+
+void ImAppPlatformThreadDestroy( ImAppThread* thread )
+{
+	SDL_WaitThread( thread->sdlThread, NULL );
+
+	ImUiMemoryFree( thread->platform->allocator, thread );
+}
+
+bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
+{
+	return ImAppPlatformAtomicGet( &thread->isRunning );
+}
+
+static int SDLCALL ImAppPlatformThreadEntry( void* voidThread )
+{
+	ImAppThread* thread = (ImAppThread*)voidThread;
+
+	thread->func( thread->arg );
+
+	ImAppPlatformAtomicSet( &thread->isRunning, 0 );
+
+	return 0u;
+}
+
+ImAppMutex* ImAppPlatformMutexCreate( ImAppPlatform* platform )
+{
+	return (ImAppMutex*)SDL_CreateMutex();
+}
+
+void ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+{
+	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
+	SDL_DestroyMutex( sdlMutex );
+}
+
+void ImAppPlatformMutexLock( ImAppMutex* mutex )
+{
+	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
+	SDL_LockMutex( sdlMutex );
+}
+
+void ImAppPlatformMutexUnlock( ImAppMutex* mutex )
+{
+	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
+	SDL_UnlockMutex( sdlMutex );
+}
+
+ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
+{
+	return (ImAppSemaphore*)SDL_CreateSemaphore( 0u );
+}
+
+void ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+{
+	SDL_sem* sdlSem = (SDL_sem*)semaphore;
+	SDL_DestroySemaphore( sdlSem );
+}
+
+void ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+{
+	SDL_sem* sdlSem = (SDL_sem*)semaphore;
+	SDL_SemPost( sdlSem );
+}
+
+bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+{
+	SDL_sem* sdlSem = (SDL_sem*)semaphore;
+	if( wait )
+	{
+		return SDL_SemWait( sdlSem ) == 0;
+	}
+	else
+	{
+		return SDL_SemTryWait( sdlSem ) == 0;
+	}
+}
+
+uint32 ImAppPlatformAtomicGet( const ImAppAtomic32* atomic )
+{
+	return (uint32)SDL_AtomicGet( (SDL_atomic_t*)atomic );
+}
+
+uint32 ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value )
+{
+	return SDL_AtomicSet( (SDL_atomic_t*)atomic, value );
+}
+
+uint32 ImAppPlatformAtomicInc( ImAppAtomic32* atomic )
+{
+	return SDL_AtomicAdd( (SDL_atomic_t*)atomic, 1 );
+}
+
+uint32 ImAppPlatformAtomicDec( ImAppAtomic32* atomic )
+{
+	return SDL_AtomicAdd( (SDL_atomic_t*)atomic, -1 );
 }
 
 #endif

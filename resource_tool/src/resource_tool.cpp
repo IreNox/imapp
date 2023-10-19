@@ -34,9 +34,17 @@ namespace imapp
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
 	{
-		if( imapp->dropData )
 		{
-			handleDrop( imapp->dropData );
+			ImAppDropData dropData;
+			while( ImAppWindowPopDropData( imapp->defaultWindow, &dropData ) )
+			{
+				if( dropData.type == ImAppDropType_Text )
+				{
+					continue;
+				}
+
+				handleDrop( dropData.pathOrText );
+			}
 		}
 
 		m_package.updateFileData( imapp, surface.getTime() );
@@ -157,12 +165,7 @@ namespace imapp
 				}
 			}
 
-			{
-				UiWidgetLayoutVertical viewWidget( window, 4.0f );
-				viewWidget.setStretch( UiSize::One );
-
-				doView( window );
-			}
+			doView( window );
 		}
 
 		if( m_compiler.getOutputs().hasElements() )
@@ -311,6 +314,10 @@ namespace imapp
 
 	void ResourceTool::doView( UiToolboxWindow& window )
 	{
+		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
+		viewWidget.setStretch( UiSize::One );
+		viewWidget.setLayoutVerticalSpacing( 4.0f );
+
 		if( m_selecedEntry == 0u )
 		{
 			doViewPackage( window );

@@ -59,10 +59,24 @@ void						ImAppProgramShutdown( ImAppContext* imapp, void* programContext );
 //////////////////////////////////////////////////////////////////////////
 // Control
 
+typedef enum ImAppDropType
+{
+	ImAppDropType_Text,
+	ImAppDropType_File
+} ImAppDropType;
+
+typedef struct ImAppDropData
+{
+	ImAppDropType	type;
+	const char*		pathOrText;
+} ImAppDropData;
+
 // TODO:
 // Create a Window at given coordinates. uiFunc callback will be called every frame to build UI.
 //ImAppWindow*				ImAppWindowCreate( ImAppContext* imapp, ImUiStringView title, uint32_t x, uint32_t y, uint32_t width, uint32_t height, ImAppWindowDoUiFunc uiFunc );
 //void						ImAppWindowDestroy( ImAppWindow* window );
+
+bool						ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );	// data freed after tick
 
 void						ImAppQuit( ImAppContext* imapp );
 
@@ -129,16 +143,6 @@ void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
 ImUiTexture					ImAppImageGetImage( const ImAppImage* image );
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
-//struct ImAppInputShortcut
-//{
-//	unsigned		modifierMask;	// Flags of ImAppInputModifier
-//	ImAppInputKey	key;
-//	//enum nk_keys	nkKey;
-//};
-//typedef struct ImAppInputShortcut ImAppInputShortcut;
 
 //////////////////////////////////////////////////////////////////////////
 // Types
@@ -147,12 +151,11 @@ struct ImAppContext
 {
 	ImUiContext*				imui;
 
+	ImAppWindow*				defaultWindow;
 	int							x;
 	int							y;
 	int							width;
 	int							height;
-
-	const char*					dropData;
 };
 
 #ifdef __cplusplus

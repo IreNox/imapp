@@ -1,8 +1,18 @@
 -- imapp
 
+newoption {
+	trigger     = "use_sdl",
+	description = "Choose a if useSDL or not",
+	default     = "off",
+	allowed = {
+		{ "off",	"Disabled" },
+		{ "on",		"Enabled" }
+	}
+}
+
 local imapp_path = module.config.base_path
 
-tiki.use_sdl = (tiki.target_platform == Platforms.Linux)
+tiki.use_sdl = _OPTIONS[ "use_sdl" ] == "on" and (tiki.target_platform == Platforms.Windows or tiki.target_platform == Platforms.Linux)
 --tiki.use_lib = false
 
 module:add_include_dir( "include" )

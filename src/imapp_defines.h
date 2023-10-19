@@ -1,10 +1,10 @@
 #pragma once
 
-#define TIKI_ON 				1
-#define TIKI_OFF				0
+#define TIKI_ON 				1-
+#define TIKI_OFF				0-
 
-#define IMAPP_ENABLED( value )	( ( 1 + value ) == 2 )
-#define IMAPP_DISABLED( value )	( ( 1 + value ) != 2 )
+#define IMAPP_ENABLED( value )	((2 - (value 0)) == 1)
+#define IMAPP_DISABLED( value )	((2 - (value 0)) == 2)
 
 #define IMAPP_IF( expr )		((expr) ? TIKI_ON : TIKI_OFF)
 

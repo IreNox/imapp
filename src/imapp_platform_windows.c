@@ -1,9 +1,8 @@
 #include "imapp_platform.h"
 
-#include "imapp_internal.h"
-
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS ) && IMAPP_DISABLED( IMAPP_PLATFORM_SDL )
 
+#include "imapp_internal.h"
 #include "imapp_debug.h"
 #include "imapp_event_queue.h"
 
@@ -11,10 +10,26 @@
 #include <shellapi.h>
 #include <windowsx.h>
 
+#define CINTERFACE
+#include <oleidl.h>
+
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+#	include <crtdbg.h>
+#endif
+
 static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject );
+ULONG STDMETHODCALLTYPE		ImAppPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This );
+ULONG STDMETHODCALLTYPE		ImAppPlatformWindowDropTargetRelease( __RPC__in IDropTarget* This );
+HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragEnter( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect );
+HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragOver( __RPC__in IDropTarget* This, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect );
+HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragLeave( __RPC__in IDropTarget* This );
+HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDrop( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect );
+
 static DWORD WINAPI			ImAppPlatformThreadEntry( void* voidThread );
-//static bool					ImAppWindowHandleMessage( ImAppWindow* pWindow, UINT message, WPARAM wParam, LPARAM lParam );
-//static bool					ImAppInputHandleMessage( ImAppInputPlatform* pInput, UINT message, WPARAM wParam, LPARAM lParam );
+
+static const wchar_t* s_pWindowClass		= L"ImAppWindowClass";
+static  IDropTargetVtbl s_dropTargetVtbl	= { ImAppPlatformWindowDropTargetQueryInterface, ImAppPlatformWindowDropTargetAddRef, ImAppPlatformWindowDropTargetRelease, ImAppPlatformWindowDropTargetDragEnter, ImAppPlatformWindowDropTargetDragOver, ImAppPlatformWindowDropTargetDragLeave, ImAppPlatformWindowDropTargetDrop };
 
 struct ImAppPlatform
 {
@@ -33,6 +48,39 @@ struct ImAppPlatform
 
 	int64_t			tickFrequency;
 };
+
+typedef struct ImAppWindowDrop ImAppWindowDrop;
+typedef struct ImAppWindowDrop
+{
+	ImAppWindowDrop*	nextDrop;
+
+	ImAppDropType		type;
+	char				pathOrText[ 1u ];
+} ImAppWindowDrop;
+
+struct ImAppWindow
+{
+	IDropTarget			dropTarget;
+	FORMATETC			dropFormat;
+	ImAppWindowDrop*	firstNewDrop;
+	ImAppWindowDrop*	firstPopedDrop;
+
+	ImAppPlatform*		platform;
+
+	HWND				hwnd;
+	HDC					hdc;
+	HGLRC				hglrc;
+
+	bool				isOpen;
+	int					x;
+	int					y;
+	int					width;
+	int					height;
+	ImAppWindowState	state;
+
+	ImAppEventQueue		eventQueue;
+};
+
 
 struct ImAppThread
 {
@@ -64,6 +112,20 @@ static_assert(IMAPP_ARRAY_COUNT( s_windowsSystemCursorMapping ) == ImUiInputMous
 
 int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd )
 {
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	int tmpFlag = _CrtSetDbgFlag( _CRTDBG_REPORT_FLAG );
+
+	// Turn on leak-checking bit.
+	tmpFlag |= _CRTDBG_LEAK_CHECK_DF;
+
+	// Turn off CRT block checking bit.
+	tmpFlag |= _CRTDBG_CHECK_ALWAYS_DF;
+
+	// Set flag to the new value.
+	_CrtSetDbgFlag( tmpFlag );
+	//_CrtSetBreakAlloc( 100 );
+#endif
+
 	ImAppPlatform platform = { 0 };
 
 	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
@@ -218,6 +280,12 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 {
 	platform->allocator = allocator;
 
+	const HRESULT oleResult = OleInitialize( NULL );
+	if( FAILED( oleResult ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to initialize OLE." );
+	}
+
 	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->cursors ); ++i )
 	{
 		platform->cursors[ i ] = LoadCursor( NULL, s_windowsSystemCursorMapping[ i ] );
@@ -288,6 +356,8 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 		platform->cursors[ i ] = NULL;
 	}
 
+	OleUninitialize();
+
 	platform->allocator = NULL;
 }
 
@@ -326,26 +396,6 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	platform->currentCursor = platform->cursors[ cursor ];
 	SetCursor( platform->currentCursor );
 }
-
-static const wchar_t* s_pWindowClass = L"ImAppWindowClass";
-
-struct ImAppWindow
-{
-	ImAppPlatform*		platform;
-
-	HWND				hwnd;
-	HDC					hdc;
-	HGLRC				hglrc;
-
-	bool				isOpen;
-	int					x;
-	int					y;
-	int					width;
-	int					height;
-	ImAppWindowState	state;
-
-	ImAppEventQueue		eventQueue;
-};
 
 ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state )
 {
@@ -419,15 +469,40 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	ImAppEventQueueConstruct( &window->eventQueue, platform->allocator );
 
+	window->dropTarget.lpVtbl = &s_dropTargetVtbl;
+	const HRESULT dropRegisterResult = RegisterDragDrop( window->hwnd, &window->dropTarget );
+	if( FAILED( dropRegisterResult ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to register drop target. Result: 0x%08x", dropRegisterResult );
+	}
+
 	return window;
 }
 
 void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
+	while( window->firstNewDrop )
+	{
+		ImAppWindowDrop* drop = window->firstNewDrop;
+		window->firstNewDrop = drop->nextDrop;
+
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
+
+	while( window->firstPopedDrop )
+	{
+		ImAppWindowDrop* drop = window->firstPopedDrop;
+		window->firstPopedDrop = drop->nextDrop;
+
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
+
 	ImAppEventQueueDestruct( &window->eventQueue );
 
 	if( window->hwnd )
 	{
+		RevokeDragDrop( window->hwnd );
+
 		DestroyWindow( window->hwnd );
 		window->hwnd = NULL;
 	}
@@ -480,6 +555,14 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 
 void ImAppPlatformWindowUpdate( ImAppWindow* window )
 {
+	while( window->firstPopedDrop )
+	{
+		ImAppWindowDrop* drop = window->firstPopedDrop;
+		window->firstPopedDrop = drop->nextDrop;
+
+		ImUiMemoryFree( window->platform->allocator, drop );
+	}
+
 	MSG message;
 	while( PeekMessage( &message, NULL, 0u, 0u, PM_REMOVE ) )
 	{
@@ -496,6 +579,25 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
 	return &window->eventQueue;
+}
+
+bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+{
+	if( !window->firstNewDrop )
+	{
+		return false;
+	}
+
+	ImAppWindowDrop* drop = window->firstNewDrop;
+	outData->type		= drop->type;
+	outData->pathOrText	= drop->pathOrText;
+
+	window->firstNewDrop = drop->nextDrop;
+
+	drop->nextDrop = window->firstPopedDrop;
+	window->firstPopedDrop = drop;
+
+	return true;
 }
 
 void ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
@@ -570,8 +672,14 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			return 0;
 
 		case WM_SETCURSOR:
-			SetCursor( window->platform->currentCursor );
-			return TRUE;
+			{
+				if( (HWND)wParam == GetDlgItem( window->hwnd, 4000 ) )
+				{
+					SetCursor( window->platform->currentCursor );
+					return TRUE;
+				}
+			}
+			break;
 
 		case WM_MOUSEMOVE:
 			{
@@ -740,6 +848,134 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
+HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject )
+{
+	if( riid == &IID_IDropTarget )
+	{
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return S_FALSE;
+}
+
+ULONG STDMETHODCALLTYPE ImAppPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This )
+{
+	return 1u;
+}
+
+ULONG STDMETHODCALLTYPE ImAppPlatformWindowDropTargetRelease( __RPC__in IDropTarget* This )
+{
+	return 1u;
+}
+
+HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragEnter( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
+{
+	ImAppWindow* window = (ImAppWindow*)This;
+
+	IEnumFORMATETC* formatEnum = NULL;
+	pDataObj->lpVtbl->EnumFormatEtc( pDataObj, DATADIR_GET, &formatEnum );
+
+	ULONG count = 0u;
+	FORMATETC format;
+	bool supported = false;
+	while( SUCCEEDED( formatEnum->lpVtbl->Next( formatEnum, 1u, &format, &count ) ) && count > 0u )
+	{
+		IMAPP_DEBUG_LOGI( "Drop format: %d", format.cfFormat );
+
+		if( format.cfFormat != CF_TEXT &&
+			format.cfFormat != CF_HDROP )
+		{
+			//formatEnum->lpVtbl->Skip( formatEnum, 1u );
+			continue;
+		}
+
+		supported = true;
+		window->dropFormat = format;
+		break;
+	}
+
+	formatEnum->lpVtbl->Release( formatEnum );
+
+	return supported ? S_OK : E_UNEXPECTED;
+}
+
+HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragOver( __RPC__in IDropTarget* This, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
+{
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragLeave( __RPC__in IDropTarget* This )
+{
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDrop( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
+{
+	ImAppWindow* window = (ImAppWindow*)This;
+
+	STGMEDIUM medium = { 0u };
+	const HRESULT dataResult = pDataObj->lpVtbl->GetData( pDataObj, &window->dropFormat, &medium );
+	if( FAILED( dataResult ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to der drop data. Result: 0x%08x", dataResult );
+		return dataResult;
+	}
+
+	bool handled = false;
+	if( window->dropFormat.cfFormat == CF_TEXT &&
+		medium.tymed == TYMED_HGLOBAL )
+	{
+		const size_t dataSize = GlobalSize( medium.hGlobal );
+
+		ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + dataSize );
+		drop->type = ImAppDropType_Text;
+
+		const void* data = (const void*)GlobalLock( medium.hGlobal );
+		memcpy( drop->pathOrText, data, dataSize );
+		GlobalUnlock( medium.hGlobal );
+		drop->pathOrText[ dataSize ] = '\0';
+
+		drop->nextDrop = window->firstNewDrop;
+		window->firstNewDrop = drop;
+
+		handled = true;
+	}
+	else if( window->dropFormat.cfFormat == CF_HDROP &&
+			 medium.tymed == TYMED_HGLOBAL )
+	{
+		HDROP hDrop = (HDROP)medium.hGlobal;
+
+		wchar_t fileName[ MAX_PATH ];
+		const UINT fileCount = DragQueryFileW( hDrop, 0xffffffffu, NULL, 0u );
+		for( UINT i = 0; i < fileCount; ++i )
+		{
+			const UINT nameLength = DragQueryFileW( hDrop, i, fileName, IMAPP_ARRAY_COUNT( fileName ) );
+			if( nameLength == 0u )
+			{
+				IMAPP_DEBUG_LOGW( "Failed to get drop file name %d", i );
+				continue;
+			}
+
+			const int utfNameLength = WideCharToMultiByte( CP_UTF8, 0u, fileName, nameLength, NULL, 0, NULL, NULL );
+			ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + utfNameLength );
+			drop->type = ImAppDropType_File;
+
+			WideCharToMultiByte( CP_UTF8, 0u, fileName, nameLength, drop->pathOrText, utfNameLength, NULL, NULL );
+			drop->pathOrText[ utfNameLength ] = '\0';
+
+			drop->nextDrop = window->firstNewDrop;
+			window->firstNewDrop = drop;
+		}
+
+		handled = true;
+	}
+
+	ReleaseStgMedium( &medium );
+
+	return handled ? S_OK : S_FALSE;
+}
+
 ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
 	return ImAppPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
@@ -793,7 +1029,7 @@ ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 		const uintsize remainingLengthInCharacters = IMAPP_ARRAY_COUNT( pathBuffer ) - platform->resourceBasePathLength;
 		MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pathNamePart, (int)remainingLengthInCharacters );
 
-		for( ; pathNamePart != L'\0'; ++pathNamePart )
+		for( ; *pathNamePart != L'\0'; ++pathNamePart )
 		{
 			if( *pathNamePart == L'/' )
 			{
@@ -821,7 +1057,6 @@ uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 
 	DWORD bytesRead = 0u;
 	const BOOL readResult = ReadFile( fileHandle, outData, (DWORD)length, &bytesRead, NULL );
-	CloseHandle( fileHandle );
 
 	if( !readResult || bytesRead != (DWORD)length )
 	{

@@ -156,6 +156,8 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 			ImAppCleanup( imapp );
 			return 1;
 		}
+
+		imapp->context.defaultWindow = imapp->window;
 	}
 
 	imapp->renderer = ImAppRendererCreate( &imapp->allocator, imapp->platform, imapp->window );
@@ -240,8 +242,6 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( imapp->window );
 	ImUiInput* input = ImUiInputBegin( imapp->context.imui );
 
-	imapp->context.dropData = NULL;
-
 	ImAppEvent windowEvent;
 	while( ImAppEventQueuePop( pEventQueue, &windowEvent ) )
 	{
@@ -249,11 +249,6 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 		{
 		case ImAppEventType_WindowClose:
 			imapp->running = false;
-			break;
-
-		case ImAppEventType_DropFile:
-		case ImAppEventType_DropText:
-			imapp->context.dropData = windowEvent.drop.pathOrText;
 			break;
 
 		case ImAppEventType_KeyDown:
@@ -292,6 +287,11 @@ static void ImAppHandleEvents( ImAppInternal* imapp )
 	}
 
 	ImUiInputEnd( imapp->context.imui );
+}
+
+bool ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+{
+	return ImAppPlatformWindowPopDropData( window, outData );
 }
 
 void ImAppQuit( ImAppContext* imapp )
