@@ -12,6 +12,10 @@ namespace imapp
 
 	ResourcePackage::~ResourcePackage()
 	{
+		for( uintsize i = 0u; i < m_resources.getLength(); ++i )
+		{
+			delete m_resources[ i ];
+		}
 	}
 
 	bool ResourcePackage::load( const StringView& filename )
@@ -54,9 +58,10 @@ namespace imapp
 		{
 			for( XMLElement* resourceNode = resourcesNode->FirstChildElement( "resource" ); resourceNode; resourceNode = resourceNode->NextSiblingElement( "resource" ) )
 			{
-				Resource& resource = m_resources.pushBack();
+				Resource* resource = new Resource();
+				m_resources.pushBack( resource );
 
-				if( !resource.load( resourceNode ) )
+				if( !resource->load( resourceNode ) )
 				{
 					m_resources.popBack();
 					return false;
@@ -95,9 +100,9 @@ namespace imapp
 
 		XMLElement* resourcesNode = findOrCreateElement( rootNode, "resources" );
 
-		for( Resource& resource : m_resources )
+		for( Resource* resource : m_resources )
 		{
-			resource.serialize( resourcesNode );
+			resource->serialize( resourcesNode );
 		}
 
 		return m_xml.SaveFile( m_path.getNativePath().getData() ) == XML_SUCCESS;
@@ -105,9 +110,9 @@ namespace imapp
 
 	void ResourcePackage::updateFileData( ImAppContext* imapp, float time )
 	{
-		for( Resource& resource : m_resources )
+		for( Resource* resource : m_resources )
 		{
-			resource.updateFileData( imapp, m_path.getGenericPath(), time );
+			resource->updateFileData( imapp, m_path.getGenericPath(), time );
 		}
 	}
 
@@ -125,18 +130,22 @@ namespace imapp
 
 	Resource& ResourcePackage::addResource( const StringView& name, ResourceType type )
 	{
-		Resource resource( name, type );
-		return m_resources.pushBack( resource );
+		Resource* resource = new Resource( name, type );
+		m_resources.pushBack( resource );
+		return *resource;
 	}
 
 	Resource& ResourcePackage::getResource( uintsize index )
 	{
-		return m_resources[ index ];
+		return *m_resources[ index ];
 	}
 
 	void ResourcePackage::removeResource( uintsize index )
 	{
-		m_resources[ index ].remove();
+		Resource* resource = m_resources[ index ];
+		resource->remove();
+		delete resource;
+
 		m_resources.eraseSortedByIndex( index );
 	}
 
@@ -147,11 +156,11 @@ namespace imapp
 
 	Resource* ResourcePackage::findResource( const StringView& name )
 	{
-		for( Resource& resource : m_resources )
+		for( Resource* resource : m_resources )
 		{
-			if( resource.getName() == name )
+			if( resource->getName() == name )
 			{
-				return &resource;
+				return resource;
 			}
 		}
 
@@ -161,9 +170,9 @@ namespace imapp
 	uint32 ResourcePackage::getRevision() const
 	{
 		uint32 revision = m_revision;
-		for( const Resource& res : m_resources )
+		for( const Resource* resource : m_resources )
 		{
-			revision += res.getRevision();
+			revision += resource->getRevision();
 		}
 		return revision;
 	}

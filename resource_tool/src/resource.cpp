@@ -56,6 +56,11 @@ namespace imapp
 
 	Resource::~Resource()
 	{
+		if( m_image )
+		{
+			ImAppImageFree( m_imapp, m_image );
+			m_image = nullptr;
+		}
 	}
 
 	bool Resource::load( XMLElement* resourceNode )
@@ -217,6 +222,12 @@ namespace imapp
 		m_imageAllowAtlas = value;
 	}
 
+	void Resource::setImageRepeat( bool value )
+	{
+		m_revision += (value != m_imageRepeat);
+		m_imageRepeat = value;
+	}
+
 	void Resource::setFontSize( float value )
 	{
 		m_fontSize = value;
@@ -244,6 +255,7 @@ namespace imapp
 		m_fileSourcePath = path;
 
 		m_xml->QueryBoolAttribute( "allow_atlas", &m_imageAllowAtlas );
+		m_xml->QueryBoolAttribute( "repeat", &m_imageRepeat );
 
 		return true;
 	}
@@ -272,6 +284,7 @@ namespace imapp
 	{
 		m_xml->SetAttribute( "path", m_fileSourcePath );
 		m_xml->SetAttribute( "allow_atlas", m_imageAllowAtlas );
+		m_xml->SetAttribute( "repeat", m_imageRepeat );
 	}
 
 	void Resource::serializeSkinXml()
@@ -335,6 +348,7 @@ namespace imapp
 			return;
 		}
 
+		m_imapp			= imapp;
 		m_image			= ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), ihdr.width, ihdr.height );
 		m_imageWidth	= ihdr.width;
 		m_imageHeight	= ihdr.height;

@@ -15,6 +15,12 @@
 
 namespace imapp
 {
+	//--text: #0d0e1c;
+	//--background: #f7f7f7;
+	//--primary: #2f356a;
+	//--secondary: #d8daee;
+	//--accent: #4d57ac;
+
 	using namespace imui;
 	using namespace imui::toolbox;
 
@@ -151,7 +157,7 @@ namespace imapp
 				}
 			}
 
-			doView( window );
+			doView( imapp, window );
 		}
 
 		if( m_compiler.getOutputs().hasElements() )
@@ -328,7 +334,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doView( UiToolboxWindow& window )
+	void ResourceTool::doView( ImAppContext* imapp, UiToolboxWindow& window )
 	{
 		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
 		viewWidget.setStretch( UiSize::One );
@@ -365,11 +371,11 @@ namespace imapp
 		switch( resource.getType() )
 		{
 		case ResourceType::Image:
-			doViewImage( window, resource );
+			doViewImage( imapp, window, resource );
 			break;
 
 		case ResourceType::Skin:
-			doViewSkin( window, resource );
+			doViewSkin( imapp, window, resource );
 			break;
 
 		case ResourceType::Theme:
@@ -407,7 +413,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doViewImage( UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Path:" );
 		{
@@ -422,14 +428,22 @@ namespace imapp
 			}
 		}
 
-		bool allowAtlas = resource.getImageAllowAtlas();
-		window.checkBox( allowAtlas, "Allow Atlas" );
-		resource.setImageAllowAtlas( allowAtlas );
+		{
+			UiWidgetLayoutHorizontal flagsLayout( window, 4.0f );
+
+			bool allowAtlas = resource.getImageAllowAtlas();
+			window.checkBox( allowAtlas, "Allow Atlas" );
+			resource.setImageAllowAtlas( allowAtlas );
+
+			bool repeat = resource.getImageRepeat();
+			window.checkBox( repeat, "Repeat" );
+			resource.setImageRepeat( repeat );
+		}
 
 		const ImUiImage image = ImAppImageGetImage( resource.getImage() );
 
 		{
-			ImageViewWidget imageView( window );
+			ImageViewWidget imageView( imapp, window );
 
 			UiWidget imageWidget( window );
 			imageWidget.setFixedSize( (UiSize)image * imageView.getZoom() );
@@ -451,7 +465,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doViewSkin( UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Image:" );
 		const StringView selectedImageName = doResourceSelect( window, ResourceType::Image, resource.getSkinImageName() );
@@ -502,7 +516,7 @@ namespace imapp
 
 			const bool previewSkin = window.checkBoxState( "Preview Skin" );
 
-			ImageViewWidget imageView( window );
+			ImageViewWidget imageView( imapp, window );
 
 			UiWidget imageWidget( window );
 			imageWidget.setFixedSize( (UiSize)image * imageView.getZoom() );
@@ -551,7 +565,7 @@ namespace imapp
 
 		UiWidgetLayoutVertical scrollLayout( window );
 		scrollLayout.setStretch( UiSize::Horizontal );
-		scrollLayout.setLayoutVertical();
+		scrollLayout.setLayoutVerticalSpacing( 4.0f );
 
 		bool skipGroup = false;
 		for( ResourceThemeField& field : resource.getTheme().getFields() )
@@ -793,7 +807,7 @@ namespace imapp
 			resourceSelect.setSelectedIndex( selectedIndex );
 		}
 
-		return StringView();
+		return selectedResourceName;
 	}
 
 	void ResourceTool::handleDrop( const char* dropData )
@@ -848,13 +862,13 @@ namespace imapp
 			array.clear();
 		}
 
-		for( const Resource& resource : m_package.getResources() )
+		for( const Resource* resource : m_package.getResources() )
 		{
-			m_resourceNamesByType[ (uintsize)resource.getType() ].pushBack( (RtStr)resource.getName() );
+			m_resourceNamesByType[ (uintsize)resource->getType() ].pushBack( (RtStr)resource->getName() );
 		}
 	}
 
-	ResourceTool::ImageViewWidget::ImageViewWidget( UiToolboxWindow& window )
+	ResourceTool::ImageViewWidget::ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window )
 		: UiWidget( window )
 		, m_scrollArea( window )
 		, m_scrollContent( window )
@@ -866,7 +880,18 @@ namespace imapp
 
 		m_scrollArea.setStretch( UiSize::One );
 		m_scrollArea.setLayoutScroll( m_state->offset );
-		//m_scrollArea.drawWidgetColor( UiColor::Black );
+
+		const ImUiImage* bgImage = ImAppResPakGetImage( ImAppResourceGetDefaultPak( imapp ), "transparent_bg" );
+		if( bgImage )
+		{
+			const UiSize size = getSize();
+
+			ImUiImage image = *bgImage;
+			image.uv.u1		= size.width / image.width;
+			image.uv.v1		= size.height / image.height;
+
+			m_scrollArea.drawWidgetImage( image );
+		}
 
 		ImUiWidgetInputState widgetInput;
 		m_scrollArea.getInputState( widgetInput );
@@ -907,7 +932,7 @@ namespace imapp
 		UiWidgetLayoutHorizontal buttonsLayout( window );
 		buttonsLayout.setPadding( UiBorder( 4.0f ) );
 
-		buttonsLayout.drawWidgetColor( UiColor::CreateBlack( 0x80u ) );
+		buttonsLayout.drawWidgetColor( UiColor::CreateWhite( 0xa0u ) );
 
 		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
 		//{

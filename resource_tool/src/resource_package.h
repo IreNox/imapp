@@ -21,46 +21,48 @@ namespace imapp
 	{
 	public:
 
-								ResourcePackage();
-								~ResourcePackage();
+		using ResourceView = ArrayView< Resource* >;
 
-		bool					load( const StringView& filename );
+						ResourcePackage();
+						~ResourcePackage();
 
-		bool					hasPath() const;
-		bool					save();
-		bool					saveAs( const StringView& filename );
+		bool			load( const StringView& filename );
 
-		void					updateFileData( ImAppContext* imapp, float time );
+		bool			hasPath() const;
+		bool			save();
+		bool			saveAs( const StringView& filename );
 
-		const Path&				getPath() const { return m_path; }
+		void			updateFileData( ImAppContext* imapp, float time );
 
-		StringView				getName() const { return m_name; }
-		void					setName( const StringView& value );
+		const Path&		getPath() const { return m_path; }
 
-		StringView				getOutputPath() const { return m_outputPath; }
-		void					setOutputPath( const StringView& value );
+		StringView		getName() const { return m_name; }
+		void			setName( const StringView& value );
 
-		Resource&				addResource( const StringView& name, ResourceType type );
-		Resource&				getResource( uintsize index );
-		void					removeResource( uintsize index );
-		uintsize				getResourceCount() const;
-		ArrayView< Resource >	getResources() const { return m_resources; }
+		StringView		getOutputPath() const { return m_outputPath; }
+		void			setOutputPath( const StringView& value );
 
-		Resource*				findResource( const StringView& name );
+		Resource&		addResource( const StringView& name, ResourceType type );
+		Resource&		getResource( uintsize index );
+		void			removeResource( uintsize index );
+		uintsize		getResourceCount() const;
+		ResourceView	getResources() const { return m_resources; }
 
-		uint32					getRevision() const;
+		Resource*		findResource( const StringView& name );
+
+		uint32			getRevision() const;
 
 	private:
 
-		using ResourceArray = DynamicArray< Resource >;
+		using ResourceArray = DynamicArray< Resource* >;
 
-		uint32					m_revision	= 0u;
+		uint32			m_revision	= 0u;
 
-		Path					m_path;
-		XMLDocument				m_xml;
+		Path			m_path;
+		XMLDocument		m_xml;
 
-		DynamicString			m_name;
-		DynamicString			m_outputPath;
-		ResourceArray			m_resources;
+		DynamicString	m_name;
+		DynamicString	m_outputPath;
+		ResourceArray	m_resources;
 	};
 }

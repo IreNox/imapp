@@ -35,7 +35,7 @@ namespace imapp
 			}
 			else
 			{
-				target.alpha = 0xffu;
+				result.alpha = 0xffu;
 			}
 
 			if( !ok )

@@ -58,7 +58,7 @@ namespace imapp
 			uint32			width			= 0u;
 			uint32			height			= 0u;
 			bool			allowAtlas		= false;
-			bool			isAtlas			= false;
+			bool			repeat			= false;
 			ByteArray		imageData;
 		};
 

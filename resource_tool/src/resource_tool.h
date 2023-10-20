@@ -51,7 +51,7 @@ namespace imapp
 		{
 		public:
 
-							ImageViewWidget( UiToolboxWindow& window );
+							ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window );
 							~ImageViewWidget();
 
 			UiWidget&		getContent() { return m_scrollContent; }
@@ -98,10 +98,10 @@ namespace imapp
 		void				doPopupStateDeleteConfirm( UiSurface& surface );
 		void				doPopupStateError( UiSurface& surface );
 
-		void				doView( UiToolboxWindow& window );
+		void				doView( ImAppContext* imapp, UiToolboxWindow& window );
 		void				doViewPackage( UiToolboxWindow& window );
-		void				doViewImage( UiToolboxWindow& window, Resource& resource );
-		void				doViewSkin( UiToolboxWindow& window, Resource& resource );
+		void				doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
 
 		bool				doFloatTextEdit( UiToolboxWindow& window, float& value );

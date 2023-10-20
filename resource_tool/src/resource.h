@@ -72,6 +72,8 @@ namespace imapp
 
 		bool					getImageAllowAtlas() const { return m_imageAllowAtlas; }
 		void					setImageAllowAtlas( bool value );
+		bool					getImageRepeat() const { return m_imageRepeat; }
+		void					setImageRepeat( bool value );
 
 		ImAppImage*				getImage() const { return m_image; }
 		ArrayView< byte >		getImageData() const { return m_imageData; }
@@ -113,8 +115,10 @@ namespace imapp
 		ByteArray				m_imageData;
 		uint32					m_imageWidth		= 0u;
 		uint32					m_imageHeight		= 0u;
+		ImAppContext*			m_imapp				= nullptr;
 		ImAppImage*				m_image				= nullptr;
 		bool					m_imageAllowAtlas	= true;
+		bool					m_imageRepeat		= false;
 
 		float					m_fontSize			= 0.0f;
 

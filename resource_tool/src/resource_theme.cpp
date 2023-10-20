@@ -230,7 +230,7 @@ namespace imapp
 			{ "Check Box Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxHover ] } },
 			{ "Check Box Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxClicked ] } },
 			{ "Check Box Checked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxChecked ] } },
-			{ "Check Box Checked",				ResourceThemeFieldType::Image,		{ &m_images[ ImUiToolboxImage_CheckBoxChecked ] } },
+			{ "Check Box Check Icon",			ResourceThemeFieldType::Image,		{ &m_images[ ImUiToolboxImage_CheckBoxChecked ] } },
 			{ "Check Box Size",					ResourceThemeFieldType::Size,		{ &m_config.checkBox.size } },
 			{ "Check Box Text Spacing",			ResourceThemeFieldType::Float,		{ &m_config.checkBox.textSpacing } },
 
@@ -289,13 +289,6 @@ namespace imapp
 			{ "List Item Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemClicked ] } },
 			{ "List Item Selected",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemSelected ] } },
 			{ "List Item Spacing",				ResourceThemeFieldType::Float,		{ &m_config.list.itemSpacing } },
-
-			// scroll area
-			{ "Scroll Area",					ResourceThemeFieldType::Group },
-
-			{ "Scroll Area Bar Size",			ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSize } },
-			{ "Scroll Area Bar Spacing",		ResourceThemeFieldType::Border,		{ &m_config.scrollArea.barSpacing } },
-			{ "Scroll Area Bar Min Size",		ResourceThemeFieldType::Size,		{ &m_config.scrollArea.barMinSize } },
 
 			// drop down
 			{ "Drop Down",						ResourceThemeFieldType::Group },

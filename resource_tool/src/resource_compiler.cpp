@@ -48,52 +48,52 @@ namespace imapp
 		//	removedResources.
 		//}
 
-		for( const Resource& resource : package.getResources() )
+		for( const Resource* resource : package.getResources() )
 		{
-			ResourceData& data = m_resources[ resource.getName() ];
+			ResourceData& data = m_resources[ resource->getName() ];
 			_CrtCheckMemory();
 
-			data.type = resource.getType();
-			data.name = resource.getName();
+			data.type = resource->getType();
+			data.name = resource->getName();
 
 			if( (data.type == ResourceType::Image || data.type == ResourceType::Font) &&
-				resource.getFileHash() != data.fileHash )
+				resource->getFileHash() != data.fileHash )
 			{
-				data.fileData = resource.getFileData();
-				data.fileHash = resource.getFileHash();
+				data.fileData = resource->getFileData();
+				data.fileHash = resource->getFileHash();
 
 				if( data.type == ResourceType::Image )
 				{
-					data.image.imageData = resource.getImageData();
+					data.image.imageData = resource->getImageData();
 				}
 			}
 
-			switch( resource.getType() )
+			switch( resource->getType() )
 			{
 			case ResourceType::Image:
-				data.image.width		= resource.getImageWidth();
-				data.image.height		= resource.getImageHeight();
-				data.image.allowAtlas	= resource.getImageAllowAtlas();
-				data.image.isAtlas		= false;
+				data.image.width		= resource->getImageWidth();
+				data.image.height		= resource->getImageHeight();
+				data.image.allowAtlas	= resource->getImageAllowAtlas();
+				data.image.repeat		= resource->getImageRepeat();
 				break;
 
 			case ResourceType::Font:
-				data.font.size			= resource.getFontSize();
+				data.font.size			= resource->getFontSize();
 				break;
 
 			case ResourceType::Skin:
-				data.skin.imageName		= resource.getSkinImageName();
-				data.skin.border		= resource.getSkinBorder();
+				data.skin.imageName		= resource->getSkinImageName();
+				data.skin.border		= resource->getSkinBorder();
 				break;
 
 			case ResourceType::Theme:
 				if( data.theme.theme )
 				{
-					*data.theme.theme = resource.getTheme();
+					*data.theme.theme = resource->getTheme();
 				}
 				else
 				{
-					data.theme.theme = new ResourceTheme( resource.getTheme() );
+					data.theme.theme = new ResourceTheme( resource->getTheme() );
 				}
 				break;
 
@@ -209,7 +209,8 @@ namespace imapp
 
 	bool ResourceCompiler::updateImageAtlas()
 	{
-		bool isAtlasUpToDate = true;
+		// TODO
+		bool isAtlasUpToDate = false;
 		DynamicArray< ResourceData* > images;
 		for( ResourceMap::Iterator it = m_resources.getBegin(); it != m_resources.getEnd(); ++it )
 		{
@@ -223,8 +224,8 @@ namespace imapp
 			AtlasImage* atlasImage = m_atlasImages.find( it.getKey() );
 			if( atlasImage )
 			{
-				isAtlasUpToDate &= atlasImage->width + 2u == it->image.width;
-				isAtlasUpToDate &= atlasImage->height + 2u == it->image.width;
+				isAtlasUpToDate &= atlasImage->width == it->image.width;
+				isAtlasUpToDate &= atlasImage->height == it->image.width;
 			}
 			else
 			{
@@ -307,10 +308,10 @@ namespace imapp
 			}
 
 			AtlasImage& atlasImage = m_atlasImages[ image->name ];
-			atlasImage.x		= (uint16)x;
-			atlasImage.y		= (uint16)y;
-			atlasImage.width	= (uint16)image->image.width + 2u;
-			atlasImage.height	= (uint16)image->image.height + 2u;
+			atlasImage.x		= (uint16)x + 1u;
+			atlasImage.y		= (uint16)y + 1u;
+			atlasImage.width	= (uint16)image->image.width;
+			atlasImage.height	= (uint16)image->image.height;
 		}
 
 		const kia_u32 atlasSize = K15_IACalculateAtlasPixelDataSizeInBytes( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8 );
@@ -325,7 +326,6 @@ namespace imapp
 		m_atlasData.image.width			= (uint16)width;
 		m_atlasData.image.height		= (uint16)height;
 		m_atlasData.image.allowAtlas	= false;
-		m_atlasData.image.isAtlas		= true;
 
 		return true;
 	}
@@ -436,6 +436,7 @@ namespace imapp
 				{
 					ImAppResPakTextureHeader textureHeader;
 					textureHeader.format	= ImAppResPakTextureFormat_RGBA8;
+					textureHeader.flags		= data.image.repeat ? ImAppResPakTextureFlags_Repeat : 0u;
 					textureHeader.width		= data.image.width;
 					textureHeader.height	= data.image.height;
 
@@ -485,12 +486,8 @@ namespace imapp
 					skinHeader.bottom	= data.skin.border.bottom;
 
 					uint16 imageIndex;
-					if( !findResourceIndex( imageIndex, resourceIndexMapping, ImAppResPakType_Image, data.skin.imageName, data.name ) )
-					{
-						continue;
-					}
-
-					if( imageIndex == IMAPP_RES_PAK_INVALID_INDEX )
+					if( !findResourceIndex( imageIndex, resourceIndexMapping, ImAppResPakType_Image, data.skin.imageName, data.name ) ||
+						imageIndex == IMAPP_RES_PAK_INVALID_INDEX )
 					{
 						pushOutput( ResourceErrorLevel::Error, data.name, "Could not find image '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
 						continue;
@@ -517,6 +514,7 @@ namespace imapp
 					{
 						if( !findResourceIndex( textureIndex, resourceIndexMapping, ImAppResPakType_Texture, data.skin.imageName, data.name ) )
 						{
+							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find texture '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
 							continue;
 						}
 
@@ -543,7 +541,10 @@ namespace imapp
 					const UiToolboxConfig& config = theme.getConfig();
 
 					HashSet< uint16 > referencesSet;
-					findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name );
+					if( !findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name ) )
+					{
+						pushOutput( ResourceErrorLevel::Error, data.name, "Could not find font '%s' in theme '%s'.", theme.getFontName().getData(), data.name.getData() );
+					}
 					referencesSet.insert( themeHeader.fontIndex );
 
 					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.colors ); ++i )
@@ -553,13 +554,21 @@ namespace imapp
 
 					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.skinIndices ); ++i )
 					{
-						findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, theme.getSkinName( (ImUiToolboxSkin)i ), data.name );
+						const StringView skinName = theme.getSkinName( (ImUiToolboxSkin)i );
+						if( !findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, skinName, data.name ) )
+						{
+							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find skin '%s' for slot %d in theme '%s'.", skinName.getData(), i, data.name.getData() );
+						}
 						referencesSet.insert( themeHeader.skinIndices[ i ] );
 					}
 
 					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.imageIndices ); ++i )
 					{
-						findResourceIndex( themeHeader.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, theme.getImageName( (ImUiToolboxImage)i ), data.name );
+						const StringView imageName = theme.getImageName( (ImUiToolboxImage)i );
+						if( !findResourceIndex( themeHeader.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, imageName, data.name ) )
+						{
+							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find image '%s' for slot %d in theme '%s'.", imageName.getData(), i, data.name.getData() );
+						}
 						referencesSet.insert( themeHeader.imageIndices[ i ] );
 					}
 
@@ -710,7 +719,6 @@ namespace imapp
 		const uint16* resourceIndex = mapping[ type ].find( name );
 		if( !resourceIndex )
 		{
-			pushOutput( ResourceErrorLevel::Error, resourceName, "Could not find resource '%s'.", name.getData() );
 			return false;
 		}
 
