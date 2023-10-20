@@ -1042,7 +1042,9 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 	const ImAppBlob resData = ImAppPlatformResourceLoadRange( ressys->platform, pak->resourceName, sourceRes->dataOffset, sourceRes->dataSize );
 	if( !resData.data )
 	{
+#if IMAPP_ENABLED( IMAPP_DEBUG )
 		const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
+#endif
 		IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 		return;
 	}

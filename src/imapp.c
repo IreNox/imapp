@@ -92,7 +92,6 @@ void ImAppTick( void* arg )
 	ImAppPlatformWindowGetViewRect( imapp->window, &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height );
 
 	// UI
-	const ImUiDrawData* drawData = NULL;
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
 
@@ -101,7 +100,10 @@ void ImAppTick( void* arg )
 
 		ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
 
-		drawData = ImUiSurfaceEnd( surface );
+		ImUiSurfaceEnd( surface );
+
+		ImAppRendererDraw( imapp->renderer, imapp->window, surface );
+
 		ImUiEnd( frame );
 	}
 
@@ -111,8 +113,6 @@ void ImAppTick( void* arg )
 		ImAppPlatformSetMouseCursor( imapp->platform, cursor );
 		imapp->lastCursor = cursor;
 	}
-
-	ImAppRendererDraw( imapp->renderer, imapp->window, drawData );
 
 	if( !ImAppPlatformWindowPresent( imapp->window ) )
 	{

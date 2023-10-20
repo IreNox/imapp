@@ -105,7 +105,7 @@ static bool		ImAppRendererCompileShader( GLuint shader, const char* pShaderCode 
 static bool		ImAppRendererCreateResources( ImAppRenderer* renderer );
 static void		ImAppRendererDestroyResources( ImAppRenderer* renderer );
 
-static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawData* drawData, int width, int height );
+static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height );
 
 ImUiVertexFormat ImAppRendererGetVertexFormat()
 {
@@ -392,7 +392,7 @@ void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture*
 	ImUiMemoryFree( renderer->allocator, texture );
 }
 
-void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUiDrawData* drawData )
+void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurface* surface )
 {
 	int width;
 	int height;
@@ -414,7 +414,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUi
 	glUseProgram( renderer->program );
 	glUniform1i( renderer->programUniformTexture, 0 );
 
-	ImAppRendererDrawCommands( renderer, drawData, width, height );
+	ImAppRendererDrawCommands( renderer, surface, width, height );
 
 	// reset OpenGL state
 	glUseProgram( 0 );
@@ -425,23 +425,27 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUi
 	glDisable( GL_SCISSOR_TEST );
 }
 
-static void ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawData* drawData, int width, int height )
+static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height )
 {
 	// bind buffers
 	glBindVertexArray( renderer->vertexArray );
 	glBindBuffer( GL_ARRAY_BUFFER, renderer->vertexBuffer );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->elementBuffer );
 
-	glBufferData( GL_ARRAY_BUFFER, drawData->vertexDataSize, NULL, GL_STREAM_DRAW );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, drawData->indexDataSize, NULL, GL_STREAM_DRAW);
+	uintsize indexDataSize = 0u;
+	uintsize vertexDataSize = 0u;
+	ImUiSurfaceGetMaxBufferSizes( surface, &vertexDataSize, &indexDataSize );
+
+	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, NULL, GL_STREAM_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, NULL, GL_STREAM_DRAW);
 
 	// upload
+	const ImUiDrawData* drawData;
 	{
-		void* pVertexData = glMapBufferRange( GL_ARRAY_BUFFER, 0, drawData->vertexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT ); // GL_MAP_UNSYNCHRONIZED_BIT
-		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, drawData->indexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT );
+		void* pVertexData = glMapBufferRange( GL_ARRAY_BUFFER, 0, vertexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT ); // GL_MAP_UNSYNCHRONIZED_BIT
+		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, indexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT );
 
-		memcpy( pVertexData, drawData->vertexData, drawData->vertexDataSize );
-		memcpy( pElementData, drawData->indexData, drawData->indexDataSize );
+		drawData = ImUiSurfaceGenerateDrawData( surface, pVertexData, &vertexDataSize, pElementData, &indexDataSize );
 
 		glUnmapBuffer( GL_ARRAY_BUFFER );
 		glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );

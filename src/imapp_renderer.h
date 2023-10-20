@@ -29,4 +29,4 @@ bool					ImAppRendererRecreateResources( ImAppRenderer* renderer );
 ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
 void					ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 
-void					ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUiDrawData* drawData );
+void					ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurface* surface );
