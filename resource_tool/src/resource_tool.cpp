@@ -15,11 +15,25 @@
 
 namespace imapp
 {
+	// https://www.realtimecolors.com
 	//--text: #0d0e1c;
 	//--background: #f7f7f7;
 	//--primary: #2f356a;
 	//--secondary: #d8daee;
 	//--accent: #4d57ac;
+	// https://coolors.co
+	// black olive: 414535
+	// dark purple: 290628
+	// https://www.canva.com
+	// Royal Blue
+	// #0087D6
+	// #0081E6
+	// #0077E9
+	// #4169E1
+	// #8A57CE
+	// #B342B2
+	// #CC2D90
+
 
 	using namespace imui;
 	using namespace imui::toolbox;
@@ -338,7 +352,7 @@ namespace imapp
 	{
 		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
 		viewWidget.setStretch( UiSize::One );
-		viewWidget.setLayoutVerticalSpacing( 4.0f );
+		viewWidget.setLayoutVertical( 4.0f );
 
 		if( m_selecedEntry == 0u )
 		{
@@ -448,7 +462,7 @@ namespace imapp
 			UiWidget imageWidget( window );
 			imageWidget.setFixedSize( (UiSize)image * imageView.getZoom() );
 
-			imageWidget.drawWidgetImage( image );
+			imageWidget.drawImage( image );
 		}
 
 		if( window.buttonLabel( "Create Skin" ) )
@@ -530,11 +544,11 @@ namespace imapp
 				skin.border			= skinBorder;
 				skin.uv				= image.uv;
 
-				imageWidget.drawWidgetSkin( skin );
+				imageWidget.drawSkin( skin, UiColor::White );
 			}
 			else
 			{
-				imageWidget.drawWidgetImage( image );
+				imageWidget.drawImage( image );
 
 				UiBorder drawBorder = skinBorder;
 				drawBorder.top *= imageView.getZoom();
@@ -565,7 +579,7 @@ namespace imapp
 
 		UiWidgetLayoutVertical scrollLayout( window );
 		scrollLayout.setStretch( UiSize::Horizontal );
-		scrollLayout.setLayoutVerticalSpacing( 4.0f );
+		scrollLayout.setLayoutVertical( 4.0f );
 
 		bool skipGroup = false;
 		for( ResourceThemeField& field : resource.getTheme().getFields() )
@@ -611,8 +625,8 @@ namespace imapp
 						previewWidget.setStretch( UiSize::Vertical );
 						previewWidget.setFixedWidth( 50.0f );
 
-						previewWidget.drawWidgetColor( UiColor::Black );
-						previewWidget.drawWidgetColor( (UiColor)value );
+						previewWidget.drawColor( UiColor::Black );
+						previewWidget.drawColor( (UiColor)value );
 					}
 
 					struct ColorEditState
@@ -667,11 +681,11 @@ namespace imapp
 							skin.height			= image.height;
 							skin.border			= skinResource->getSkinBorder();
 							skin.uv				= image.uv;
-							previewWidget.drawWidgetSkin( skin );
+							previewWidget.drawSkin( skin, UiColor::White );
 						}
 						else
 						{
-							previewWidget.drawWidgetColor( UiColor( (uint8)0xffu, 0u, 0u ) );
+							previewWidget.drawColor( UiColor( (uint8)0xffu, 0u, 0u ) );
 						}
 					}
 
@@ -727,11 +741,11 @@ namespace imapp
 							const float width = (previewWidget.getRect().size.height / float( image.height )) * float( image.width );
 							previewWidget.setFixedWidth( width );
 
-							previewWidget.drawWidgetImage( image );
+							previewWidget.drawImage( image );
 						}
 						else
 						{
-							previewWidget.drawWidgetColor( UiColor( (uint8)0xffu, 0u, 0u ) );
+							previewWidget.drawColor( UiColor( (uint8)0xffu, 0u, 0u ) );
 						}
 					}
 
@@ -890,7 +904,7 @@ namespace imapp
 			image.uv.u1		= size.width / image.width;
 			image.uv.v1		= size.height / image.height;
 
-			m_scrollArea.drawWidgetImage( image );
+			m_scrollArea.drawImage( image );
 		}
 
 		ImUiWidgetInputState widgetInput;
@@ -932,7 +946,7 @@ namespace imapp
 		UiWidgetLayoutHorizontal buttonsLayout( window );
 		buttonsLayout.setPadding( UiBorder( 4.0f ) );
 
-		buttonsLayout.drawWidgetColor( UiColor::CreateWhite( 0xa0u ) );
+		buttonsLayout.drawColor( UiColor::CreateWhite( 0xa0u ) );
 
 		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
 		//{

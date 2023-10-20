@@ -1463,7 +1463,7 @@
             <value name="Check Box" color="d8daee" skinName="skin_skin_solid_border_small"/>
             <value name="Check Box Hover" color="4d57ac"/>
             <value name="Check Box Clicked" color="666"/>
-            <value name="Check Box Checked" color="fff" skinName="skin_skin_solid_border_small"/>
+            <value name="Check Box Checked" color="0d0e1c" skinName="skin_skin_solid_border_small"/>
             <value name="Check Box Check Icon" imageName="icon_check"/>
             <value name="Check Box Size" width="22" height="22"/>
             <value name="Check Box Text Spacing" value="8"/>
