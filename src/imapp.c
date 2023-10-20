@@ -142,6 +142,7 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->windowTitle			= "I'm App";
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
+	parameters->windowClearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
 	//pParameters->shortcuts				= s_inputShortcuts;
 	//pParameters->shortcutsLength		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
 }
@@ -161,7 +162,7 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 		imapp->context.defaultWindow = imapp->window;
 	}
 
-	imapp->renderer = ImAppRendererCreate( &imapp->allocator, imapp->platform, imapp->window );
+	imapp->renderer = ImAppRendererCreate( &imapp->allocator, imapp->platform, imapp->window, parameters->windowClearColor );
 	if( imapp->renderer == NULL )
 	{
 		ImAppPlatformShowError( imapp->platform, "Failed to create Renderer." );
@@ -191,7 +192,7 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 
 	if( parameters->defaultFontName )
 	{
-		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize );
+		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize, &imapp->defaultFontTexture );
 
 		ImUiToolboxConfig toolboxConfig;
 		ImUiToolboxFillDefaultConfig( &toolboxConfig, imapp->defaultFont );
@@ -223,6 +224,12 @@ static void ImAppCleanup( ImAppInternal* imapp )
 		imapp->defaultFont = NULL;
 	}
 
+	if( imapp->defaultFontTexture )
+	{
+		ImAppRendererTextureDestroy( imapp->renderer, imapp->defaultFontTexture );
+		imapp->defaultFontTexture = NULL;
+	}
+
 	if( imapp->defaultResPak )
 	{
 		ImAppResSysClose( imapp->ressys, imapp->defaultResPak );
@@ -233,6 +240,12 @@ static void ImAppCleanup( ImAppInternal* imapp )
 	{
 		ImAppResSysDestroy( imapp->ressys );
 		imapp->ressys = NULL;
+	}
+
+	if( imapp->context.imui )
+	{
+		ImUiDestroy( imapp->context.imui );
+		imapp->context.imui = NULL;
 	}
 
 	if( imapp->renderer != NULL )

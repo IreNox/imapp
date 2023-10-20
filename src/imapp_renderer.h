@@ -19,22 +19,14 @@ enum ImAppRendererFormat
 	ImAppRendererFormat_RGBA8
 };
 
-typedef enum ImAppRendererShading ImAppRendererShading;
-enum ImAppRendererShading
-{
-	ImAppRendererShading_Opaque,
-	ImAppRendererShading_Translucent,
-	ImAppRendererShading_Font
-};
-
 ImUiVertexFormat		ImAppRendererGetVertexFormat();
 
-ImAppRenderer*			ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window );
+ImAppRenderer*			ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window, ImUiColor clearColor );
 void					ImAppRendererDestroy( ImAppRenderer* renderer );
 
 bool					ImAppRendererRecreateResources( ImAppRenderer* renderer );
 
-ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, ImAppRendererShading shading );
+ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
 void					ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 
 void					ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUiDrawData* drawData );

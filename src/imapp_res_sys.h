@@ -37,4 +37,4 @@ ImAppImage*		ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageD
 ImAppResState	ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
 void			ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
 
-ImUiFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );
+ImUiFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize, ImAppRendererTexture** texture );

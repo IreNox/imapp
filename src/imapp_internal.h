@@ -15,6 +15,7 @@ typedef struct ImAppPlatform ImAppPlatform;
 typedef struct ImAppRenderer ImAppRenderer;
 typedef struct ImAppResSys ImAppResSys;
 typedef struct ImAppWindow ImAppWindow;
+typedef struct ImAppRendererTexture ImAppRendererTexture;
 
 typedef struct ImAppInternal
 {
@@ -40,6 +41,7 @@ typedef struct ImAppInternal
 
 	ImAppResPak*			defaultResPak;
 	ImUiFont*				defaultFont;
+	ImAppRendererTexture*	defaultFontTexture;
 
 	void*					programContext;
 } ImAppInternal;

@@ -3,6 +3,7 @@
 #include "imapp_debug.h"
 #include "imapp_internal.h"
 #include "imapp_platform.h"
+#include "imapp_res_pak.h"
 
 #include <string.h>
 
@@ -19,6 +20,8 @@ struct ImAppRenderer
 {
 	ImUiAllocator*				allocator;
 	ImAppWindow*				window;
+
+	float						clearColor[ 4u ];
 
 	GLuint						vertexShader;
 	GLuint						fragmentShader;
@@ -43,7 +46,7 @@ struct ImAppRendererTexture
 	int							width;
 	int							height;
 
-	ImAppRendererShading		shading;
+	uint8						flags;
 };
 
 static const char s_vertexShader[] =
@@ -110,7 +113,7 @@ ImUiVertexFormat ImAppRendererGetVertexFormat()
 	return result;
 }
 
-ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window )
+ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window, ImUiColor clearColor )
 {
 	IMAPP_ASSERT( platform != NULL );
 
@@ -120,8 +123,12 @@ ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 		return NULL;
 	}
 
-	renderer->allocator	= allocator;
-	renderer->window	= window;
+	renderer->allocator			= allocator;
+	renderer->window			= window;
+	renderer->clearColor[ 0u ]	= (float)clearColor.red / 255.0f;
+	renderer->clearColor[ 1u ]	= (float)clearColor.green / 255.0f;
+	renderer->clearColor[ 2u ]	= (float)clearColor.blue / 255.0f;
+	renderer->clearColor[ 3u ]	= (float)clearColor.alpha / 255.0f;
 
 	if( !ImAppPlatformWindowCreateGlContext( window ) )
 	{
@@ -323,7 +330,7 @@ bool ImAppRendererRecreateResources( ImAppRenderer* renderer )
 	return true;
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* pData, int width, int height, ImAppRendererFormat format, ImAppRendererShading shading )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* pData, int width, int height, ImAppRendererFormat format, uint8_t flags )
 {
 	ImAppRendererTexture* texture = IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 	if( texture == NULL )
@@ -333,7 +340,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 
 	texture->width		= width;
 	texture->height		= height;
-	texture->shading	= shading;
+	texture->flags		= flags;
 
 	GLint sourceFormat = GL_RGBA;
 	GLint targetFormat = GL_RGBA;
@@ -359,8 +366,10 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	glBindTexture( GL_TEXTURE_2D, texture->handle );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+	const GLint wrapMode = flags & ImAppResPakTextureFlags_Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode );
 	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, pData );
 	glBindTexture( GL_TEXTURE_2D, 0 );
 
@@ -391,8 +400,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, const ImUi
 
 	glViewport( 0, 0, width, height );
 
-	const float color[ 4u ] = { 0.01f, 0.2f, 0.7f, 1.0f };
-	glClearColor( color[ 0u ], color[ 1u ], color[ 2u ], color[ 3u ] );
+	glClearColor( renderer->clearColor[ 0u ], renderer->clearColor[ 1u ], renderer->clearColor[ 2u ], renderer->clearColor[ 3u ] );
 	glClear( GL_COLOR_BUFFER_BIT );
 
 	glEnable( GL_BLEND );
@@ -465,22 +473,22 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, const ImUiDrawDa
 			programHandle	= renderer->programColor;
 			textureHandle	= 0u;
 		}
-		else if( texture->shading == ImAppRendererShading_Opaque )
+		else if( texture->flags & ImAppResPakTextureFlags_Font )
+		{
+			alphaBlend		= true;
+			programHandle	= renderer->programFont;
+			textureHandle	= texture->handle;
+		}
+		else if( texture->flags & ImAppResPakTextureFlags_Opaque )
 		{
 			alphaBlend		= false;
 			programHandle	= renderer->program;
 			textureHandle	= texture->handle;
 		}
-		else if( texture->shading == ImAppRendererShading_Translucent )
+		else
 		{
 			alphaBlend		= true;
 			programHandle	= renderer->program;
-			textureHandle	= texture->handle;
-		}
-		else if( texture->shading == ImAppRendererShading_Font )
-		{
-			alphaBlend		= true;
-			programHandle	= renderer->programFont;
 			textureHandle	= texture->handle;
 		}
 

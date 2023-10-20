@@ -10,6 +10,7 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	parameters->windowTitle			= "I'm App Resource Tool";
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
+	parameters->windowClearColor	= ImUiColorCreate( 0xf7, 0xf7, 0xf7, 0xff );
 
 	imapp::ResourceTool* context = new imapp::ResourceTool();
 

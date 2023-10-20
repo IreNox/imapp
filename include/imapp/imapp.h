@@ -39,6 +39,7 @@ struct ImAppParameters
 	const char*					windowTitle;		// Default: "I'm App"
 	int							windowWidth;		// Default: 1280
 	int							windowHeight;		// Default: 720
+	ImUiColor					windowClearColor;	// Default: #1144AAFF
 };
 
 typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImUiSurface* surface );

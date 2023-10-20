@@ -32,16 +32,6 @@ struct ImAppResPakResource
 	uint32_t	dataSize;
 };
 
-const uint16_t*				ImAppResPakResourcesByType( const void* base, ImAppResPakType type );
-uint16_t					ImAppResPakResourcesByTypeCount( const void* base, ImAppResPakType type );
-
-const ImAppResPakResource*	ImAppResPakResourceGet( const void* base, uint16_t index );
-const ImAppResPakResource*	ImAppResPakResourceFind( const void* base, const char* name, ImAppResPakType type );
-
-ImUiStringView				ImAppResPakResourceGetName( const void* base, const ImAppResPakResource* res );
-const void*					ImAppResPakResourceGetHeader( const void* base, const ImAppResPakResource* res );
-const void*					ImAppResPakResourceGetData( const void* base, const ImAppResPakResource* res );
-
 typedef enum ImAppResPakTextureFormat
 {
 	ImAppResPakTextureFormat_RGB8,
@@ -53,10 +43,18 @@ typedef enum ImAppResPakTextureFormat
 	ImAppResPakTextureFormat_MAX
 } ImAppResPakTextureFormat;
 
+typedef enum ImAppResPakTextureFlags
+{
+	ImAppResPakTextureFlags_Opaque	= 1u << 0u,
+	ImAppResPakTextureFlags_Font	= 1u << 1u,
+	ImAppResPakTextureFlags_Repeat	= 1u << 2u
+} ImAppResPakTextureFlags;
+
+
 typedef struct ImAppResPakTextureHeader
 {
 	uint8_t		format;		// ImAppResPakTextureFormat
-	uint8_t		padding0;
+	uint8_t		flags;
 	uint16_t	width;
 	uint16_t	height;
 } ImAppResPakTextureHeader;
