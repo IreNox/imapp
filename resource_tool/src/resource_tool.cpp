@@ -126,7 +126,8 @@ namespace imapp
 			workLayout.setStretch( UiSize::One );
 
 			{
-				UiWidgetLayoutVertical leftLayout( window );
+				UiWidget leftLayout( window, "left" );
+				leftLayout.setLayoutVertical( 4.0f );
 				leftLayout.setStretch( UiSize::Vertical );
 
 				{
@@ -136,12 +137,18 @@ namespace imapp
 
 					list.setSelectedIndex( m_selecedEntry );
 
-					list.nextItem();
-					window.label( "Package" );
-
-					for( uintsize i = 0; i < m_package.getResourceCount(); ++i )
+					uintsize startIndex = list.getBeginIndex();
+					if( startIndex == 0u )
 					{
-						const Resource& resource = m_package.getResource( i );
+						list.nextItem();
+						window.label( "Package" );
+
+						startIndex++;
+					}
+
+					for( uintsize i = startIndex; i < list.getEndIndex(); ++i )
+					{
+						const Resource& resource = m_package.getResource( i - 1u );
 
 						list.nextItem();
 
