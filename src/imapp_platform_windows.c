@@ -20,6 +20,7 @@
 typedef struct ImAppFileWatcherPath ImAppFileWatcherPath;
 
 static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+static ImUiInputKey			ImAppPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam );
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject );
 ULONG STDMETHODCALLTYPE		ImAppPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This );
 ULONG STDMETHODCALLTYPE		ImAppPlatformWindowDropTargetRelease( __RPC__in IDropTarget* This );
@@ -752,14 +753,9 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_KEYDOWN:
 			{
-				ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
-				if( wParam == VK_RETURN &&
-					lParam & 0x1000000 )
-				{
-					key = ImUiInputKey_Numpad_Enter;
-				}
-
+				const ImUiInputKey key = ImAppPlatformWindowMapKey( window, wParam, lParam );
 				const bool repeat = lParam & 0x40000000;
+
 				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key, .repeat = repeat } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
@@ -767,12 +763,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_KEYUP:
 			{
-				ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
-				if( wParam == VK_RETURN &&
-					lParam & 0x1000000 )
-				{
-					key = ImUiInputKey_Numpad_Enter;
-				}
+				const ImUiInputKey key = ImAppPlatformWindowMapKey( window, wParam, lParam );
 
 				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyUp, .key = key } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
@@ -889,6 +880,30 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	}
 
 	return DefWindowProc( hWnd, message, wParam, lParam );
+}
+
+static ImUiInputKey ImAppPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam )
+{
+	ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
+	if( wParam == VK_RETURN &&
+		lParam & 0x1000000 )
+	{
+		key = ImUiInputKey_Numpad_Enter;
+	}
+	else if( wParam == VK_SHIFT )
+	{
+		key = lParam & 0x1000000 ? ImUiInputKey_RightShift : ImUiInputKey_LeftShift;
+	}
+	else if( wParam == VK_CONTROL )
+	{
+		key = lParam & 0x1000000 ? ImUiInputKey_RightControl : ImUiInputKey_LeftControl;
+	}
+	else if( wParam == VK_MENU )
+	{
+		key = lParam & 0x1000000 ? ImUiInputKey_RightAlt : ImUiInputKey_LeftAlt;
+	}
+
+	return key;
 }
 
 HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject )
