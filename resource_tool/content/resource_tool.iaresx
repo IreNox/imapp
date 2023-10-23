@@ -1480,7 +1480,7 @@
             <value name="Text Edit Background" color="d8daee" skinName="skin_skin_solid_border_small"/>
             <value name="Text Edit Text" color="0d0e1c"/>
             <value name="Text Edit Cursor" color="0d0e1c"/>
-            <value name="Text Edit Selection" color="4d57ac"/>
+            <value name="Text Edit Selection" color="4d57ac99"/>
             <value name="Text Edit Height" value="25"/>
             <value name="Text Edit Padding" top="2" left="4" right="2" bottom="2"/>
             <value name="Text Edit Cursor Size" width="1" height="21"/>
