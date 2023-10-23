@@ -31,7 +31,7 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 {
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)programContext;
 
-	ImUiWindow* window = ImUiWindowBegin( surface, IMUI_STR( "main" ), ImUiRectCreateCenterPosSize( ImUiPosCreateZero(), ImUiSurfaceGetSize( surface ) ), 1u );
+	ImUiWindow* window = ImUiWindowBegin( surface, IMUI_STR( "main" ), ImUiRectCreatePosSize( ImUiPosCreateZero(), ImUiSurfaceGetSize( surface ) ), 1u );
 
 	ImUiWidget* vLayout = ImUiWidgetBegin( window );
 	ImUiWidgetSetPadding( vLayout, ImUiBorderCreateAll( 8.0f ) );
@@ -40,11 +40,11 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 
 	{
 		ImUiWidget* hLayout = ImUiWidgetBegin( window );
+		ImUiWidgetSetStretch( hLayout, ImUiSizeCreateHorizontal() );
 		ImUiWidgetSetLayoutHorizontalSpacing( hLayout, 8.0f );
 
 		ImUiToolboxLabel( window, IMUI_STR( "Name:" ) );
-		ImUiToolboxLabel( window, IMUI_STR( context->nameBuffer ) );
-		//	nk_edit_string_zero_terminated( pNkContext, NK_EDIT_FIELD, pContext->nameBuffer, 128u, NULL );
+		ImUiToolboxTextEdit( window, context->nameBuffer, sizeof( context->nameBuffer ), NULL );
 
 		ImUiWidgetEnd( hLayout );
 	}
