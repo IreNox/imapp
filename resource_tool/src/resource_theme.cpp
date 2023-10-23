@@ -11,7 +11,7 @@ namespace imapp
 	ResourceTheme::ResourceTheme()
 		: m_config( nullptr )
 	{
-		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1176u );
+		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1232u );
 
 		setFields();
 	}
@@ -213,7 +213,7 @@ namespace imapp
 			// button
 			{ "Button",							ResourceThemeFieldType::Group },
 
-			{ "Button",							ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Button ] } },
+			{ "Button Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Button ] } },
 			{ "Button",							ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Button ] } },
 			{ "Button Hover",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonHover ] } },
 			{ "Button Clocked",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonClicked ] } },
@@ -285,6 +285,7 @@ namespace imapp
 			{ "List",							ResourceThemeFieldType::Group },
 
 			{ "List Item",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ListItem ] } },
+			{ "List Item Selected Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ListItemSelected ] } },
 			{ "List Item Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemHover ] } },
 			{ "List Item Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemClicked ] } },
 			{ "List Item Selected",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemSelected ] } },
@@ -298,6 +299,7 @@ namespace imapp
 			{ "Drop Down List Item",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownListItem ] } },
 			{ "Drop Down ",						ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDown ] } },
 			{ "Drop Down Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownText ] } },
+			{ "Drop Down Icon",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownIcon ] } },
 			{ "Drop Down Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownHover ] } },
 			{ "Drop Down Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownClicked ] } },
 			{ "Drop Down Open",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownOpen ] } },
@@ -319,7 +321,7 @@ namespace imapp
 			// pop-up
 			{ "Pop-Up",							ResourceThemeFieldType::Group },
 
-			{ "Popup",							ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Popup ] } },
+			{ "Popup Skin",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Popup ] } },
 			{ "Popup Background",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_PopupBackground ] } },
 			{ "Popup",							ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Popup ] } },
 			{ "Pop-Up Z Order",					ResourceThemeFieldType::UInt32,		{ &m_config.popup.zOrder } },

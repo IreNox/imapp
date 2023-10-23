@@ -78,6 +78,11 @@ namespace imapp
 			uintsize		selectedImage;
 		};
 
+		struct ThemeState
+		{
+			float			maxWidth;
+		};
+
 		ResourcePackage		m_package;
 		ResourceCompiler	m_compiler;
 
@@ -102,7 +107,7 @@ namespace imapp
 		void				doViewPackage( UiToolboxWindow& window );
 		void				doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
-		void				doViewConfig( UiToolboxWindow& window, Resource& resource );
+		void				doViewTheme( UiToolboxWindow& window, Resource& resource );
 
 		bool				doFloatTextEdit( UiToolboxWindow& window, float& value );
 		StringView			doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName );

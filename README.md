@@ -25,7 +25,7 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 {
 	int* counter = (int*)programContext;
 
-	ImUiWindow* window = ImUiWindowBegin( surface, IMUI_STR( "main" ), ImUiRectCreateCenterSize( 0.0f, 0.0f, ImUiSurfaceGetSize( surface ) ), 1u );
+	ImUiWindow* window = ImUiWindowBegin( surface, IMUI_STR( "main" ), ImUiRectCenterSize( 0.0f, 0.0f, ImUiSurfaceGetSize( surface ) ), 1u );
 
 	char buffer[ 32 ];
 	sprintf( buffer, "Hello World %d", *counter );

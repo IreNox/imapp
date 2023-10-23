@@ -29,7 +29,7 @@ namespace imapp
 			ok &= string_tools::tryParseHexUInt8( result.green, string.subString( 2u, 2u ) );
 			ok &= string_tools::tryParseHexUInt8( result.blue, string.subString( 4u, 2u ) );
 
-			if( string.getLength() == 4u )
+			if( string.getLength() == 8u )
 			{
 				ok &= string_tools::tryParseHexUInt8( result.alpha, string.subString( 6u, 2u ) );
 			}

@@ -70,8 +70,8 @@ namespace imapp
 
 			if( window.buttonLabel( "Open" ) )
 			{
-				const ArrayView< StringView > filters = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
-				const DynamicString filePath = openFileDialog( "Open package...", "", filters );
+				const StringView filters[] = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
+				const DynamicString filePath = openFileDialog( "Open package...", "", ArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
 				if( filePath.hasElements() )
 				{
 					load( filePath );
@@ -89,8 +89,8 @@ namespace imapp
 				}
 				else
 				{
-					const ArrayView< StringView > filters ={ "I'm App Resource Package(*.iaresx)", "*.iaresx" };
-					const DynamicString filePath = saveFileDialog( "Save package as...", "", filters );
+					const StringView filters[] = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
+					const DynamicString filePath = saveFileDialog( "Save package as...", "", ArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
 					if( filePath.hasElements() &&
 						!m_package.saveAs( filePath ) )
 					{
@@ -131,7 +131,7 @@ namespace imapp
 				leftLayout.setStretch( UiSize::Vertical );
 
 				{
-					UiToolboxList list( window, 20.0f, m_package.getResourceCount() + 1u );
+					UiToolboxList list( window, 22.0f, m_package.getResourceCount() + 1u );
 					list.setStretch( UiSize::One );
 					list.setMinWidth( 150.0f );
 
@@ -140,7 +140,9 @@ namespace imapp
 					uintsize startIndex = list.getBeginIndex();
 					if( startIndex == 0u )
 					{
-						list.nextItem();
+						ImUiWidget* item = list.nextItem();
+						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
+
 						window.label( "Package" );
 
 						startIndex++;
@@ -150,7 +152,8 @@ namespace imapp
 					{
 						const Resource& resource = m_package.getResource( i - 1u );
 
-						list.nextItem();
+						ImUiWidget* item = list.nextItem();
+						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
 						window.label( (RtStr)resource.getName() );
 					}
@@ -400,7 +403,7 @@ namespace imapp
 			break;
 
 		case ResourceType::Theme:
-			doViewConfig( window, resource );
+			doViewTheme( window, resource );
 			break;
 		}
 	}
@@ -563,13 +566,13 @@ namespace imapp
 				drawBorder.right *= imageView.getZoom();
 				drawBorder.bottom *= imageView.getZoom();
 
-				const UiRect imageRect = imageWidget.getRect();
-				const UiRect innerRect = imageRect.shrinkBorder( drawBorder );
+				const UiSize imageSize = imageWidget.getSize();
+				const UiRect innerRect = UiRect( UiPos::Zero, imageSize ).shrinkBorder( drawBorder );
 				const UiColor color = UiColor( (uint8)0x30u, 0x90u, 0xe0u );
-				imageWidget.drawLine( UiPos( imageRect.pos.x, innerRect.pos.y ), UiPos( imageRect.getRight(), innerRect.pos.y ), color );
-				imageWidget.drawLine( UiPos( innerRect.pos.x, imageRect.pos.y ), UiPos( innerRect.pos.x, imageRect.getBottom() ), color );
-				imageWidget.drawLine( UiPos( innerRect.getRight(), imageRect.pos.y ), UiPos( innerRect.getRight(), imageRect.getBottom() ), color );
-				imageWidget.drawLine( UiPos( imageRect.pos.x, innerRect.getBottom() ), UiPos( imageRect.getRight(), innerRect.getBottom() ), color );
+				imageWidget.drawLine( UiPos( 0.0f, innerRect.pos.y ), UiPos( imageSize.width, innerRect.pos.y ), color );
+				imageWidget.drawLine( UiPos( innerRect.pos.x, 0.0f ), UiPos( innerRect.pos.x, imageSize.height ), color );
+				imageWidget.drawLine( UiPos( innerRect.getRight(), 0.0f ), UiPos( innerRect.getRight(), imageSize.height ), color );
+				imageWidget.drawLine( UiPos( 0.0f, innerRect.getBottom() ), UiPos( imageSize.width, innerRect.getBottom() ), color );
 			}
 		}
 		else
@@ -578,7 +581,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doViewConfig( UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewTheme( UiToolboxWindow& window, Resource& resource )
 	{
 		UiToolboxScrollArea scrollArea( window );
 		scrollArea.setStretch( UiSize::One );
@@ -588,12 +591,26 @@ namespace imapp
 		scrollLayout.setStretch( UiSize::Horizontal );
 		scrollLayout.setLayoutVertical( 4.0f );
 
+		ThemeState* state = scrollLayout.newState< ThemeState >();
+
+		UiWidget groupWidget;
+
 		bool skipGroup = false;
 		for( ResourceThemeField& field : resource.getTheme().getFields() )
 		{
 			if( field.type == ResourceThemeFieldType::Group )
 			{
+				groupWidget.endWidget();
+
+				groupWidget.beginWidget( window );
+				groupWidget.setStretch( UiSize::Horizontal );
+				groupWidget.setLayoutGrid( 2u, 4.0f, 4.0f );
+				groupWidget.setPadding( UiBorder( 4.0f ) );
+
+				groupWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxConfig::getColor( ImUiToolboxColor_Button ) );
+
 				skipGroup = !window.checkBoxState( (RtStr)field.name, true );
+				window.spacer( 0.0f, 0.0f );
 			}
 			else if( skipGroup )
 			{
@@ -601,7 +618,10 @@ namespace imapp
 			}
 			else
 			{
-				window.label( (RtStr)field.name );
+				UiToolboxLabel label( window, (RtStr)field.name );
+
+				state->maxWidth = max( state->maxWidth, label.getMinSize().width );
+				label.setFixedWidth( state->maxWidth );
 			}
 
 			switch( field.type )
@@ -633,7 +653,7 @@ namespace imapp
 						previewWidget.setFixedWidth( 50.0f );
 
 						previewWidget.drawColor( UiColor::Black );
-						previewWidget.drawColor( (UiColor)value );
+						previewWidget.drawPartialColor( UiRect( UiPos::Zero, previewWidget.getSize() ).shrinkBorder( UiBorder( 2.0f ) ),  (UiColor)value );
 					}
 
 					struct ColorEditState
@@ -688,7 +708,8 @@ namespace imapp
 							skin.height			= image.height;
 							skin.border			= skinResource->getSkinBorder();
 							skin.uv				= image.uv;
-							previewWidget.drawSkin( skin, UiColor::White );
+							previewWidget.drawColor( UiColor::Black );
+							previewWidget.drawPartialSkin( UiRect( UiPos::Zero, previewWidget.getSize() ).shrinkBorder( UiBorder( 2.0f ) ), skin, UiColor::White );
 						}
 						else
 						{
@@ -713,20 +734,38 @@ namespace imapp
 				break;
 
 			case ResourceThemeFieldType::Border:
-				if( doFloatTextEdit( window, field.data.borderPtr->top ) ||
-					doFloatTextEdit( window, field.data.borderPtr->left ) ||
-					doFloatTextEdit( window, field.data.borderPtr->right ) ||
-					doFloatTextEdit( window, field.data.borderPtr->bottom ) )
 				{
-					resource.increaseRevision();
+					UiWidgetLayoutGrid skinLayout( window, 4u, 4.0f, 4.0f );
+					skinLayout.setStretch( UiSize::Horizontal );
+
+					window.label( "Top" );
+					window.label( "Left" );
+					window.label( "Right" );
+					window.label( "Bottom" );
+
+					if( doFloatTextEdit( window, field.data.borderPtr->top ) ||
+						doFloatTextEdit( window, field.data.borderPtr->left ) ||
+						doFloatTextEdit( window, field.data.borderPtr->right ) ||
+						doFloatTextEdit( window, field.data.borderPtr->bottom ) )
+					{
+						resource.increaseRevision();
+					}
 				}
 				break;
 
 			case ResourceThemeFieldType::Size:
-				if( doFloatTextEdit( window, field.data.sizePtr->width ) ||
-					doFloatTextEdit( window, field.data.sizePtr->height ) )
 				{
-					resource.increaseRevision();
+					UiWidgetLayoutGrid skinLayout( window, 2u, 4.0f, 4.0f );
+					skinLayout.setStretch( UiSize::Horizontal );
+
+					window.label( "Width" );
+					window.label( "Height" );
+
+					if( doFloatTextEdit( window, field.data.sizePtr->width ) ||
+						doFloatTextEdit( window, field.data.sizePtr->height ) )
+					{
+						resource.increaseRevision();
+					}
 				}
 				break;
 
@@ -766,6 +805,13 @@ namespace imapp
 				break;
 
 			case ResourceThemeFieldType::UInt32:
+				{
+					float floatValue = (float)*field.data.uintPtr;
+					if( doFloatTextEdit( window, floatValue ) )
+					{
+						*field.data.uintPtr = (uint32)floatValue;
+					}
+				}
 				break;
 			}
 		}

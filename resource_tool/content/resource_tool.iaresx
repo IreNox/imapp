@@ -1499,9 +1499,9 @@
             <value name="Scroll Area Bar Spacing" top="8" left="25" right="25" bottom="8"/>
             <value name="Scroll Area Bar Min Size" width="25" height="8"/>
             <value name="List Item" skinName="skin_skin_border_small"/>
-            <value name="List Item Hover" color="e5e5e5"/>
+            <value name="List Item Hover" color="4d57ac"/>
             <value name="List Item Clicked" color="666"/>
-            <value name="List Item Selected" color="b2b2b2"/>
+            <value name="List Item Selected" color="d8daee" skinName="skin_skin_solid_border_small"/>
             <value name="List Item Spacing" value="8"/>
             <value name="Scroll Area Bar Size" value="8"/>
             <value name="Scroll Area Bar Spacing" top="8" left="25" right="25" bottom="8"/>
@@ -1529,11 +1529,15 @@
             <value name="Drop Down Item Size" value="25"/>
             <value name="Drop Down Item Spacing" value="8"/>
             <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup Background" color="0003"/>
-            <value name="Popup" color="4c4c4c" skinName="skin_skin_solid_border_small"/>
+            <value name="Popup Background" color="4d57ac44"/>
+            <value name="Popup" color="d8daee" skinName="skin_skin_solid_border_small"/>
             <value name="Pop-Up Z Order" value="10"/>
             <value name="Pop-Up Padding" top="8" left="8" right="8" bottom="8"/>
             <value name="Pop-Up Button Spacing" value="4"/>
+            <value name="Drop Down Icon" color="0d0e1c"/>
+            <value name="List Item Selected Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Popup Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Button Skin" skinName="skin_skin_solid_small"/>
         </resource>
         <resource name="font" type="Font" path=""/>
         <resource name="icon_arrow_up" type="Image" path="icons/icon_arrow_up.png" allow_atlas="true" repeat="false"/>
