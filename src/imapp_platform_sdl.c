@@ -890,24 +890,4 @@ bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
 	}
 }
 
-uint32 ImAppPlatformAtomicGet( const ImAppAtomic32* atomic )
-{
-	return (uint32)SDL_AtomicGet( (SDL_atomic_t*)atomic );
-}
-
-uint32 ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value )
-{
-	return SDL_AtomicSet( (SDL_atomic_t*)atomic, value );
-}
-
-uint32 ImAppPlatformAtomicInc( ImAppAtomic32* atomic )
-{
-	return SDL_AtomicAdd( (SDL_atomic_t*)atomic, 1 );
-}
-
-uint32 ImAppPlatformAtomicDec( ImAppAtomic32* atomic )
-{
-	return SDL_AtomicAdd( (SDL_atomic_t*)atomic, -1 );
-}
-
 #endif

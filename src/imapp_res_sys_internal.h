@@ -22,6 +22,7 @@ typedef enum ImAppResEventType
 typedef struct ImAppResEventPakData
 {
 	ImAppResPak*			pak;
+	ImAppResPak*			reloadPak;
 } ImAppResEventPakData;
 
 typedef struct ImAppResEventResData

@@ -96,7 +96,7 @@ void ImAppTick( void* arg )
 		const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
 
 		ImUiFrame* frame		= ImUiBegin( imapp->context.imui, imapp->lastTickValue / 1000.0f );
-		ImUiSurface* surface	= ImUiSurfaceBegin( frame, ImUiStringViewCreate( "default" ), size, 1.0f );
+		ImUiSurface* surface	= ImUiSurfaceBegin( frame, "default", size, 1.0f );
 
 		ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
 

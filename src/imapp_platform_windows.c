@@ -17,6 +17,8 @@
 #	include <crtdbg.h>
 #endif
 
+typedef struct ImAppFileWatcherPath ImAppFileWatcherPath;
+
 static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject );
 ULONG STDMETHODCALLTYPE		ImAppPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This );
@@ -25,6 +27,8 @@ HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragEnter( __RPC__in IDro
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragOver( __RPC__in IDropTarget* This, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect );
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDragLeave( __RPC__in IDropTarget* This );
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetDrop( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect );
+
+static void					ImAppPlatformFileWatcherPathStart( ImAppFileWatcherPath* path );
 
 static DWORD WINAPI			ImAppPlatformThreadEntry( void* voidThread );
 
@@ -81,17 +85,41 @@ struct ImAppWindow
 	ImAppEventQueue		eventQueue;
 };
 
+typedef struct ImAppFileWatcherPath
+{
+	OVERLAPPED				overlapped;
+
+	ImAppFileWatcherPath*	prevPath;
+	ImAppFileWatcherPath*	nextPath;
+
+	bool					isRunning;
+	HANDLE					dirHandle;
+	byte					buffer[ sizeof( FILE_NOTIFY_INFORMATION ) + (sizeof( wchar_t ) * MAX_PATH) ];
+
+	char					path[ 1u ];
+} ImAppFileWatcherPath;
+
+typedef struct ImAppFileWatcher
+{
+	ImAppPlatform*			platform;
+
+	ImAppFileWatcherPath*	firstPath;
+
+	HANDLE					ioPort;
+
+	char					eventPath[ MAX_PATH * 4u ];
+} ImAppFileWatcher;
 
 struct ImAppThread
 {
-	ImAppPlatform*	platform;
+	ImAppPlatform*		platform;
 
-	HANDLE			handle;
+	HANDLE				handle;
 
-	ImAppThreadFunc	func;
-	void*			arg;
+	ImAppThreadFunc		func;
+	void*				arg;
 
-	ImAppAtomic32	isRunning;
+	volatile ULONG		isRunning;
 };
 
 static const LPWSTR s_windowsSystemCursorMapping[] =
@@ -124,6 +152,10 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	// Set flag to the new value.
 	_CrtSetDbgFlag( tmpFlag );
 	//_CrtSetBreakAlloc( 100 );
+
+	_clearfp();
+	unsigned newControl = _EM_OVERFLOW | _EM_ZERODIVIDE | _EM_INVALID;
+	_controlfp_s( 0, ~newControl, newControl );
 #endif
 
 	ImAppPlatform platform = { 0 };
@@ -432,8 +464,8 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		s_pWindowClass,
 		wideWindowTitle,
 		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
+		2200, //CW_USEDEFAULT,
+		200,
 		width,
 		height,
 		NULL,
@@ -727,7 +759,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					key = ImUiInputKey_Numpad_Enter;
 				}
 
-				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key } };
+				const bool repeat = lParam & 0x40000000;
+				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key, .repeat = repeat } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
 			return 0;
@@ -752,6 +785,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				SetCapture( window->hwnd );
 			}
 			return 0;
 
@@ -761,6 +796,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				SetCapture( NULL );
 			}
 			return 0;
 
@@ -982,6 +1019,26 @@ HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDrop( __RPC__in IDropTarg
 	return handled ? S_OK : S_FALSE;
 }
 
+void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+{
+	const uintsize nameLength = strlen( resourceName );
+
+	const int length = WideCharToMultiByte( CP_UTF8, 0, platform->resourcePath, (int)platform->resourceBasePathLength, outPath, (int)pathCapacity, NULL, NULL );
+	pathCapacity -= length;
+	const uintsize nameCapacity = IMUI_MIN( nameLength, pathCapacity - 1u );
+	memcpy( outPath + length, resourceName, nameCapacity );
+	const uintsize fullLength = (uintsize)length + nameCapacity;
+	outPath[ fullLength ] = '\0';
+
+	for( uintsize i = 0u; i < fullLength; ++i )
+	{
+		if( outPath[ i ] == '\\' )
+		{
+			outPath[ i ] = '/';
+		}
+	}
+}
+
 ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
 	return ImAppPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
@@ -1125,6 +1182,210 @@ void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
 	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
+ImAppFileWatcher* ImAppPlatformFileWatcherCreate( ImAppPlatform* platform )
+{
+	ImAppFileWatcher* watcher = IMUI_MEMORY_NEW( platform->allocator, ImAppFileWatcher );
+	if( !watcher )
+	{
+		return NULL;
+	}
+
+	watcher->platform	= platform;
+	watcher->firstPath	= NULL;
+	watcher->ioPort		= CreateIoCompletionPort( INVALID_HANDLE_VALUE, NULL, 0, 1u );
+
+	if( watcher->ioPort == NULL )
+	{
+		ImAppPlatformFileWatcherDestroy( platform, watcher );
+		return NULL;
+	}
+
+	return watcher;
+}
+
+void ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+{
+	ImAppFileWatcherPath* path = watcher->firstPath;
+	ImAppFileWatcherPath* nextPath = NULL;
+	while( path )
+	{
+		nextPath = path->nextPath;
+		CancelIo( path->dirHandle );
+		CloseHandle( path->dirHandle );
+		ImUiMemoryFree( platform->allocator, path );
+		path = nextPath;
+	}
+
+	if( watcher->ioPort != NULL )
+	{
+		CloseHandle( watcher->ioPort );
+	}
+
+	ImUiMemoryFree( platform->allocator, watcher );
+}
+
+void ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+{
+	const char* pathEnd = strrchr( path, '/' );
+	const uintsize pathLength = pathEnd ? pathEnd - path : strlen( path );
+
+	for( ImAppFileWatcherPath* watcherPath = watcher->firstPath; watcherPath; watcherPath = watcherPath->nextPath )
+	{
+		if( strncmp( path, watcherPath->path, pathLength ) == 0 )
+		{
+			// already exists
+			return;
+		}
+	}
+
+	ImAppFileWatcherPath* watcherPath = (ImAppFileWatcherPath*)ImUiMemoryAllocZero( watcher->platform->allocator, sizeof( ImAppFileWatcherPath ) + pathLength );
+	if( !watcherPath )
+	{
+		return;
+	}
+
+	memcpy( watcherPath->path, path, pathLength );
+
+	wchar_t widePathBuffer[ MAX_PATH ];
+	const int widePathLength = MultiByteToWideChar( CP_UTF8, 0u, watcherPath->path, (int)pathLength, widePathBuffer, IMAPP_ARRAY_COUNT( widePathBuffer ) );
+	widePathBuffer[ widePathLength ] = L'\0';
+
+	for( int i = 0; i < widePathLength; ++i )
+	{
+		if( widePathBuffer[ i ] == L'/' )
+		{
+			widePathBuffer[ i ] = L'\\';
+		}
+	}
+
+	watcherPath->dirHandle = CreateFileW(
+		widePathBuffer,
+		FILE_LIST_DIRECTORY,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+		NULL
+	);
+
+	if( watcherPath->dirHandle == INVALID_HANDLE_VALUE )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to open '%s'. Error: 0x%08x", GetLastError() );
+		ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+		return;
+	}
+
+	const HANDLE ioPort = CreateIoCompletionPort( watcherPath->dirHandle, watcher->ioPort, 0u, 0u );
+	if( ioPort == NULL )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to attach '%s' to I/O completion port. Error: 0x%08x", GetLastError() );
+		CloseHandle( watcherPath->dirHandle );
+		ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+		return;
+	}
+
+	ImAppPlatformFileWatcherPathStart( watcherPath );
+
+	watcherPath->nextPath = watcher->firstPath;
+	if( watcherPath->nextPath )
+	{
+		watcherPath->nextPath->prevPath = watcherPath;
+	}
+	watcher->firstPath = watcherPath;
+}
+
+void ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+{
+	const char* pathEnd = strrchr( path, '/' );
+	const uintsize pathLength = pathEnd ? pathEnd - path : strlen( path );
+
+	ImAppFileWatcherPath* watcherPath = NULL;
+	for( watcherPath = watcher->firstPath; watcherPath; watcherPath = watcherPath->nextPath )
+	{
+		if( strncmp( path, watcherPath->path, pathLength ) == 0 )
+		{
+			break;
+		}
+	}
+
+	if( !watcherPath )
+	{
+		return;
+	}
+
+	CancelIo( watcherPath->dirHandle );
+	CloseHandle( watcherPath->dirHandle );
+
+	if( watcherPath->prevPath )
+	{
+		watcherPath->prevPath->nextPath = watcherPath->nextPath;
+	}
+
+	if( watcherPath->nextPath )
+	{
+		watcherPath->nextPath->prevPath = watcherPath->prevPath;
+	}
+
+	if( watcherPath == watcher->firstPath )
+	{
+		watcher->firstPath = watcherPath->nextPath;
+	}
+
+	ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+}
+
+bool ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+{
+	ULONG_PTR key;
+	DWORD readSize;
+	OVERLAPPED* overlapped;
+	const BOOL success = GetQueuedCompletionStatus( watcher->ioPort, &readSize, &key, &overlapped, 0 );
+	if( !success )
+	{
+		const DWORD lastError = GetLastError();
+		if( lastError != WAIT_TIMEOUT )
+		{
+			IMAPP_DEBUG_LOGE( "Failed to get completion status. Error: 0x%08x", lastError );
+		}
+		return false;
+	}
+
+	ImAppFileWatcherPath* path = (ImAppFileWatcherPath*)overlapped;
+	const FILE_NOTIFY_INFORMATION* fileInfo = (const FILE_NOTIFY_INFORMATION*)path->buffer;
+
+	const int pathLength = WideCharToMultiByte( CP_UTF8, 0, fileInfo->FileName, (int)fileInfo->FileNameLength, watcher->eventPath, IMAPP_ARRAY_COUNT( watcher->eventPath ), NULL, NULL );
+	watcher->eventPath[ pathLength ] = '\0';
+
+	outEvent->path = watcher->eventPath;
+
+	ImAppPlatformFileWatcherPathStart( path );
+
+	return true;
+}
+
+static void ImAppPlatformFileWatcherPathStart( ImAppFileWatcherPath* path )
+{
+	const BOOL result = ReadDirectoryChangesW(
+		path->dirHandle,
+		path->buffer,
+		sizeof( path->buffer ),
+		true,
+		FILE_NOTIFY_CHANGE_LAST_WRITE,
+		NULL,
+		&path->overlapped,
+		NULL
+	);
+
+	if( result )
+	{
+		path->isRunning = true;
+	}
+	else
+	{
+		IMAPP_DEBUG_LOGE( "Failed to start watch on '%s'. Error: 0x%08x\n", path->path, GetLastError() );
+	}
+}
+
 ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
 {
 	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
@@ -1133,7 +1394,7 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 		return NULL;
 	}
 
-	ImAppPlatformAtomicSet( &thread->isRunning, 1 );
+	InterlockedExchangeNoFence( &thread->isRunning, 1 );
 
 	thread->platform	= platform;
 	thread->func		= func;
@@ -1155,7 +1416,7 @@ void ImAppPlatformThreadDestroy( ImAppThread* thread )
 
 bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
 {
-	return ImAppPlatformAtomicGet( &thread->isRunning );
+	return InterlockedOrNoFence( (volatile ULONG*)&thread->isRunning, 0);
 }
 
 static DWORD WINAPI ImAppPlatformThreadEntry( void* voidThread )
@@ -1164,7 +1425,7 @@ static DWORD WINAPI ImAppPlatformThreadEntry( void* voidThread )
 
 	thread->func( thread->arg );
 
-	ImAppPlatformAtomicSet( &thread->isRunning, 0 );
+	InterlockedExchangeNoFence( &thread->isRunning, 0 );
 
 	return 0u;
 }
@@ -1213,26 +1474,6 @@ void ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore )
 bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
 {
 	return WaitForSingleObject( (HANDLE)semaphore, wait ? INFINITE : 0u ) == WAIT_OBJECT_0;
-}
-
-uint32 ImAppPlatformAtomicGet( const ImAppAtomic32* atomic )
-{
-	return InterlockedOrNoFence( (volatile long*)&atomic->value, 0u );
-}
-
-uint32 ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value )
-{
-	return InterlockedExchangeNoFence( (volatile long*)&atomic->value, value );
-}
-
-uint32 ImAppPlatformAtomicInc( ImAppAtomic32* atomic )
-{
-	return InterlockedIncrementNoFence( (volatile long*)&atomic->value ) - 1u;
-}
-
-uint32 ImAppPlatformAtomicDec( ImAppAtomic32* atomic )
-{
-	return InterlockedDecrementNoFence( (volatile long*)&atomic->value ) + 1u;
 }
 
 #endif

@@ -36,7 +36,11 @@ struct ImAppRenderer
 
 	GLuint						vertexArray;
 	GLuint						vertexBuffer;
+	uintsize					vertexBufferSize;
+	void*						vertexBufferData;
 	GLuint						elementBuffer;
+	uintsize					elementBufferSize;
+	void*						elementBufferData;
 };
 
 struct ImAppRendererTexture
@@ -157,6 +161,9 @@ void ImAppRendererDestroy( ImAppRenderer* renderer )
 {
 	ImAppRendererDestroyResources( renderer );
 	ImAppPlatformWindowDestroyGlContext( renderer->window );
+
+	ImUiMemoryFree( renderer->allocator, renderer->vertexBufferData );
+	ImUiMemoryFree( renderer->allocator, renderer->elementBufferData );
 
 	ImUiMemoryFree( renderer->allocator, renderer );
 }
@@ -432,24 +439,25 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	glBindBuffer( GL_ARRAY_BUFFER, renderer->vertexBuffer );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->elementBuffer );
 
-	uintsize indexDataSize = 0u;
 	uintsize vertexDataSize = 0u;
+	uintsize indexDataSize = 0u;
 	ImUiSurfaceGetMaxBufferSizes( surface, &vertexDataSize, &indexDataSize );
 
-	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, NULL, GL_STREAM_DRAW );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, NULL, GL_STREAM_DRAW);
-
-	// upload
-	const ImUiDrawData* drawData;
+	if( vertexDataSize > renderer->vertexBufferSize )
 	{
-		void* pVertexData = glMapBufferRange( GL_ARRAY_BUFFER, 0, vertexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT ); // GL_MAP_UNSYNCHRONIZED_BIT
-		void* pElementData = glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, 0, indexDataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT );
-
-		drawData = ImUiSurfaceGenerateDrawData( surface, pVertexData, &vertexDataSize, pElementData, &indexDataSize );
-
-		glUnmapBuffer( GL_ARRAY_BUFFER );
-		glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
+		renderer->vertexBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->vertexBufferData, renderer->vertexBufferSize, vertexDataSize );
+		renderer->vertexBufferSize = vertexDataSize;
 	}
+
+	if( indexDataSize > renderer->elementBufferSize )
+	{
+		renderer->elementBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->elementBufferData, renderer->elementBufferSize, indexDataSize );
+		renderer->elementBufferSize = indexDataSize;
+	}
+
+	const ImUiDrawData* drawData = ImUiSurfaceGenerateDrawData( surface, renderer->vertexBufferData, &vertexDataSize, renderer->elementBufferData, &indexDataSize );
+	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
 
 	const GLfloat projectionMatrix[ 4 ][ 4 ] ={
 		{  2.0f / width,	0.0f,			 0.0f,	0.0f },

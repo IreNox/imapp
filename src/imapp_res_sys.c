@@ -21,6 +21,7 @@ struct ImAppResSys
 	ImAppPlatform*		platform;
 	ImAppRenderer*		renderer;
 	ImUiContext*		imui;
+	ImAppFileWatcher*	watcher;
 
 	ImAppResPak*		firstResPak;
 
@@ -32,6 +33,8 @@ struct ImAppResSys
 	ImAppResEventQueue	sendQueue;
 	ImAppResEventQueue	receiveQueue;
 };
+
+static void			ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak );
 
 static void			ImAppResSysHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* resEvent );
 static void			ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* resEvent );
@@ -79,6 +82,7 @@ ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platfor
 	ressys->platform	= platform;
 	ressys->imui		= imui;
 	ressys->renderer	= renderer;
+	ressys->watcher		= ImAppPlatformFileWatcherCreate( platform );
 
 	if( !ImUiHashMapConstructSize( &ressys->nameMap, allocator, sizeof( ImAppRes* ), ImAppResSysNameMapHash, ImAppResSysNameMapIsKeyEquals, 64u ) ||
 		!ImAppResEventQueueConstruct( ressys, &ressys->sendQueue, 16u ) ||
@@ -109,11 +113,48 @@ void ImAppResSysDestroy( ImAppResSys* ressys )
 
 	ImUiHashMapDestruct( &ressys->nameMap );
 
+	ImAppPlatformFileWatcherDestroy( ressys->platform, ressys->watcher );
+
 	ImUiMemoryFree( ressys->allocator, ressys );
 }
 
 void ImAppResSysUpdate( ImAppResSys* ressys )
 {
+	if( ressys->watcher )
+	{
+		ImAppFileWatchEvent watchEvent;
+		if( ImAppPlatformFileWatcherPopEvent( ressys->watcher, &watchEvent ) )
+		{
+			ImAppResPak* pak;
+			for( pak = ressys->firstResPak; pak; pak = pak->nextResPak )
+			{
+				if( strcmp( pak->resourceName, watchEvent.path ) == 0 )
+				{
+					break;
+				}
+			}
+
+			if( pak )
+			{
+				const uintsize nameLength = strlen( pak->resourceName );
+
+				ImAppResPak* newPak = (ImAppResPak*)ImUiMemoryAllocZero( ressys->allocator, sizeof( ImAppResPak ) + nameLength );
+				newPak->ressys	= ressys;
+				memcpy( newPak->resourceName, pak->resourceName, nameLength );
+
+				ImAppResEvent resEvent;
+				resEvent.type				= ImAppResEventType_OpenResPak;
+				resEvent.data.pak.pak		= newPak;
+				resEvent.data.pak.reloadPak	= pak;
+
+				if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &resEvent ) )
+				{
+					ImUiMemoryFree( ressys->allocator, newPak );
+				}
+			}
+		}
+	}
+
 	{
 		ImAppResEvent resEvent;
 		while( ImAppResEventQueuePop( &ressys->receiveQueue, &resEvent, false ) )
@@ -142,10 +183,46 @@ static void ImAppResSysHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* res
 {
 	ImAppResPak* pak = resEvent->data.pak.pak;
 
-	if( !resEvent->success )
+	if( resEvent->data.pak.reloadPak )
 	{
-		pak->state = ImAppResState_Error;
-		return;
+		if( !resEvent->success )
+		{
+			ImAppResSysCloseInternal( ressys, pak );
+			return;
+		}
+
+		ImAppResPak* reloadPak = resEvent->data.pak.reloadPak;
+
+		pak->prevResPak = reloadPak->prevResPak;
+		pak->nextResPak = reloadPak->nextResPak;
+
+		for( uintsize i = 0; i < pak->resourceCount; ++i )
+		{
+			pak->resources[ i ].key.pak = reloadPak;
+		}
+
+		ImAppResPak tempPak = *reloadPak;
+		*reloadPak = *pak;
+		*pak = tempPak;
+
+		ImAppResSysCloseInternal( ressys, pak );
+		pak = reloadPak;
+	}
+	else
+	{
+		if( !resEvent->success )
+		{
+			pak->state = ImAppResState_Error;
+			return;
+		}
+
+		if( ressys->watcher )
+		{
+			char pakPath[ 1024u ];
+			ImAppPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
+
+			ImAppPlatformFileWatcherAddPath( ressys->watcher, pakPath );
+		}
 	}
 
 	for( uintsize i = 0; i < pak->resourceCount; ++i )
@@ -471,8 +548,9 @@ ImAppResPak* ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName )
 	memcpy( pak->resourceName, resourceName, nameLength );
 
 	ImAppResEvent resEvent;
-	resEvent.type			= ImAppResEventType_OpenResPak;
-	resEvent.data.pak.pak	= pak;
+	resEvent.type				= ImAppResEventType_OpenResPak;
+	resEvent.data.pak.pak		= pak;
+	resEvent.data.pak.reloadPak	= NULL;
 
 	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &resEvent ) )
 	{
@@ -490,19 +568,52 @@ ImAppResPak* ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName )
 	return pak;
 }
 
-void ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* pak )
+static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 {
 	for( uintsize i = 0; i < pak->resourceCount; ++i )
 	{
 		ImAppRes* res = &pak->resources[ i ];
 		ImAppResSysUnload( pak, res );
+		ImUiHashMapRemove( &ressys->nameMap, &res );
 	}
 
-	ImAppBlob metadataBlob = { pak->metadata, pak->metadataSize };
+	ImAppBlob metadataBlob ={ pak->metadata, pak->metadataSize };
 	ImAppPlatformResourceFree( ressys->platform, metadataBlob );
 
 	ImUiMemoryFree( ressys->allocator, pak->resources );
 	ImUiMemoryFree( ressys->allocator, pak );
+
+	ImUiToolboxConfig config;
+	ImUiToolboxFillDefaultConfig( &config, NULL );
+	ImUiToolboxSetConfig( &config );
+}
+
+void ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* pak )
+{
+	if( ressys->watcher )
+	{
+		char pakPath[ 1024u ];
+		ImAppPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
+
+		ImAppPlatformFileWatcherRemovePath( ressys->watcher, pakPath );
+	}
+
+	if( pak->nextResPak )
+	{
+		pak->nextResPak->prevResPak = pak->prevResPak;
+	}
+
+	if( pak->prevResPak )
+	{
+		pak->prevResPak->nextResPak = pak->nextResPak;
+	}
+
+	if( pak == ressys->firstResPak )
+	{
+		ressys->firstResPak = pak->nextResPak;
+	}
+
+	ImAppResSysCloseInternal( ressys, pak );
 }
 
 ImAppResState ImAppResPakGetState( const ImAppResPak* pak )

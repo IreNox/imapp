@@ -52,10 +52,18 @@ void					ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* ou
 ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
-// Resources
+// Files/Resources
 
 typedef struct ImAppFile ImAppFile;
 
+typedef struct ImAppFileWatcher ImAppFileWatcher;
+
+typedef struct ImAppFileWatchEvent
+{
+	const char*			path;
+} ImAppFileWatchEvent;
+
+void					ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName );
 ImAppBlob				ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName );
 ImAppBlob				ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length );
 ImAppFile*				ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName );
@@ -63,6 +71,12 @@ uintsize				ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize 
 void					ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file );
 ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName );
 void					ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob );
+
+ImAppFileWatcher*		ImAppPlatformFileWatcherCreate( ImAppPlatform* platform );
+void					ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher );
+void					ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path );
+void					ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path );
+bool					ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent );
 
 //////////////////////////////////////////////////////////////////////////
 // Threading
@@ -72,11 +86,6 @@ typedef struct ImAppMutex ImAppMutex;
 typedef struct ImAppSemaphore ImAppSemaphore;
 
 typedef void (*ImAppThreadFunc)( void* arg );
-
-typedef struct
-{
-	uint32 value;
-} ImAppAtomic32;
 
 ImAppThread*			ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg );
 void					ImAppPlatformThreadDestroy( ImAppThread* thread );
@@ -92,7 +101,3 @@ void					ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore*
 void					ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore );
 bool					ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait );
 
-uint32					ImAppPlatformAtomicGet( const ImAppAtomic32* atomic );
-uint32					ImAppPlatformAtomicSet( ImAppAtomic32* atomic, uint32 value );
-uint32					ImAppPlatformAtomicInc( ImAppAtomic32* atomic );
-uint32					ImAppPlatformAtomicDec( ImAppAtomic32* atomic );
