@@ -41,7 +41,7 @@ namespace imapp
 		JPEG
 	};
 
-	ArrayView< StringView >		getResourceTypeStrings();
+	ArrayView< const char* >	getResourceTypeStrings();
 	bool						parseResourceType( ResourceType& type, const StringView& string );
 	StringView					getResourceTypeString( ResourceType type );
 

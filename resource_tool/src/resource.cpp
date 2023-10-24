@@ -11,7 +11,7 @@ namespace imapp
 
 	static constexpr float FileCheckInterval = 2.0f;
 
-	static const StringView s_resourceTypeStrings[] =
+	static const char* s_resourceTypeStrings[] =
 	{
 		"Image",
 		"Skin",
@@ -19,16 +19,16 @@ namespace imapp
 		"Theme"
 	};
 
-	ArrayView< StringView > getResourceTypeStrings()
+	ArrayView< const char* > getResourceTypeStrings()
 	{
-		return ArrayView< StringView >( s_resourceTypeStrings, TIKI_ARRAY_COUNT( s_resourceTypeStrings ) );
+		return ArrayView< const char* >( s_resourceTypeStrings, TIKI_ARRAY_COUNT( s_resourceTypeStrings ) );
 	}
 
 	bool parseResourceType( ResourceType& type, const StringView& string )
 	{
 		for( size_t i = 0u; i < TIKI_ARRAY_COUNT( s_resourceTypeStrings ); ++i )
 		{
-			const StringView& mapping = s_resourceTypeStrings[ i ];
+			const char* mapping = s_resourceTypeStrings[ i ];
 			if( string == mapping )
 			{
 				type = (ResourceType)i;
@@ -41,7 +41,7 @@ namespace imapp
 
 	StringView getResourceTypeString( ResourceType type )
 	{
-		return s_resourceTypeStrings[ (size_t)type ];
+		return (StringView)s_resourceTypeStrings[ (size_t)type ];
 	}
 
 	Resource::Resource()

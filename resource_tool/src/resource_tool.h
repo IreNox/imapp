@@ -37,7 +37,7 @@ namespace imapp
 
 	private:
 
-		using TypeNameArray = StaticArray< DynamicArray< UiStringView >, (uintsize)ResourceType::Count >;
+		using TypeNameArray = StaticArray< DynamicArray< const char* >, (uintsize)ResourceType::Count >;
 
 		enum class PopupState
 		{

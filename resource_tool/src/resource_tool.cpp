@@ -44,7 +44,7 @@ namespace imapp
 
 	void ResourceTool::load( const char* filename )
 	{
-		if( !m_package.load( (RtStr)filename ) )
+		if( !m_package.load( (StringView)filename ) )
 		{
 			showError( "Failed to load package '%s'.", filename );
 		}
@@ -99,7 +99,7 @@ namespace imapp
 				}
 			}
 
-			window.label( (RtStr)m_package.getName() );
+			window.label( m_package.getName() );
 
 			window.strecher( 1.0f, 0.0f );
 
@@ -155,7 +155,7 @@ namespace imapp
 						ImUiWidget* item = list.nextItem();
 						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
-						window.label( (RtStr)resource.getName() );
+						window.label( resource.getName() );
 					}
 
 					m_selecedEntry = list.getSelectedIndex();
@@ -194,7 +194,7 @@ namespace imapp
 			{
 				outputList.nextItem();
 
-				window.label( (RtStr)output.message );
+				window.label( output.message );
 			}
 		}
 	}
@@ -254,7 +254,7 @@ namespace imapp
 	{
 		UiToolboxPopup popup( surface );
 
-		UiStringView name;
+		const char* name;
 		size_t typeIndex;
 		{
 			UiWidgetLayoutVertical layout( popup );
@@ -265,10 +265,9 @@ namespace imapp
 			popup.spacer( 1.0f, 4.0f );
 
 			popup.label( "Type:" );
-			const ArrayView< StringView > items = getResourceTypeStrings();
-			// HACK: really ugly but works. need a way to convert to UiStringView in a proper way.
+			const ArrayView< const char* > items = getResourceTypeStrings();
 			{
-				UiToolboxDropdown dropDown( popup, (const UiStringView*)items.getData(), items.getLength() );
+				UiToolboxDropdown dropDown( popup, (const char**)items.getData(), items.getLength() );
 				dropDown.setStretch( UiSize::Horizontal );
 
 				typeIndex = dropDown.getSelectedIndex();
@@ -278,12 +277,12 @@ namespace imapp
 		}
 
 		bool ok = true;
-		if( name.isEmpty() )
+		if( !name || !*name )
 		{
 			popup.label( "No name set!" );
 			ok = false;
 		}
-		if( m_package.findResource( (RtStr)name ) )
+		if( m_package.findResource( (StringView)name ) )
 		{
 			popup.label( "No name must be unique!" );
 			ok = false;
@@ -294,12 +293,12 @@ namespace imapp
 			ok = false;
 		}
 
-		const UiStringView buttons[] = { "Ok", "Cancel" };
+		const char* buttons[] = { "Ok", "Cancel" };
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex == 0u && ok )
 		{
 			const ResourceType type = (ResourceType)typeIndex;
-			m_package.addResource( (RtStr)name, type );
+			m_package.addResource( (StringView)name, type );
 			updateResourceNamesByType();
 
 			m_popupState = PopupState::Home;
@@ -326,7 +325,7 @@ namespace imapp
 
 		popup.spacer( 1.0f, 8.0f );
 
-		const UiStringView buttons[] = { "Yes", "No" };
+		const char* buttons[] = { "Yes", "No" };
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex < TIKI_ARRAY_COUNT( buttons ) )
 		{
@@ -347,10 +346,10 @@ namespace imapp
 			UiWidget padding( popup );
 			padding.setPadding( UiBorder( 4.0f ) );
 
-			popup.label( (RtStr)m_errorMessage );
+			popup.label( m_errorMessage );
 		}
 
-		const UiStringView buttons[] = { "Ok" };
+		const char* buttons[] = { "Ok" };
 		const size_t buttonIndex = popup.end( buttons, TIKI_ARRAY_COUNT( buttons ) );
 		if( buttonIndex == 0u )
 		{
@@ -384,11 +383,11 @@ namespace imapp
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
 			pathLayout.setStretch( UiSize::Horizontal );
 
-			const RtStr newName = window.textEditState( 256u, (RtStr)resource.getName() );
+			const char* newName = window.textEditState( 256u, resource.getName() );
 			if( newName != resource.getName() &&
 				window.buttonLabel( "Change" ) )
 			{
-				resource.setName( newName );
+				resource.setName( (StringView)newName );
 			}
 		}
 
@@ -415,11 +414,11 @@ namespace imapp
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
 			pathLayout.setStretch( UiSize::Horizontal );
 
-			const RtStr newName = window.textEditState( 256u, (RtStr)m_package.getName() );
+			const char* newName = window.textEditState( 256u, m_package.getName() );
 			if( newName != m_package.getName() &&
 				window.buttonLabel( "Change" ) )
 			{
-				m_package.setName( newName );
+				m_package.setName( (StringView)newName );
 			}
 		}
 
@@ -428,11 +427,11 @@ namespace imapp
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
 			pathLayout.setStretch( UiSize::Horizontal );
 
-			const RtStr newPath = window.textEditState( 256u, (RtStr)m_package.getOutputPath() );
+			const char* newPath = window.textEditState( 256u, m_package.getOutputPath() );
 			if( newPath != m_package.getOutputPath() &&
 				window.buttonLabel( "Change" ) )
 			{
-				m_package.setOutputPath( newPath );
+				m_package.setOutputPath( (StringView)newPath );
 			}
 		}
 	}
@@ -444,11 +443,11 @@ namespace imapp
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
 			pathLayout.setStretch( UiSize::Horizontal );
 
-			const RtStr newPath = window.textEditState( 256u, (RtStr)resource.getFileSourcePath() );
+			const char* newPath = window.textEditState( 256u, resource.getFileSourcePath() );
 			if( newPath != resource.getFileSourcePath() &&
 				window.buttonLabel( "Change" ) )
 			{
-				resource.setFileSourcePath( newPath );
+				resource.setFileSourcePath( (StringView)newPath );
 			}
 		}
 
@@ -508,7 +507,7 @@ namespace imapp
 				UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
 				skinLayout.setStretch( UiSize::Horizontal );
 
-				struct BorderInfo { UiStringView title; float& value; } borders[] =
+				struct BorderInfo { const char* title; float& value; } borders[] =
 				{
 					{ "Top:", skinBorder.top },
 					{ "Left:", skinBorder.left },
@@ -609,7 +608,7 @@ namespace imapp
 
 				groupWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxConfig::getColor( ImUiToolboxColor_Button ) );
 
-				skipGroup = !window.checkBoxState( (RtStr)field.name, true );
+				skipGroup = !window.checkBoxState( field.name, true );
 				window.spacer( 0.0f, 0.0f );
 			}
 			else if( skipGroup )
@@ -618,7 +617,7 @@ namespace imapp
 			}
 			else
 			{
-				UiToolboxLabel label( window, (RtStr)field.name );
+				UiToolboxLabel label( window, field.name );
 
 				state->maxWidth = max( state->maxWidth, label.getMinSize().width );
 				label.setFixedWidth( state->maxWidth );
@@ -849,25 +848,25 @@ namespace imapp
 	StringView ResourceTool::doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName )
 	{
 		uintsize selectedIndex = -1;
-		const UiStringView selectedResourceNameUi = (RtStr)selectedResourceName;
-		const ArrayView< UiStringView > resourceNames = m_resourceNamesByType[ (uintsize)type ];
+		const char* selectedResourceNameUi = selectedResourceName;
+		const ArrayView< const char* > resourceNames = m_resourceNamesByType[ (uintsize)type ];
 		for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
 		{
-			const UiStringView& resourceName = resourceNames[ i ];
-			if( resourceName == selectedResourceNameUi )
+			const char* resourceName = resourceNames[ i ];
+			if( strcmp( resourceName, selectedResourceNameUi ) == 0 )
 			{
 				selectedIndex = i;
 				break;
 			}
 		}
 
-		UiToolboxDropdown resourceSelect( window, resourceNames.getData(), resourceNames.getLength() );
+		UiToolboxDropdown resourceSelect( window, (const char**)resourceNames.getData(), resourceNames.getLength() );
 		resourceSelect.setStretch( UiSize::Horizontal );
 
 		const uintsize newSelectedIndex = resourceSelect.getSelectedIndex();
 		if( newSelectedIndex < resourceNames.getLength() )
 		{
-			return (RtStr)resourceNames[ newSelectedIndex ];
+			return (StringView)resourceNames[ newSelectedIndex ];
 		}
 		else
 		{
@@ -924,14 +923,14 @@ namespace imapp
 
 	void ResourceTool::updateResourceNamesByType()
 	{
-		for( DynamicArray< UiStringView >& array : m_resourceNamesByType )
+		for( DynamicArray< const char* >& array : m_resourceNamesByType )
 		{
 			array.clear();
 		}
 
 		for( const Resource* resource : m_package.getResources() )
 		{
-			m_resourceNamesByType[ (uintsize)resource->getType() ].pushBack( (RtStr)resource->getName() );
+			m_resourceNamesByType[ (uintsize)resource->getType() ].pushBack( resource->getName() );
 		}
 	}
 
