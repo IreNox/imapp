@@ -61,12 +61,12 @@ namespace imapp
 		UiToolboxWindow window( surface, "main", surface.getRect(), 1 );
 
 		UiWidgetLayoutVertical mainLayout( window, 8.0f );
-		mainLayout.setStretch( UiSize::One );
+		mainLayout.setStretchOne();
 		mainLayout.setMargin( UiBorder( 8.0f ) );
 
 		{
 			UiWidgetLayoutHorizontal titleLayout( window, 8.0f );
-			titleLayout.setStretchHorizontal();
+			titleLayout.setHStretch( 1.0f );
 
 			if( window.buttonLabel( "Open" ) )
 			{
@@ -123,16 +123,16 @@ namespace imapp
 
 		{
 			UiWidgetLayoutHorizontal workLayout( window, 8.0f );
-			workLayout.setStretch( UiSize::One );
+			workLayout.setStretchOne();
 
 			{
 				UiWidget leftLayout( window, "left" );
 				leftLayout.setLayoutVertical( 4.0f );
-				leftLayout.setStretch( UiSize::Vertical );
+				leftLayout.setVStretch( 1.0f );
 
 				{
 					UiToolboxList list( window, 22.0f, m_package.getResourceCount() + 1u );
-					list.setStretch( UiSize::One );
+					list.setStretchOne();
 					list.setMinWidth( 150.0f );
 
 					list.setSelectedIndex( m_selecedEntry );
@@ -163,17 +163,17 @@ namespace imapp
 
 				{
 					UiWidgetLayoutHorizontal buttonsLayout( window, 8.0f );
-					buttonsLayout.setStretch( UiSize::Horizontal );
+					buttonsLayout.setHStretch( 1.0f );
 
 					UiToolboxButtonLabel plusButton( window, "+" );
-					plusButton.setStretch( UiSize::Horizontal );
+					plusButton.setHStretch( 1.0f );
 					if( plusButton.end() )
 					{
 						m_popupState = PopupState::New;
 					}
 
 					UiToolboxButtonLabel minusButton( window, "-" );
-					minusButton.setStretch( UiSize::Horizontal );
+					minusButton.setHStretch( 1.0f );
 					if( minusButton.end() )
 					{
 						m_popupState = PopupState::DeleteConfirm;
@@ -187,7 +187,7 @@ namespace imapp
 		if( m_compiler.getOutputs().hasElements() )
 		{
 			UiToolboxList outputList( window, 25.0f, m_compiler.getOutputs().getLength() );
-			outputList.setStretch( UiSize( 1.0f, 0.0f ) );
+			outputList.setHStretch( 1.0f );
 			outputList.setFixedHeight( 150.0f );
 
 			for( const ResourceCompilerOutput& output : m_compiler.getOutputs() )
@@ -268,7 +268,7 @@ namespace imapp
 			const ArrayView< const char* > items = getResourceTypeStrings();
 			{
 				UiToolboxDropdown dropDown( popup, (const char**)items.getData(), items.getLength() );
-				dropDown.setStretch( UiSize::Horizontal );
+				dropDown.setHStretch( 1.0f );
 
 				typeIndex = dropDown.getSelectedIndex();
 			}
@@ -360,7 +360,7 @@ namespace imapp
 	void ResourceTool::doView( ImAppContext* imapp, UiToolboxWindow& window )
 	{
 		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
-		viewWidget.setStretch( UiSize::One );
+		viewWidget.setStretchOne();
 		viewWidget.setLayoutVertical( 4.0f );
 
 		if( m_selecedEntry == 0u )
@@ -381,7 +381,7 @@ namespace imapp
 		window.label( "Name:" );
 		{
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setStretch( UiSize::Horizontal );
+			pathLayout.setHStretch( 1.0f );
 
 			const char* newName = window.textEditState( 256u, resource.getName() );
 			if( newName != resource.getName() &&
@@ -412,7 +412,7 @@ namespace imapp
 		window.label( "Name:" );
 		{
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setStretch( UiSize::Horizontal );
+			pathLayout.setHStretch( 1.0f );
 
 			const char* newName = window.textEditState( 256u, m_package.getName() );
 			if( newName != m_package.getName() &&
@@ -425,7 +425,7 @@ namespace imapp
 		window.label( "Output Path:" );
 		{
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setStretch( UiSize::Horizontal );
+			pathLayout.setHStretch( 1.0f );
 
 			const char* newPath = window.textEditState( 256u, m_package.getOutputPath() );
 			if( newPath != m_package.getOutputPath() &&
@@ -441,7 +441,7 @@ namespace imapp
 		window.label( "Path:" );
 		{
 			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setStretch( UiSize::Horizontal );
+			pathLayout.setHStretch( 1.0f );
 
 			const char* newPath = window.textEditState( 256u, resource.getFileSourcePath() );
 			if( newPath != resource.getFileSourcePath() &&
@@ -505,7 +505,7 @@ namespace imapp
 			UiBorder& skinBorder = resource.getSkinBorder();
 			{
 				UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
-				skinLayout.setStretch( UiSize::Horizontal );
+				skinLayout.setHStretch( 1.0f );
 
 				struct BorderInfo { const char* title; float& value; } borders[] =
 				{
@@ -520,7 +520,7 @@ namespace imapp
 					BorderInfo& border = borders[ i ];
 
 					UiWidgetLayoutVertical borderLayout( window, 4.0f );
-					borderLayout.setStretch( UiSize::Horizontal );
+					borderLayout.setHStretch( 1.0f );
 
 					window.label( border.title );
 
@@ -583,11 +583,11 @@ namespace imapp
 	void ResourceTool::doViewTheme( UiToolboxWindow& window, Resource& resource )
 	{
 		UiToolboxScrollArea scrollArea( window );
-		scrollArea.setStretch( UiSize::One );
+		scrollArea.setStretchOne();
 		scrollArea.enableSpacing( true, false );
 
 		UiWidgetLayoutVertical scrollLayout( window );
-		scrollLayout.setStretch( UiSize::Horizontal );
+		scrollLayout.setHStretch( 1.0f );
 		scrollLayout.setLayoutVertical( 4.0f );
 
 		ThemeState* state = scrollLayout.newState< ThemeState >();
@@ -602,7 +602,7 @@ namespace imapp
 				groupWidget.endWidget();
 
 				groupWidget.beginWidget( window );
-				groupWidget.setStretch( UiSize::Horizontal );
+				groupWidget.setHStretch( 1.0f );
 				groupWidget.setLayoutGrid( 2u, 4.0f, 4.0f );
 				groupWidget.setPadding( UiBorder( 4.0f ) );
 
@@ -642,13 +642,13 @@ namespace imapp
 			case ResourceThemeFieldType::Color:
 				{
 					UiWidgetLayoutHorizontal colorLayout( window, 4.0f );
-					colorLayout.setStretch( UiSize::Horizontal );
+					colorLayout.setHStretch( 1.0f );
 
 					ImUiColor& value = *field.data.colorPtr;
 
 					{
 						UiWidget previewWidget( window );
-						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setVStretch( 1.0f );
 						previewWidget.setFixedWidth( 50.0f );
 
 						previewWidget.drawColor( UiColor::Black );
@@ -683,11 +683,11 @@ namespace imapp
 			case ResourceThemeFieldType::Skin:
 				{
 					UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
-					skinLayout.setStretch( UiSize::Horizontal );
+					skinLayout.setHStretch( 1.0f );
 
 					{
 						UiWidget previewWidget( window );
-						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setVStretch( 1.0f );
 						previewWidget.setFixedWidth( 50.0f );
 
 						Resource* skinResource = m_package.findResource( *field.data.skinNamePtr );
@@ -735,7 +735,7 @@ namespace imapp
 			case ResourceThemeFieldType::Border:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 4u, 4.0f, 4.0f );
-					skinLayout.setStretch( UiSize::Horizontal );
+					skinLayout.setHStretch( 1.0f );
 
 					window.label( "Top" );
 					window.label( "Left" );
@@ -755,7 +755,7 @@ namespace imapp
 			case ResourceThemeFieldType::Size:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 2u, 4.0f, 4.0f );
-					skinLayout.setStretch( UiSize::Horizontal );
+					skinLayout.setHStretch( 1.0f );
 
 					window.label( "Width" );
 					window.label( "Height" );
@@ -771,11 +771,11 @@ namespace imapp
 			case ResourceThemeFieldType::Image:
 				{
 					UiWidgetLayoutHorizontal imageLayout( window, 4.0f );
-					imageLayout.setStretch( UiSize::Horizontal );
+					imageLayout.setHStretch( 1.0f );
 
 					{
 						UiWidget previewWidget( window );
-						previewWidget.setStretch( UiSize::Vertical );
+						previewWidget.setVStretch( 1.0f );
 						previewWidget.setFixedWidth( 50.0f );
 
 						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
@@ -861,7 +861,7 @@ namespace imapp
 		}
 
 		UiToolboxDropdown resourceSelect( window, (const char**)resourceNames.getData(), resourceNames.getLength() );
-		resourceSelect.setStretch( UiSize::Horizontal );
+		resourceSelect.setHStretch( 1.0f );
 
 		const uintsize newSelectedIndex = resourceSelect.getSelectedIndex();
 		if( newSelectedIndex < resourceNames.getLength() )
@@ -939,13 +939,13 @@ namespace imapp
 		, m_scrollArea( window )
 		, m_scrollContent( window )
 	{
-		setStretch( UiSize::One );
+		setStretchOne();
 
 		bool isNew;
 		m_state = newState< ScrollState >( isNew );
 
-		m_scrollArea.setStretch( UiSize::One );
-		m_scrollArea.setLayoutScroll( m_state->offset );
+		m_scrollArea.setStretchOne();
+		m_scrollArea.setLayoutScroll( m_state->offset.x, m_state->offset.y );
 
 		const ImUiImage* bgImage = ImAppResPakGetImage( ImAppResourceGetDefaultPak( imapp ), "transparent_bg" );
 		if( bgImage )
@@ -962,7 +962,7 @@ namespace imapp
 		ImUiWidgetInputState widgetInput;
 		m_scrollArea.getInputState( widgetInput );
 
-		m_scrollContent.setAlign( UiAlign::Center );
+		m_scrollContent.setAlign( 0.5f, 0.5f );
 
 		const UiInputState& inputState = m_scrollArea.getContext().getInput();
 		if( widgetInput.wasPressed )
