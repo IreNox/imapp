@@ -18,29 +18,35 @@ typedef struct ImAppImage ImAppImage;
 typedef struct ImAppWindow ImAppWindow;
 typedef struct ImAppResPak ImAppResPak;
 
-typedef struct ImAppParameters ImAppParameters;
-struct ImAppParameters
+typedef enum ImAppDefaultWindow
+{
+	ImAppDefaultWindow_Resizable,
+	ImAppDefaultWindow_Fullscreen,
+	ImAppDefaultWindow_Disabled
+} ImAppDefaultWindow;
+
+typedef struct ImAppParameters
 {
 	ImUiAllocator				allocator;			// Override memory Allocator. Default: malloc/free
 
 	int							tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 
-	const char*					resPath;			// Path where resources loaded from. use ./ for relative to executable. default: {exe_dir}/assets
+	const char*					resPath;			// Path where resources loaded from. Use ./ for relative to executable. default: {exe_dir}/assets
 	const char*					defaultResPak;
 
-	const char*					defaultFontName;	// default: arial.ttf;
-	float						defaultFontSize;	// default: 16
+	const char*					defaultFontName;	// Default: arial.ttf;
+	float						defaultFontSize;	// Default: 16
 
 	//const ImAppInputShortcut*	shortcuts;
 	//size_t						shortcutsLength;
 
 	// Only for windowed Platforms:
-	bool						windowEnable;		// Opens a default Window. Default: true
+	ImAppDefaultWindow			windowMode;			// Opens a default Window. Default: Linux/Windows: Resizable, Android: Fullscreen
 	const char*					windowTitle;		// Default: "I'm App"
 	int							windowWidth;		// Default: 1280
 	int							windowHeight;		// Default: 720
 	ImUiColor					windowClearColor;	// Default: #1144AAFF
-};
+} ImAppParameters;
 
 typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImUiSurface* surface );
 
