@@ -106,6 +106,7 @@ namespace imapp
 		void				doView( ImAppContext* imapp, UiToolboxWindow& window );
 		void				doViewPackage( UiToolboxWindow& window );
 		void				doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewTheme( UiToolboxWindow& window, Resource& resource );
 

@@ -230,8 +230,14 @@ namespace imapp
 
 	void Resource::setFontSize( float value )
 	{
+		m_revision += (value != m_fontSize);
 		m_fontSize = value;
-		m_revision++;
+	}
+
+	void Resource::setFontIsScalable( bool value )
+	{
+		m_revision += (value != m_fontIsScalable);
+		m_fontIsScalable = value;
 	}
 
 	void Resource::setSkinImageName( const StringView& value )
@@ -262,12 +268,12 @@ namespace imapp
 
 	bool Resource::loadSkinXml()
 	{
-		const char* image_name;
-		if( m_xml->QueryStringAttribute( "image_name", &image_name ) != XML_SUCCESS )
+		const char* imageName;
+		if( m_xml->QueryStringAttribute( "image_name", &imageName ) != XML_SUCCESS )
 		{
 			return false;
 		}
-		m_skinImageName = image_name;
+		m_skinImageName = imageName;
 
 		return m_xml->QueryFloatAttribute( "top", &m_skinBorder.top ) == XML_SUCCESS &&
 			m_xml->QueryFloatAttribute( "left", &m_skinBorder.left ) == XML_SUCCESS &&
@@ -277,6 +283,33 @@ namespace imapp
 
 	bool Resource::loadFontXml()
 	{
+		const char* path;
+		if( m_xml->QueryStringAttribute( "path", &path ) != XML_SUCCESS ||
+			m_xml->QueryFloatAttribute( "size", &m_fontSize ) != XML_SUCCESS ||
+			m_xml->QueryBoolAttribute( "bottom", &m_fontIsScalable ) != XML_SUCCESS )
+		{
+			return false;
+		}
+		m_fileSourcePath = path;
+
+		for( XMLElement* blockNode = m_xml->FirstChildElement( "block" ); blockNode; blockNode = blockNode->NextSiblingElement( "block" ) )
+		{
+			const char* name;
+			uint32 first;
+			uint32 last;
+			if( m_xml->QueryStringAttribute( "name", &name ) != XML_SUCCESS ||
+				m_xml->QueryUnsignedAttribute( "first", &first ) != XML_SUCCESS ||
+				m_xml->QueryUnsignedAttribute( "last", &last ) != XML_SUCCESS )
+			{
+				return false;
+			}
+
+			ResourceFontUnicodeBlock& block = m_fontBlocks.pushBack();
+			block.name	= name;
+			block.first	= first;
+			block.last	= last;
+		}
+
 		return true;
 	}
 
@@ -300,6 +333,17 @@ namespace imapp
 	void Resource::serializeFontXml()
 	{
 		m_xml->SetAttribute( "path", m_fileSourcePath );
+		m_xml->SetAttribute( "size", m_fontSize );
+		m_xml->SetAttribute( "scalable", m_fontIsScalable );
+
+		m_xml->DeleteChildren();
+		for( const ResourceFontUnicodeBlock& block : m_fontBlocks )
+		{
+			XMLElement* blockNode = m_xml->InsertNewChildElement( "block" );
+			blockNode->SetAttribute( "name", block.name.getData() );
+			blockNode->SetAttribute( "first", block.first );
+			blockNode->SetAttribute( "last", block.last );
+		}
 	}
 
 	void Resource::updateImageFileData( ImAppContext* imapp )

@@ -41,6 +41,13 @@ namespace imapp
 		JPEG
 	};
 
+	struct ResourceFontUnicodeBlock
+	{
+		DynamicString			name;
+		uint32					first	= 0u;
+		uint32					last	= 0u;
+	};
+
 	ArrayView< const char* >	getResourceTypeStrings();
 	bool						parseResourceType( ResourceType& type, const StringView& string );
 	StringView					getResourceTypeString( ResourceType type );
@@ -48,6 +55,8 @@ namespace imapp
 	class Resource
 	{
 	public:
+
+		using FontUnicodeBlockArray = DynamicArray< ResourceFontUnicodeBlock >;
 
 								Resource();
 								Resource( const StringView& name, ResourceType type );
@@ -82,6 +91,9 @@ namespace imapp
 
 		float					getFontSize() const { return m_fontSize; }
 		void					setFontSize( float value );
+		bool					getFontIsScalable() const { return m_fontIsScalable; }
+		void					setFontIsScalable( bool value );
+		FontUnicodeBlockArray&	getFontUnicodeBlocks() { return m_fontBlocks; }
 
 		StringView				getSkinImageName() const { return m_skinImageName; }
 		void					setSkinImageName( const StringView& value );
@@ -121,6 +133,8 @@ namespace imapp
 		bool					m_imageRepeat		= false;
 
 		float					m_fontSize			= 0.0f;
+		bool					m_fontIsScalable	= false;
+		FontUnicodeBlockArray	m_fontBlocks;
 
 		DynamicString			m_skinImageName;
 		UiBorder				m_skinBorder;

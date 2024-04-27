@@ -83,6 +83,10 @@ typedef struct ImAppResPakFontHeader
 {
 	uint32_t	codepointCount;
 	uint32_t	ttfDataSize;
+
+	float		fontSize;
+	float		lineGap;
+	bool		isScalable;
 } ImAppResPakFontHeader;
 
 typedef struct ImAppResPakThemeHeader

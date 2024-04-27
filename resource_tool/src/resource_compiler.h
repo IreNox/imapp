@@ -65,6 +65,7 @@ namespace imapp
 		struct FontData
 		{
 			float			size			= 0u;
+			bool			isScalable		= false;
 		};
 
 

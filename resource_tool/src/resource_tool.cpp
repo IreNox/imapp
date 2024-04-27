@@ -2,6 +2,7 @@
 
 #include "resource_helpers.h"
 #include "resource_theme.h"
+#include "resource_unicode.h"
 
 #include "file_dialog.h"
 
@@ -397,6 +398,10 @@ namespace imapp
 			doViewImage( imapp, window, resource );
 			break;
 
+		case ResourceType::Font:
+			doViewFont( imapp, window, resource );
+			break;
+
 		case ResourceType::Skin:
 			doViewSkin( imapp, window, resource );
 			break;
@@ -485,6 +490,93 @@ namespace imapp
 			skinResource.setSkinImageName( resource.getName() );
 
 			m_selecedEntry = m_package.getResourceCount() - 1u;
+		}
+	}
+
+	void ResourceTool::doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	{
+		window.label( "Path:" );
+		{
+			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
+			pathLayout.setHStretch( 1.0f );
+
+			const char* newPath = window.textEditState( 256u, resource.getFileSourcePath() );
+			if( newPath != resource.getFileSourcePath() &&
+				window.buttonLabel( "Change" ) )
+			{
+				resource.setFileSourcePath( (StringView)newPath );
+			}
+		}
+
+		{
+			UiWidgetLayoutHorizontal flagsLayout( window, 4.0f );
+			flagsLayout.setHStretch( 1.0f );
+
+			window.label( "Font Size:" );
+
+			float fontSize = resource.getFontSize();
+			window.slider( fontSize, 0.1f, 500.0f );
+			resource.setFontSize( fontSize );
+
+			window.labelFormat( "%.1f", fontSize );
+		}
+
+		bool isScalable = resource.getFontIsScalable();
+		window.checkBox( isScalable, "Is Scalable" );
+		resource.setFontIsScalable( isScalable );
+
+		window.label( "Unicode Blocks:" );
+
+		Resource::FontUnicodeBlockArray& blocks = resource.getFontUnicodeBlocks();
+		if( blocks.isEmpty() )
+		{
+			window.label( "No Codepoint Blocks." );
+		}
+		else
+		{
+			UiToolboxList list( window, 26.0f, blocks.getLength() );
+			list.setStretchOne();
+
+			for( const ResourceFontUnicodeBlock& block : blocks )
+			{
+				list.nextItem();
+
+				UiWidgetLayoutHorizontal layout( window, 4.0f );
+				layout.setHStretch( 1.0f );
+
+				window.textEditState( 32u, "first" );
+				window.textEditState( 32u, "last" );
+				window.textEditState( 32u, block.name.getData() );
+			}
+		}
+
+		{
+			UiWidgetLayoutHorizontal blocksLayout( window, 4.0f );
+			blocksLayout.setHStretch( 1.0f );
+
+			const ArrayView< ResourceUnicodeBlock > unicodeBlocks = getUnicodeBlocks();
+
+			size_t selectedUnicodeBlock;
+			{
+				toolbox::UiToolboxDropdown blocksDropdown( window, &unicodeBlocks.getData()->name, unicodeBlocks.getLength(), unicodeBlocks.getElementSizeInBytes() );
+				blocksDropdown.setHStretch( 1.0f );
+				selectedUnicodeBlock = blocksDropdown.getSelectedIndex();
+			}
+
+			if( window.buttonLabel( "Add Unicode Block" ) )
+			{
+				const ResourceUnicodeBlock& sourceBlock = unicodeBlocks[ selectedUnicodeBlock ];
+
+				ResourceFontUnicodeBlock& targetBlock = blocks.pushBack();
+				targetBlock.first	= sourceBlock.first;
+				targetBlock.last	= sourceBlock.last;
+				targetBlock.name	= sourceBlock.name;
+			}
+
+			if( window.buttonLabel( "Add custom Block" ) )
+			{
+				blocks.pushBack();
+			}
 		}
 	}
 
@@ -887,8 +979,17 @@ namespace imapp
 			return;
 		}
 
+		ResourceType type = ResourceType::Count;
 		const DynamicString ext = path.getExtension();
-		if( ext != ".png" )
+		if( ext == ".png" )
+		{
+			type = ResourceType::Image;
+		}
+		else if( ext == ".ttf" )
+		{
+			type = ResourceType::Font;
+		}
+		else
 		{
 			showError( "Not supported file format: %s", ext.getData() );
 			return;
@@ -903,7 +1004,7 @@ namespace imapp
 			return;
 		}
 
-		Resource& resource = m_package.addResource( filename, ResourceType::Image );
+		Resource& resource = m_package.addResource( filename, type );
 		updateResourceNamesByType();
 
 		resource.setFileSourcePath( remainingPath );

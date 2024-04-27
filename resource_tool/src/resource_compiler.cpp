@@ -353,8 +353,8 @@ namespace imapp
 				continue;
 			}
 
-			if( resource.type == ResourceType::Image &&
-				!resource.image.allowAtlas )
+			if( (resource.type == ResourceType::Image && !resource.image.allowAtlas) ||
+				resource.type == ResourceType::Font )
 			{
 				refIndex = (uint16)compiledResources.getLength();
 
@@ -530,7 +530,14 @@ namespace imapp
 				break;
 
 			case ImAppResPakType_Font:
-				// TODO
+				{
+					// TODO: codepoints
+					ImAppResPakFontHeader fontHeader;
+					fontHeader.codepointCount	= 0u;
+					fontHeader.ttfDataSize		= (uint32)data.fileData.getSizeInBytes();
+					fontHeader.fontSize			= data.font.size;
+					fontHeader.isScalable		= data.font.isScalable;
+				}
 				break;
 
 			case ImAppResPakType_Theme:
