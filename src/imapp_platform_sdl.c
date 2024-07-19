@@ -60,7 +60,7 @@ struct ImAppWindow
 	SDL_GLContext		glContext;
 
 	ImAppWindowDrop*	firstNewDrop;
-	ImAppWindowDrop*	firstPopedDrop;
+	ImAppWindowDrop*	firstPoppedDrop;
 };
 
 struct ImAppThread
@@ -401,10 +401,10 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
 
-	while( window->firstPopedDrop )
+	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPopedDrop;
-		window->firstPopedDrop = drop->nextDrop;
+		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
@@ -459,10 +459,10 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window )
 	SDL_GL_SetSwapInterval( 1 );
 #endif
 
-	while( window->firstPopedDrop )
+	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPopedDrop;
-		window->firstPopedDrop = drop->nextDrop;
+		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
@@ -612,8 +612,8 @@ bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 
 	window->firstNewDrop = drop->nextDrop;
 
-	drop->nextDrop = window->firstPopedDrop;
-	window->firstPopedDrop = drop;
+	drop->nextDrop = window->firstPoppedDrop;
+	window->firstPoppedDrop = drop;
 
 	return true;
 }

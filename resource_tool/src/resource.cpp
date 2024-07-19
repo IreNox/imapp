@@ -286,7 +286,7 @@ namespace imapp
 		const char* path;
 		if( m_xml->QueryStringAttribute( "path", &path ) != XML_SUCCESS ||
 			m_xml->QueryFloatAttribute( "size", &m_fontSize ) != XML_SUCCESS ||
-			m_xml->QueryBoolAttribute( "bottom", &m_fontIsScalable ) != XML_SUCCESS )
+			m_xml->QueryBoolAttribute( "scalable", &m_fontIsScalable ) != XML_SUCCESS )
 		{
 			return false;
 		}

@@ -212,27 +212,29 @@ namespace imapp
 		// TODO
 		bool isAtlasUpToDate = false;
 		DynamicArray< ResourceData* > images;
-		for( ResourceMap::Iterator it = m_resources.getBegin(); it != m_resources.getEnd(); ++it )
+		for( ResourceMap::PairType& kvp : m_resources )
 		{
-			if( it->type != ResourceType::Image ||
-				!it->image.allowAtlas ||
-				it->image.imageData.isEmpty() )
+			ResourceData& resData = kvp.value;
+
+			if( resData.type != ResourceType::Image ||
+				!resData.image.allowAtlas ||
+				resData.image.imageData.isEmpty() )
 			{
 				continue;
 			}
 
-			AtlasImage* atlasImage = m_atlasImages.find( it.getKey() );
+			AtlasImage* atlasImage = m_atlasImages.find( kvp.key );
 			if( atlasImage )
 			{
-				isAtlasUpToDate &= atlasImage->width == it->image.width;
-				isAtlasUpToDate &= atlasImage->height == it->image.width;
+				isAtlasUpToDate &= atlasImage->width == resData.image.width;
+				isAtlasUpToDate &= atlasImage->height == resData.image.height;
 			}
 			else
 			{
 				isAtlasUpToDate = false;
 			}
 
-			images.pushBack( &*it );
+			images.pushBack( &resData );
 		}
 
 		if( isAtlasUpToDate )
@@ -342,10 +344,11 @@ namespace imapp
 			resourcesByType[ ImAppResPakType_Texture ].pushBack( 0u );
 		}
 
-		for( const ResourceData& resource : m_resources )
+		for( const ResourceMap::PairType& kvp : m_resources )
 		{
-			uint16 refIndex = 0u; // 0 == texture or unused
+			const ResourceData& resource = kvp.value;
 
+			uint16 refIndex = 0u; // 0 == texture or unused
 			if( resource.type == ResourceType::Image &&
 				resource.image.imageData.isEmpty() )
 			{
