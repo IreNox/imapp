@@ -497,7 +497,7 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 				config->skins[ i ] = skinRes->data.skin.skin;
 			}
 
-			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->images ); ++i )
+			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->icons ); ++i )
 			{
 				if( header->imageIndices[ i ] == IMAPP_RES_PAK_INVALID_INDEX )
 				{
@@ -506,7 +506,7 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 				ImAppRes* imageRes = ImAppResSysLoad( pak, header->imageIndices[ i ] );
 				IMAPP_ASSERT( imageRes && imageRes->state == ImAppResState_Ready );
-				config->images[ i ] = imageRes->data.image.image;
+				config->icons[ i ] = imageRes->data.image.image;
 			}
 
 			config->button		= header->button;

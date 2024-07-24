@@ -91,7 +91,7 @@ typedef struct ImAppResPakThemeHeader
 
 	ImUiColor						colors[ ImUiToolboxColor_MAX ];
 	uint16_t						skinIndices[ ImUiToolboxSkin_MAX ];
-	uint16_t						imageIndices[ ImUiToolboxImage_MAX ];
+	uint16_t						imageIndices[ ImUiToolboxIcon_MAX ];
 	uint16_t						fontIndex;
 
 	ImUiToolboxButtonConfig			button;
