@@ -33,7 +33,8 @@ end
 if tiki.target_platform == Platforms.Windows then
 	module:add_external( "https://github.com/nigels-com/glew@2.2.0" )
 
-	module:set_define( "WIN32_LEAN_AND_MEAN" );
+	module:set_define( "NOMINMAX" )
+	module:set_define( "WIN32_LEAN_AND_MEAN" )
 
 	module:add_library_file( "opengl32" )
 	
