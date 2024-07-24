@@ -25,6 +25,12 @@ void					ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCur
 typedef struct ImAppEventQueue ImAppEventQueue;
 typedef struct ImAppWindow ImAppWindow;
 
+typedef enum ImAppWindowStyle
+{
+	ImAppWindowState_Resizable,
+	ImAppWindowState_Borderless
+} ImAppWindowStyle;
+
 typedef enum ImAppWindowState ImAppWindowState;
 enum ImAppWindowState
 {
@@ -33,7 +39,7 @@ enum ImAppWindowState
 	ImAppWindowState_Minimized
 };
 
-ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state );
+ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state );
 void					ImAppPlatformWindowDestroy( ImAppWindow* window );
 
 bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );

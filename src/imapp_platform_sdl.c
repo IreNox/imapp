@@ -31,10 +31,10 @@ struct ImAppPlatform
 	ImUiInputKey	inputKeyMapping[ SDL_NUM_SCANCODES ];
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	wchar_t			resourcePath[ MAX_PATH ];
+	char			resourcePath[ MAX_PATH ];
 	size_t			resourceBasePathLength;
 
-	wchar_t			fontPath[ MAX_PATH ];
+	char			fontPath[ MAX_PATH ];
 	size_t			fontBasePathLength;
 #endif
 
@@ -72,7 +72,7 @@ struct ImAppThread
 	ImAppThreadFunc	func;
 	void*			arg;
 
-	ImAppAtomic32	isRunning;
+	SDL_atomic_t	isRunning;
 };
 
 static int SDLCALL	ImAppPlatformThreadEntry( void* voidThread );
@@ -216,10 +216,12 @@ int main( int argc, char* argv[] )
 	}
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	platform.fontBasePathLength = GetWindowsDirectoryW( platform.fontPath, IMAPP_ARRAY_COUNT( platform.fontPath ) );
+	wchar_t fontBuffer[ MAX_PATH ];
+	platform.fontBasePathLength = GetWindowsDirectoryW( fontBuffer, IMAPP_ARRAY_COUNT( fontBuffer ) );
 	{
-		const wchar_t fontsPath[] = L"\\Fonts\\";
-		wcscpy_s( platform.fontPath + platform.fontBasePathLength, IMAPP_ARRAY_COUNT( platform.fontPath ) - platform.fontBasePathLength, fontsPath );
+		WideCharToMultiByte( CP_UTF8, 0u, fontBuffer, (int)platform.fontBasePathLength, platform.fontPath, IMAPP_ARRAY_COUNT( platform.fontPath ), NULL, NULL );
+		const char fontsPath[] = "\\Fonts\\";
+		strncpy( platform.fontPath + platform.fontBasePathLength, fontsPath, IMAPP_ARRAY_COUNT( platform.fontPath ) - platform.fontBasePathLength );
 		platform.fontBasePathLength += IMAPP_ARRAY_COUNT( fontsPath ) - 1u;
 	}
 #endif
@@ -240,56 +242,51 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		platform->systemCursors[ i ] = SDL_CreateSystemCursor( s_sdlSystemCursorMapping[ i ] );
 	}
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	const char* sourcePath = resourcePath;
 	if( sourcePath && strstr( sourcePath, "./" ) == sourcePath )
 	{
-		GetModuleFileNameW( NULL, platform->resourcePath, IMAPP_ARRAY_COUNT( platform->resourcePath ) );
+		const char* basePath = SDL_GetBasePath();
+		strncpy( platform->resourcePath, basePath, IMAPP_ARRAY_COUNT( platform->resourcePath ) );
 		sourcePath += 2u;
 	}
 	{
-		wchar_t* pTargetPath = wcsrchr( platform->resourcePath, L'\\' );
-		if( pTargetPath == NULL )
+		char* targetPath = strrchr( platform->resourcePath, '\\' );
+		if( targetPath == NULL )
 		{
-			pTargetPath = platform->resourcePath;
+			targetPath = platform->resourcePath;
 		}
 		else
 		{
-			pTargetPath++;
+			targetPath++;
 		}
-		platform->resourceBasePathLength = (pTargetPath - platform->resourcePath);
+		platform->resourceBasePathLength = (targetPath - platform->resourcePath);
 
-		const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - (int)platform->resourceBasePathLength;
-		const int convertResult = MultiByteToWideChar( CP_UTF8, 0u, sourcePath, -1, pTargetPath, targetLengthInCharacters );
-		if( !convertResult )
+		const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength - 1;
+		const size_t sourceLengthInCharacters = strlen( sourcePath );
+		if( sourceLengthInCharacters >= targetLengthInCharacters )
 		{
-			ImAppTrace( "Error: Failed to convert resource path!\n" );
+			ImAppTrace( "Error: Resource path exceeds limit!\n" );
 			return false;
 		}
 
-		for( size_t i = 0; i < convertResult - 1; ++i )
+		strncpy( targetPath, sourcePath, IMAPP_ARRAY_COUNT( platform->resourcePath ) - platform->resourceBasePathLength );
+		platform->resourceBasePathLength += strlen( sourcePath );
+
+		for( size_t i = 0; i < targetLengthInCharacters; ++i )
 		{
-			if( pTargetPath[ i ] == L'/' )
+			if( targetPath[ i ] == L'/' )
 			{
-				pTargetPath[ i ] = L'\\';
+				targetPath[ i ] = L'\\';
 			}
 		}
 
-		platform->resourceBasePathLength += (size_t)convertResult - 1;
-
 		if( platform->resourcePath[ platform->resourceBasePathLength - 1u ] != L'/' )
 		{
-			if( platform->resourceBasePathLength == IMAPP_ARRAY_COUNT( platform->resourcePath ) )
-			{
-				ImAppTrace( "Error: Resource path exceeds limit!\n" );
-				return false;
-			}
 
 			platform->resourcePath[ platform->resourceBasePathLength ] = L'\\';
 			platform->resourceBasePathLength++;
 		}
 	}
-#endif
 
 	return true;
 }
@@ -336,7 +333,7 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -347,7 +344,22 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	window->allocator		= platform->allocator;
 	window->platform		= platform;
 
-	Uint32 flags = SDL_WINDOW_OPENGL;
+	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+	switch( style )
+	{
+	case ImAppWindowState_Resizable:
+		flags |= SDL_WINDOW_RESIZABLE;
+		break;
+
+	case ImAppWindowState_Borderless:
+		flags |= SDL_WINDOW_BORDERLESS;
+		if( state == ImAppWindowState_Maximized )
+		{
+			flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+		}
+		break;
+	}
+
 	switch( state )
 	{
 	case ImAppWindowState_Default:
@@ -362,10 +374,6 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		flags |= SDL_WINDOW_MAXIMIZED;
 		break;
 	}
-
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	flags |= SDL_WINDOW_RESIZABLE;
-#endif
 
 	window->sdlWindow = SDL_CreateWindow( windowTitle, SDL_WINDOWPOS_UNDEFINED_DISPLAY( 2 ), SDL_WINDOWPOS_UNDEFINED_DISPLAY( 2 ), width, height, flags );
 	if( window->sdlWindow == NULL )
@@ -643,6 +651,18 @@ ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* pWindow )
 	return ImAppWindowState_Default;
 }
 
+void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+{
+	const size_t resourceNameLength = strlen( resourceName );
+	if( platform->resourceBasePathLength + resourceNameLength >= pathCapacity )
+	{
+		ImAppTrace( "Error: Resource path buffer too small!\n" );
+		return;
+	}
+	memcpy( outPath, platform->resourcePath, platform->resourceBasePathLength );
+	memcpy( outPath + platform->resourceBasePathLength, resourceName, resourceNameLength );
+	outPath[ platform->resourceBasePathLength + resourceNameLength ] = '\0';
+}
 
 ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
@@ -690,54 +710,95 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 
 ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
 {
-	wchar_t pathBuffer[ MAX_PATH ];
-	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourcePath, platform->resourceBasePathLength );
+	const size_t resourceNameLength = strlen( resourceName );
+	if( platform->resourceBasePathLength + resourceNameLength >= IMAPP_ARRAY_COUNT( platform->resourcePath ) )
 	{
-		wchar_t* pathNamePart = pathBuffer + platform->resourceBasePathLength;
-		const uintsize remainingLengthInCharacters = IMAPP_ARRAY_COUNT( pathBuffer ) - platform->resourceBasePathLength;
-		MultiByteToWideChar( CP_UTF8, 0, resourceName, -1, pathNamePart, (int)remainingLengthInCharacters );
-
-		for( ; *pathNamePart != L'\0'; ++pathNamePart )
-		{
-			if( *pathNamePart == L'/' )
-			{
-				*pathNamePart = L'\\';
-			}
-		}
-	}
-
-	const HANDLE fileHandle = CreateFileW( pathBuffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if( fileHandle == INVALID_HANDLE_VALUE )
-	{
+		ImAppTrace( "Error: Internal resource path buffer too small!\n" );
 		return NULL;
 	}
 
-	return (ImAppFile*)fileHandle;
+	char* targetPath = platform->resourcePath + platform->resourceBasePathLength;
+	memcpy( targetPath, resourceName, resourceNameLength );
+	targetPath[ resourceNameLength ] = '\0';
+
+	SDL_RWops* file = SDL_RWFromFile( platform->resourcePath, "rb" );
+	if( !file )
+	{
+		ImAppTrace( "Error: Failed to open '%s'\n", platform->resourcePath );
+		return NULL;
+	}
+
+	return (ImAppFile*)file;
 }
 uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
 {
-	const HANDLE fileHandle = (HANDLE)file;
+	SDL_RWops* rwopts = (SDL_RWops*)file;
 
-	if( SetFilePointer( fileHandle, (LONG)offset, NULL, FILE_BEGIN ) == INVALID_SET_FILE_POINTER )
+	if( SDL_RWseek( rwopts, (Sint64)offset, RW_SEEK_SET ) == -1 )
 	{
 		return 0u;
 	}
 
-	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, outData, (DWORD)length, &bytesRead, NULL );
+	const size_t readResult = SDL_RWread( rwopts, outData, 1u, length );
 
-	if( !readResult || bytesRead != (DWORD)length )
+	if( readResult == 0u )
 	{
 		return 0u;
 	}
 
-	return bytesRead;
+	return readResult;
 }
 
 void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 {
-	const HANDLE fileHandle = (HANDLE)file;
-	CloseHandle( fileHandle );
+	SDL_RWops* rwops = (SDL_RWops*)file;
+	SDL_RWclose( rwops );
+}
+
+ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+{
+	const size_t fontNameLength = strlen( fontName );
+	if( platform->fontBasePathLength + fontNameLength >= IMAPP_ARRAY_COUNT( platform->fontPath ) )
+	{
+		ImAppTrace( "Error: Internal resource path buffer too small!\n" );
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	char* targetPath = platform->fontPath + platform->fontBasePathLength;
+	memcpy( targetPath, fontName, fontNameLength );
+	targetPath[ fontNameLength ] = '\0';
+
+	SDL_RWops* file = SDL_RWFromFile( platform->fontPath, "rb" );
+	if( !file )
+	{
+		ImAppTrace( "Error: Failed to open '%s'\n", platform->fontPath );
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	const Sint64 fileSize = SDL_RWsize( file );
+	if( fileSize == -1 )
+	{
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize );
+
+	DWORD bytesRead = 0u;
+	const size_t readResult = SDL_RWread( file, memory, 1u, (size_t)fileSize );
+	SDL_RWclose( file );
+
+	if( readResult != fileSize )
+	{
+		ImUiMemoryFree( platform->allocator, memory );
+		const ImAppBlob result ={ NULL, 0u };
+		return result;
+	}
+
+	const ImAppBlob result ={ memory, (size_t)fileSize };
+	return result;
 }
 
 void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
@@ -745,53 +806,27 @@ void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
 	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
-ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImAppFileWatcher* ImAppPlatformFileWatcherCreate( ImAppPlatform* platform )
 {
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
-	wchar_t* pTargetBuffer = platform->fontPath + platform->fontBasePathLength;
-	const size_t targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontPath ) - platform->fontBasePathLength;
-	MultiByteToWideChar( CP_UTF8, 0, fontName, -1, pTargetBuffer, (int)targetLengthInCharacters );
+	// not implemented
+	return NULL;
+}
 
-	while( *pTargetBuffer != L'\0' )
-	{
-		if( *pTargetBuffer == L'/' )
-		{
-			*pTargetBuffer = L'\\';
-		}
-		pTargetBuffer++;
-	}
+void ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+{
+}
 
-	const HANDLE fileHandle = CreateFileW( platform->fontPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if( fileHandle == INVALID_HANDLE_VALUE )
-	{
-		const ImAppBlob result = { NULL, 0u };
-		return result;
-	}
+void ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+{
+}
 
-	LARGE_INTEGER fileSize;
-	GetFileSizeEx( fileHandle, &fileSize );
+void ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+{
+}
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize.QuadPart );
-
-	DWORD bytesRead = 0u;
-	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
-	CloseHandle( fileHandle );
-
-	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
-	{
-		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result = { NULL, 0u };
-		return result;
-	}
-
-	const ImAppBlob result = { memory, (size_t)fileSize.QuadPart };
-	return result;
-#elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-	const ImAppBlob result ={ NULL, 0u };
-	return result;
-#else
-#	error Not imeplemented
-#endif
+bool ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+{
+	return false;
 }
 
 ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
@@ -802,7 +837,7 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 		return NULL;
 	}
 
-	ImAppPlatformAtomicSet( &thread->isRunning, 1 );
+	SDL_AtomicSet( &thread->isRunning, 1 );
 
 	thread->platform	= platform;
 	thread->func		= func;
@@ -823,7 +858,7 @@ void ImAppPlatformThreadDestroy( ImAppThread* thread )
 
 bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
 {
-	return ImAppPlatformAtomicGet( &thread->isRunning );
+	return SDL_AtomicGet( (SDL_atomic_t*)&thread->isRunning);
 }
 
 static int SDLCALL ImAppPlatformThreadEntry( void* voidThread )
@@ -832,7 +867,7 @@ static int SDLCALL ImAppPlatformThreadEntry( void* voidThread )
 
 	thread->func( thread->arg );
 
-	ImAppPlatformAtomicSet( &thread->isRunning, 0 );
+	SDL_AtomicSet( &thread->isRunning, 0 );
 
 	return 0u;
 }

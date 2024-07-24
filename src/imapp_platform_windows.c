@@ -430,7 +430,7 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	SetCursor( platform->currentCursor );
 }
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -461,10 +461,17 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
+	DWORD winStyle = WS_OVERLAPPEDWINDOW;
+	switch( style )
+	{
+	case ImAppWindowState_Resizable:	break;
+	case ImAppWindowState_Borderless:	winStyle = WS_POPUP; break;
+	}
+
 	window->hwnd = CreateWindowW(
 		s_pWindowClass,
 		wideWindowTitle,
-		WS_OVERLAPPEDWINDOW,
+		winStyle,
 		2200, //CW_USEDEFAULT,
 		200,
 		width,

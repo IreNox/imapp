@@ -138,7 +138,11 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->resPath				= "./assets";
 	parameters->defaultFontName		= "arial.ttf";
 	parameters->defaultFontSize		= 16.0f;
-	parameters->windowEnable		= true;
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
+#else
+	parameters->windowMode			= ImAppDefaultWindow_Resizable;
+#endif
 	parameters->windowTitle			= "I'm App";
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
@@ -149,9 +153,25 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 
 static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters )
 {
-	if( parameters->windowEnable )
+	if( parameters->windowMode != ImAppDefaultWindow_Disabled )
 	{
-		imapp->window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, 0, 0, parameters->windowWidth, parameters->windowHeight, ImAppWindowState_Default );
+		ImAppWindowStyle style = ImAppWindowState_Resizable;
+		ImAppWindowState state = ImAppWindowState_Default;
+		switch( parameters->windowMode )
+		{
+		case ImAppDefaultWindow_Resizable:
+			break;
+
+		case ImAppDefaultWindow_Fullscreen:
+			style = ImAppWindowState_Borderless;
+			state = ImAppWindowState_Maximized;
+			break;
+
+		case ImAppDefaultWindow_Disabled:
+			break;
+		}
+
+		imapp->window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, 0, 0, parameters->windowWidth, parameters->windowHeight, style, state );
 		if( !imapp->window )
 		{
 			ImAppPlatformShowError( imapp->platform, "Failed to create Window." );
