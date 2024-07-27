@@ -76,7 +76,7 @@ static const char s_fragmentShaderTexture[] =
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
+	"void main() {\n"
 	"	vec4 texColor = texture2D(Texture, vtfUV.xy);\n"
 	"	gl_FragColor = vtfColor * texColor;\n"
 	"}\n";
@@ -86,7 +86,7 @@ static const char s_fragmentShaderColor[] =
 	"precision mediump float;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
+	"void main() {\n"
 	"	gl_FragColor = vtfColor;\n"
 	"}\n";
 
@@ -96,7 +96,7 @@ static const char s_fragmentShaderFont[] =
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
+	"void main() {\n"
 	"	float charAlpha = texture2D(Texture, vtfUV.xy).a;\n"
 	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
 	"}\n";
@@ -107,10 +107,14 @@ static const char s_fragmentShaderFontSdf[] =
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
-	"	float charDistance = texture2D(Texture, vtfUV.xy).a;\n"
-	"	float smoothing = 0.1;\n"
-	"	float charAlpha = smoothstep( 0.5 - smoothing, 0.5 + smoothing, charDistance );\n"
+	"float median( vec3 v ) {\n"
+	"	return max( min( v.r, v.g ), min( max( v.r, v.g ), v.b ) );\n"
+	"}\n"
+	"void main() {\n"
+	"	vec3 charDistances = texture2D(Texture, vtfUV.xy).rgb;\n"
+	"	float charDistanceMedian = median( charDistances );\n"
+	"	float charDistance = 2.0 * (charDistanceMedian - 0.5);\n"
+	"	float charAlpha = clamp( charDistance + 0.5, 0.0, 1.0 );\n"
 	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
 	"}\n";
 
