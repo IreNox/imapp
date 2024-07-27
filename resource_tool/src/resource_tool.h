@@ -1,7 +1,7 @@
 #pragma once
 
+#include "compiler.h"
 #include "resource.h"
-#include "resource_compiler.h"
 #include "resource_package.h"
 
 #include <tiki/tiki_dynamic_string.h>
@@ -84,7 +84,7 @@ namespace imapp
 		};
 
 		ResourcePackage		m_package;
-		ResourceCompiler	m_compiler;
+		Compiler	m_compiler;
 
 		bool				m_autoCompile			= false;
 		uint32				m_lastCompileRevision	= 0u;
@@ -96,7 +96,7 @@ namespace imapp
 
 		TypeNameArray		m_resourceNamesByType;
 
-		void				update( ImAppContext* imapp, float time );
+		void				update( ImAppContext* imapp, double time );
 
 		void				doPopupState( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );

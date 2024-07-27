@@ -1,4 +1,4 @@
-#include "resource_compiler.h"
+#include "compiler.h"
 
 #include "resource.h"
 #include "resource_package.h"
@@ -21,11 +21,11 @@ namespace imapp
 		Resource*		sourceResource;
 	};
 
-	ResourceCompiler::ResourceCompiler()
+	Compiler::Compiler()
 	{
 	}
 
-	ResourceCompiler::~ResourceCompiler()
+	Compiler::~Compiler()
 	{
 		if( m_thread )
 		{
@@ -33,7 +33,7 @@ namespace imapp
 		}
 	}
 
-	bool ResourceCompiler::startCompile( const ResourcePackage& package )
+	bool Compiler::startCompile( const ResourcePackage& package )
 	{
 		if( isRunning() )
 		{
@@ -42,70 +42,31 @@ namespace imapp
 
 		m_outputPath = package.getPath().getParent().push( package.getOutputPath() );
 
-		//HashSet< DynamicString > removedResources;
-		//for( ResourceMap::ConstIterator it : m_resources )
-		//{
-		//	removedResources.
-		//}
+		ResourceMap oldResources;
+		oldResources.swap( m_resources );
 
 		for( const Resource* resource : package.getResources() )
 		{
-			ResourceData& data = m_resources[ resource->getName() ];
-			_CrtCheckMemory();
+			const DynamicString& resourceName = resource->getName();
 
-			data.type = resource->getType();
-			data.name = resource->getName();
-
-			if( (data.type == ResourceType::Image || data.type == ResourceType::Font) &&
-				resource->getFileHash() != data.fileHash )
+			CompilerResourceData* resourceData = nullptr;
+			if( oldResources.findAndCopy( resourceData, resourceName ) )
 			{
-				data.fileData = resource->getFileData();
-				data.fileHash = resource->getFileHash();
-
-				if( data.type == ResourceType::Image )
-				{
-					data.image.imageData = resource->getImageData();
-				}
+				oldResources.remove( resourceName );
+				resourceData->applyResource( *resource );
+			}
+			else
+			{
+				resourceData = new CompilerResourceData( *resource );
 			}
 
-			switch( resource->getType() )
-			{
-			case ResourceType::Image:
-				data.image.width		= resource->getImageWidth();
-				data.image.height		= resource->getImageHeight();
-				data.image.allowAtlas	= resource->getImageAllowAtlas();
-				data.image.repeat		= resource->getImageRepeat();
-				break;
-
-			case ResourceType::Font:
-				data.font.size			= resource->getFontSize();
-				break;
-
-			case ResourceType::Skin:
-				data.skin.imageName		= resource->getSkinImageName();
-				data.skin.border		= resource->getSkinBorder();
-				break;
-
-			case ResourceType::Theme:
-				if( data.theme.theme )
-				{
-					*data.theme.theme = resource->getTheme();
-				}
-				else
-				{
-					data.theme.theme = new ResourceTheme( resource->getTheme() );
-				}
-				break;
-
-			default:
-				break;
-			}
-
-			_CrtCheckMemory();
-			//removedResources.remove();
+			m_resources.insert( resourceName, resourceData );
 		}
 
-		//for( unusded )
+		for( ResourceMap::PairType& kvp : oldResources )
+		{
+			delete kvp.value;
+		}
 
 		if( m_thread )
 		{
@@ -118,7 +79,7 @@ namespace imapp
 		return true;
 	}
 
-	bool ResourceCompiler::isRunning()
+	bool Compiler::isRunning()
 	{
 		if( !m_thread )
 		{
@@ -136,21 +97,20 @@ namespace imapp
 		return true;
 	}
 
-	/*static*/ void ResourceCompiler::staticRunCompileThread( void* arg )
+	/*static*/ void Compiler::staticRunCompileThread( void* arg )
 	{
-		ResourceCompiler* compiler = (ResourceCompiler*)arg;
+		Compiler* compiler = (Compiler*)arg;
 		compiler->runCompileThread();
 	}
 
-	void ResourceCompiler::runCompileThread()
+	void Compiler::runCompileThread()
 	{
-		m_result = true;
 		m_buffer.clear();
-		m_outputs.clear();
+		m_output.clear();
 
 		if( !updateImageAtlas() )
 		{
-			m_result = false;
+			m_output.pushMessage( CompilerErrorLevel::Error, "Image Atlas", "Failed to update image atlas." );
 			return;
 		}
 
@@ -199,7 +159,7 @@ namespace imapp
 		FILE* file = fopen( m_outputPath.getNativePath().getData(), "wb" );
 		if( !file )
 		{
-			pushOutput( ResourceErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getGenericPath().getData() );
+			m_output.pushMessage( CompilerErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getGenericPath().getData() );
 			return;
 		}
 
@@ -207,18 +167,15 @@ namespace imapp
 		fclose( file );
 	}
 
-	bool ResourceCompiler::updateImageAtlas()
+	bool Compiler::updateImageAtlas()
 	{
-		// TODO
 		bool isAtlasUpToDate = false;
-		DynamicArray< ResourceData* > images;
+		DynamicArray< CompilerResourceData* > images;
 		for( ResourceMap::PairType& kvp : m_resources )
 		{
-			ResourceData& resData = kvp.value;
+			CompilerResourceData& resData = *kvp.value;
 
-			if( resData.type != ResourceType::Image ||
-				!resData.image.allowAtlas ||
-				resData.image.imageData.isEmpty() )
+			if( !resData.isAtlasImage() )
 			{
 				continue;
 			}
@@ -226,8 +183,8 @@ namespace imapp
 			AtlasImage* atlasImage = m_atlasImages.find( kvp.key );
 			if( atlasImage )
 			{
-				isAtlasUpToDate &= atlasImage->width == resData.image.width;
-				isAtlasUpToDate &= atlasImage->height == resData.image.height;
+				isAtlasUpToDate &= atlasImage->width == resData.getData().image.width;
+				isAtlasUpToDate &= atlasImage->height == resData.getData().image.height;
 			}
 			else
 			{
@@ -243,12 +200,12 @@ namespace imapp
 		}
 
 		m_atlasImages.clear();
-		m_atlasData.image.imageData.clear();
+
+		CompilerResourceData::ResourceData atlasData;
 
 		if( images.isEmpty() )
 		{
-			m_atlasData.image.width		= 0u;
-			m_atlasData.image.height	= 0u;
+			m_atlasData.applyResourceData( atlasData );
 			return true;
 		}
 
@@ -258,119 +215,101 @@ namespace imapp
 			return false;
 		}
 
-		for( ResourceData* image : images )
+		for( CompilerResourceData* image : images )
 		{
-			const ArrayView< uint32 > sourceData = image->image.imageData.cast< uint32 >();
-
-			const uintsize sourceLineSize		= image->image.width;
-			const uintsize sourceImageSize		= sourceLineSize * image->image.height;
-			const uintsize targetLineSize		= image->image.width + 2u;
-			const uintsize targetImageSize		= targetLineSize * (image->image.height + 2u);
-
-			image->compiledData.clear();
-			image->compiledData.setLengthUninitialized( targetImageSize * 4u );
-			Array< uint32 > targetData = image->compiledData.cast< uint32 >();
-
-			// <= to compensate start at 1
-			for( uintsize y = 1u; y <= image->image.height; ++y )
-			{
-				const uint32* sourceLineData	= &sourceData[ (y - 1u) * sourceLineSize ];
-				uint32* targetLineData			= &targetData[ y * targetLineSize ];
-
-				memcpy( targetLineData + 1u, sourceLineData, sourceLineSize * sizeof( uint32 ) );
-
-				// fill first and list line border pixels
-				targetLineData[ 0u ] = sourceLineData[ 0u ];
-				targetLineData[ 1u + sourceLineSize ] = sourceLineData[ sourceLineSize - 1u ];
-			}
-
-			{
-				const uintsize souceLastLineOffset = sourceImageSize - sourceLineSize;
-				const uintsize targetLastLineOffset = (targetImageSize + 1u) - targetLineSize;
-
-				// fill border first and last line
-				memcpy( &targetData[ 1u ], sourceData.getData(), sourceLineSize * sizeof( uint32 ) );
-				memcpy( &targetData[ targetLastLineOffset ], &sourceData[ souceLastLineOffset ], sourceLineSize * sizeof( uint32 ) );
-
-				// fill border corner pixels
-				targetData[ 0u ]								= sourceData[ 0u ];									// TL
-				targetData[ targetLineSize - 1u ]				= sourceData[ sourceLineSize - 1u ];				// TR
-				targetData[ targetImageSize - targetLineSize ]	= sourceData[ sourceImageSize - sourceLineSize ];	// BL
-				targetData[ targetImageSize - 1u ]				= sourceData[ sourceImageSize - 1u ];				// BR
-			}
+			ArrayView< uint32 > targetData = image->compileImageAtlasData().cast< uint32 >();
+			const CompilerResourceData::ResourceData& resData = image->getData();
+			const CompilerResourceData::ImageData& imageData = resData.image;
 
 			int x;
 			int y;
-			const kia_result imageResult = K15_IAAddImageToAtlas( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, targetData.getData(), image->image.width + 2u, image->image.height + 2u, &x, &y );
+			const kia_result imageResult = K15_IAAddImageToAtlas( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, targetData.getData(), imageData.width + 2u, imageData.height + 2u, &x, &y );
 			if( imageResult != K15_IA_RESULT_SUCCESS )
 			{
-				pushOutput( ResourceErrorLevel::Error, image->name, "Failed to add '%s' to atlas. Error: %d", image->name.getData(), imageResult );
+				m_output.pushMessage( CompilerErrorLevel::Error, resData.name, "Failed to add '%s' to atlas. Error: %d", resData.name.getData(), imageResult );
 				m_atlasImages.clear();
 				return false;
 			}
 
-			AtlasImage& atlasImage = m_atlasImages[ image->name ];
+			AtlasImage& atlasImage = m_atlasImages[ resData.name ];
 			atlasImage.x		= (uint16)x + 1u;
 			atlasImage.y		= (uint16)y + 1u;
-			atlasImage.width	= (uint16)image->image.width;
-			atlasImage.height	= (uint16)image->image.height;
+			atlasImage.width	= (uint16)imageData.width;
+			atlasImage.height	= (uint16)imageData.height;
 		}
 
 		const kia_u32 atlasSize = K15_IACalculateAtlasPixelDataSizeInBytes( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8 );
 
 		int width;
 		int height;
-		m_atlasData.image.imageData.setLengthUninitialized( atlasSize );
-		K15_IABakeImageAtlasIntoPixelBuffer( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, m_atlasData.image.imageData.getData(), &width, &height );
+		atlasData.image.imageData.setLengthUninitialized( atlasSize );
+		K15_IABakeImageAtlasIntoPixelBuffer( &atlas, KIA_PIXEL_FORMAT_R8G8B8A8, atlasData.image.imageData.getData(), &width, &height );
 
-		m_atlasData.name				= "atlas";
-		m_atlasData.type				= ResourceType::Image;
-		m_atlasData.image.width			= (uint16)width;
-		m_atlasData.image.height		= (uint16)height;
-		m_atlasData.image.allowAtlas	= false;
+		atlasData.name				= "atlas";
+		atlasData.type				= ResourceType::Image;
+		atlasData.image.width			= (uint16)width;
+		atlasData.image.height		= (uint16)height;
+		atlasData.image.allowAtlas	= false;
 
+		m_atlasData.applyResourceData( atlasData );
 		return true;
 	}
 
-	void ResourceCompiler::prepareCompiledResources( CompiledResourceArray& compiledResources, ResourceTypeIndexMap& resourceIndexMapping, ResourceTypeIndexArray& resourcesByType )
+	void Compiler::prepareCompiledResources( CompiledResourceArray& compiledResources, ResourceTypeIndexMap& resourceIndexMapping, ResourceTypeIndexArray& resourcesByType )
 	{
-		if( m_atlasData.image.imageData.hasElements() )
+		if( m_atlasData.getData().image.imageData.hasElements() )
 		{
 			CompiledResource& compiledResource = compiledResources.pushBack();
-			compiledResource.type = ImAppResPakType_Texture;
-			compiledResource.data = &m_atlasData;
+			compiledResource.type		= ImAppResPakType_Texture;
+			compiledResource.data		= &m_atlasData;
+			compiledResource.fontData	= nullptr;
 
-			resourceIndexMapping[ ImAppResPakType_Texture ].insert( m_atlasData.name, 0u );
+			resourceIndexMapping[ ImAppResPakType_Texture ].insert( m_atlasData.getData().name, 0u );
 			resourcesByType[ ImAppResPakType_Texture ].pushBack( 0u );
 		}
 
-		for( const ResourceMap::PairType& kvp : m_resources )
+		for( ResourceMap::PairType& kvp : m_resources )
 		{
-			const ResourceData& resource = kvp.value;
+			CompilerResourceData& resource = *kvp.value;
+			const CompilerResourceData::ResourceData& resData = resource.getData();
 
 			uint16 refIndex = 0u; // 0 == texture or unused
-			if( resource.type == ResourceType::Image &&
-				resource.image.imageData.isEmpty() )
+			const CompilerFontData* fontData = nullptr;
+			if( resData.type == ResourceType::Image &&
+				resData.image.imageData.isEmpty() )
 			{
-				pushOutput( ResourceErrorLevel::Warning, resource.name, "Image '%s' has no pixel data.", resource.name.getData() );
+				m_output.pushMessage( CompilerErrorLevel::Warning, resData.name, "Image '%s' has no pixel data.", resData.name.getData() );
 				continue;
 			}
 
-			if( (resource.type == ResourceType::Image && !resource.image.allowAtlas) ||
-				resource.type == ResourceType::Font )
+			if( resData.type == ResourceType::Font )
+			{
+				if( resData.font.isScalable )
+				{
+					fontData = resource.compileFontSdf( m_output );
+				}
+				else
+				{
+					fontData = resource.compileFont( m_output );
+				}
+			}
+
+			if( (resData.type == ResourceType::Image && !resData.image.allowAtlas) ||
+				resData.type == ResourceType::Font )
 			{
 				refIndex = (uint16)compiledResources.getLength();
 
 				CompiledResource& textureResource = compiledResources.pushBack();
 				textureResource.type		= ImAppResPakType_Texture;
 				textureResource.data		= &resource;
+				textureResource.fontData	= fontData;
 
-				resourceIndexMapping[ ImAppResPakType_Texture ].insert( resource.name, refIndex );
+				resourceIndexMapping[ ImAppResPakType_Texture ].insert( resData.name, refIndex );
 				resourcesByType[ ImAppResPakType_Texture ].pushBack( refIndex );
 			}
 
 			ImAppResPakType type = ImAppResPakType_MAX;
-			switch( resource.type )
+			switch( resData.type )
 			{
 			case ResourceType::Image:	type = ImAppResPakType_Image; break;
 			case ResourceType::Skin:	type = ImAppResPakType_Skin; break;
@@ -388,35 +327,38 @@ namespace imapp
 			CompiledResource& compiledResource = compiledResources.pushBack();
 			compiledResource.type		= type;
 			compiledResource.data		= &resource;
+			compiledResource.fontData	= fontData;
 			compiledResource.refIndex	= refIndex;
 
-			resourceIndexMapping[ type ].insert( resource.name, index );
+			resourceIndexMapping[ type ].insert( resData.name, index );
 			resourcesByType[ type ].pushBack( index );
 		}
 	}
 
-	void ResourceCompiler::writeResourceNames( CompiledResourceArray& compiledResources )
+	void Compiler::writeResourceNames( CompiledResourceArray& compiledResources )
 	{
 		for( CompiledResource& compiledResource : compiledResources )
 		{
-			if( compiledResource.data->name.getLength() > 255u )
+			const DynamicString& name = compiledResource.data->getData().name;
+
+			if( name.getLength() > 255u )
 			{
-				pushOutput( ResourceErrorLevel::Warning, compiledResource.data->name, "Resource name too long." );
+				m_output.pushMessage( CompilerErrorLevel::Warning, name, "Resource name too long." );
 			}
 
-			compiledResource.nameOffset	= writeArrayToBuffer< char >( compiledResource.data->name.getRangeView( 0u, 255u ) );
-			compiledResource.nameLength	= (uint8)min< uintsize >( compiledResource.data->name.getLength(), 255u );
+			compiledResource.nameOffset	= writeArrayToBuffer< char >( name.getRange( 0u, 255u ) );
+			compiledResource.nameLength	= (uint8)min< uintsize >( name.getLength(), 255u );
 
 			writeToBuffer< char >( '\0' ); // string null terminator
 		}
 	}
 
-	void ResourceCompiler::writeResourceHeaders( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	void Compiler::writeResourceHeaders( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
 	{
 		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
 		{
 			const CompiledResource& compiledResource = compiledResources[ compiledResourceIndex ];
-			const ResourceData& data = *compiledResource.data;
+			const CompilerResourceData::ResourceData& data = compiledResource.data->getData();
 
 			{
 				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
@@ -438,10 +380,22 @@ namespace imapp
 			case ImAppResPakType_Texture:
 				{
 					ImAppResPakTextureHeader textureHeader;
-					textureHeader.format	= ImAppResPakTextureFormat_RGBA8;
-					textureHeader.flags		= data.image.repeat ? ImAppResPakTextureFlags_Repeat : 0u;
-					textureHeader.width		= data.image.width;
-					textureHeader.height	= data.image.height;
+					if( !compiledResource.fontData )
+					{
+						textureHeader.format	= ImAppResPakTextureFormat_RGBA8;
+						textureHeader.flags		= data.image.repeat ? ImAppResPakTextureFlags_Repeat : 0u;
+						textureHeader.width		= data.image.width;
+						textureHeader.height	= data.image.height;
+					}
+					else
+					{
+						const CompilerFontData& fontData = *compiledResource.fontData;
+
+						textureHeader.format	= data.font.isScalable ? ImAppResPakTextureFormat_RGB8 : ImAppResPakTextureFormat_A8;
+						textureHeader.flags		= ImAppResPakTextureFlags_Font;
+						textureHeader.width		= fontData.width;
+						textureHeader.height	= fontData.height;
+					}
 
 					headerOffset = writeToBuffer( textureHeader );
 					headerSize = sizeof( textureHeader );
@@ -458,7 +412,7 @@ namespace imapp
 						const AtlasImage* atlasImage = m_atlasImages.find( data.name );
 						if( !atlasImage )
 						{
-							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find '%s' in atlas.", data.name.getData() );
+							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find '%s' in atlas.", data.name.getData() );
 							continue;
 						}
 
@@ -492,17 +446,17 @@ namespace imapp
 					if( !findResourceIndex( imageIndex, resourceIndexMapping, ImAppResPakType_Image, data.skin.imageName, data.name ) ||
 						imageIndex == IMAPP_RES_PAK_INVALID_INDEX )
 					{
-						pushOutput( ResourceErrorLevel::Error, data.name, "Could not find image '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
+						m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find image '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
 						continue;
 					}
 
 					const CompiledResource& imageResource = compiledResources[ imageIndex ];
-					if( imageResource.data->image.allowAtlas )
+					if( imageResource.data->getData().image.allowAtlas )
 					{
-						const AtlasImage* atlasImage = m_atlasImages.find( imageResource.data->name );
+						const AtlasImage* atlasImage = m_atlasImages.find( imageResource.data->getData().name );
 						if( !atlasImage )
 						{
-							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find '%s' in atlas.", imageResource.data->name.getData() );
+							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find '%s' in atlas.", imageResource.data->getData().name.getData() );
 							continue;
 						}
 
@@ -517,14 +471,14 @@ namespace imapp
 					{
 						if( !findResourceIndex( textureIndex, resourceIndexMapping, ImAppResPakType_Texture, data.skin.imageName, data.name ) )
 						{
-							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find texture '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
+							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find texture '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
 							continue;
 						}
 
 						skinHeader.x		= 0u;
 						skinHeader.y		= 0u;
-						skinHeader.width	= (uint16)imageResource.data->image.width;
-						skinHeader.height	= (uint16)imageResource.data->image.height;
+						skinHeader.width	= (uint16)imageResource.data->getData().image.width;
+						skinHeader.height	= (uint16)imageResource.data->getData().image.height;
 					}
 
 					headerOffset = writeToBuffer( skinHeader );
@@ -534,12 +488,20 @@ namespace imapp
 
 			case ImAppResPakType_Font:
 				{
-					// TODO: codepoints
 					ImAppResPakFontHeader fontHeader;
-					fontHeader.codepointCount	= 0u;
+					fontHeader.codepointCount	= compiledResource.fontData ? (uint32)compiledResource.fontData->codepoints.getLength() : 0u;
 					fontHeader.ttfDataSize		= (uint32)data.fileData.getSizeInBytes();
 					fontHeader.fontSize			= data.font.size;
 					fontHeader.isScalable		= data.font.isScalable;
+
+					if( !findResourceIndex( textureIndex, resourceIndexMapping, ImAppResPakType_Texture, data.name, data.name ) )
+					{
+						m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find texture '%s' for skin '%s'.", data.skin.imageName.getData(), data.name.getData() );
+						continue;
+					}
+
+					headerOffset = writeToBuffer( fontHeader );
+					headerSize = sizeof( fontHeader );
 				}
 				break;
 
@@ -547,13 +509,13 @@ namespace imapp
 				{
 					ImAppResPakThemeHeader themeHeader;
 
-					const ResourceTheme& theme = *compiledResource.data->theme.theme;
+					const ResourceTheme& theme = *data.theme.theme;
 					const UiToolboxConfig& config = theme.getConfig();
 
 					HashSet< uint16 > referencesSet;
 					if( !findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name ) )
 					{
-						pushOutput( ResourceErrorLevel::Error, data.name, "Could not find font '%s' in theme '%s'.", theme.getFontName().getData(), data.name.getData() );
+						m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find font '%s' in theme '%s'.", theme.getFontName().getData(), data.name.getData() );
 					}
 					referencesSet.insert( themeHeader.fontIndex );
 
@@ -567,19 +529,19 @@ namespace imapp
 						const StringView skinName = theme.getSkinName( (ImUiToolboxSkin)i );
 						if( !findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, skinName, data.name ) )
 						{
-							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find skin '%s' for slot %d in theme '%s'.", skinName.getData(), i, data.name.getData() );
+							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find skin '%s' for slot %d in theme '%s'.", skinName.getData(), i, data.name.getData() );
 						}
 						referencesSet.insert( themeHeader.skinIndices[ i ] );
 					}
 
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.imageIndices ); ++i )
+					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.iconIndices ); ++i )
 					{
-						const StringView imageName = theme.getImageName( (ImUiToolboxImage)i );
-						if( !findResourceIndex( themeHeader.imageIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, imageName, data.name ) )
+						const StringView iconName = theme.getIconName( (ImUiToolboxIcon)i );
+						if( !findResourceIndex( themeHeader.iconIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, iconName, data.name ) )
 						{
-							pushOutput( ResourceErrorLevel::Error, data.name, "Could not find image '%s' for slot %d in theme '%s'.", imageName.getData(), i, data.name.getData() );
+							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find image '%s' for slot %d in theme '%s'.", iconName.getData(), i, data.name.getData() );
 						}
-						referencesSet.insert( themeHeader.imageIndices[ i ] );
+						referencesSet.insert( themeHeader.iconIndices[ i ] );
 					}
 
 					DynamicArray< uint16 > references;
@@ -625,20 +587,30 @@ namespace imapp
 		}
 	}
 
-	void ResourceCompiler::writeResourceData( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
+	void Compiler::writeResourceData( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping )
 	{
 		for( uintsize compiledResourceIndex = 0u; compiledResourceIndex < compiledResources.getLength(); ++compiledResourceIndex )
 		{
 			const CompiledResource& compiledResource = compiledResources[ compiledResourceIndex ];
-			const ResourceData& data = *compiledResource.data;
+			const CompilerResourceData::ResourceData& data = compiledResource.data->getData();
 
 			uint32 dataOffset = 0u;
 			uint32 dataSize = 0u;
 			switch( compiledResource.type )
 			{
 			case ImAppResPakType_Texture:
-				dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
-				dataSize	= (uint32)data.image.imageData.getSizeInBytes();
+				if( !compiledResource.fontData )
+				{
+					dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
+					dataSize	= (uint32)data.image.imageData.getSizeInBytes();
+				}
+				else
+				{
+					const CompilerFontData& fontData = *compiledResource.fontData;
+
+					dataOffset	= writeArrayToBuffer< byte >( fontData.pixelData );
+					dataSize	= (uint32)fontData.pixelData.getSizeInBytes();
+				}
 				break;
 
 			case ImAppResPakType_Image:
@@ -648,7 +620,16 @@ namespace imapp
 				break;
 
 			case ImAppResPakType_Font:
-				// TODO
+				if( compiledResource.fontData )
+				{
+					const CompilerFontData& fontData = *compiledResource.fontData;
+
+					dataOffset	= writeArrayToBuffer( fontData.codepoints );
+					dataSize	= (uint32)fontData.codepoints.getSizeInBytes();
+
+					writeArrayToBuffer( data.fileData );
+					dataSize += (uint32)data.fileData.getSizeInBytes();
+				}
 				break;
 
 			case ImAppResPakType_Theme:
@@ -673,25 +654,25 @@ namespace imapp
 	}
 
 	template< typename T >
-	T& ResourceCompiler::getBufferData( uint32 offset )
+	T& Compiler::getBufferData( uint32 offset )
 	{
 		return *(T*)&m_buffer[ offset ];
 	}
 
 	template< typename T >
-	T& ResourceCompiler::getBufferArrayElement( uint32 offset, uintsize index )
+	T& Compiler::getBufferArrayElement( uint32 offset, uintsize index )
 	{
 		return *(T*)&m_buffer[ offset + (sizeof( T ) * index) ];
 	}
 
 	template< typename T >
-	uint32 ResourceCompiler::preallocateToBuffer( uintsize alignment /*= 1u */ )
+	uint32 Compiler::preallocateToBuffer( uintsize alignment /*= 1u */ )
 	{
 		return preallocateArrayToBuffer< T >( alignment );
 	}
 
 	template< typename T >
-	uint32 ResourceCompiler::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
+	uint32 Compiler::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
 	{
 		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
 		m_buffer.setLengthZero( alignedLength );
@@ -701,7 +682,7 @@ namespace imapp
 	}
 
 	template< typename T >
-	uint32 ResourceCompiler::writeToBuffer( const T& value, uintsize alignment /* = 1u */ )
+	uint32 Compiler::writeToBuffer( const T& value, uintsize alignment /* = 1u */ )
 	{
 		const uint32 offset = preallocateToBuffer< T >( alignment );
 		getBufferData< T >( offset ) = value;
@@ -709,7 +690,7 @@ namespace imapp
 	}
 
 	template< typename T >
-	uint32 ResourceCompiler::writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment /* = 1u */ )
+	uint32 Compiler::writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment /* = 1u */ )
 	{
 		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
 		m_buffer.setLengthZero( alignedLength );
@@ -718,7 +699,7 @@ namespace imapp
 		return (uint32)alignedLength;
 	}
 
-	bool ResourceCompiler::findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName )
+	bool Compiler::findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName )
 	{
 		if( name.isEmpty() )
 		{
@@ -729,28 +710,11 @@ namespace imapp
 		const uint16* resourceIndex = mapping[ type ].find( name );
 		if( !resourceIndex )
 		{
+			target = IMAPP_RES_PAK_INVALID_INDEX;
 			return false;
 		}
 
 		target = *resourceIndex;
 		return true;
 	}
-
-	void ResourceCompiler::pushOutput( ResourceErrorLevel level, const StringView& resourceName, const char* format, ... )
-	{
-		ResourceCompilerOutput& output = m_outputs.pushBack();
-		output.level		= ResourceErrorLevel::Error;
-		output.resourceName	= resourceName;
-
-		va_list args;
-		va_start( args, format );
-		output.message		= DynamicString::formatArgs( format, args );
-		va_end( args );
-
-		if( level >= ResourceErrorLevel::Error )
-		{
-			m_result = false;
-		}
-	}
-
 }

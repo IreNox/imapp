@@ -9,7 +9,7 @@ namespace imapp
 	using namespace imui;
 	using namespace tiki;
 
-	static constexpr float FileCheckInterval = 2.0f;
+	static constexpr double FileCheckInterval = 2.0;
 
 	static const char* s_resourceTypeStrings[] =
 	{
@@ -145,7 +145,7 @@ namespace imapp
 		}
 	}
 
-	void Resource::updateFileData( ImAppContext* imapp, const Path& packagePath, float time )
+	void Resource::updateFileData( ImAppContext* imapp, const Path& packagePath, double time )
 	{
 		if( (m_type != ResourceType::Image && m_type != ResourceType::Font) ||
 			time - m_fileCheckTime < FileCheckInterval )
@@ -157,8 +157,16 @@ namespace imapp
 
 		m_fileCheckTime = time;
 
-		const Path imagePath = packagePath.getParent().push( m_fileSourcePath );
-		FILE* file = fopen( imagePath.getNativePath().getData(), "rb" );
+		Path filePath = packagePath.getParent().push( m_fileSourcePath );
+		FILE* file = fopen( filePath.getNativePath().getData(), "rb" );
+
+		if( !file &&
+			m_type == ResourceType::Font )
+		{
+			filePath = Path( "c:/windows/fonts" ).push( m_fileSourcePath );
+			file = fopen( filePath.getNativePath().getData(), "rb" );
+		}
+
 		if( !file )
 		{
 			m_fileData.clear();
@@ -204,18 +212,6 @@ namespace imapp
 		m_revision++;
 	}
 
-	void Resource::setName( const StringView& value )
-	{
-		m_name = value;
-		m_revision++;
-	}
-
-	void Resource::setFileSourcePath( const StringView& value )
-	{
-		m_fileSourcePath = value;
-		m_revision++;
-	}
-
 	void Resource::setImageAllowAtlas( bool value )
 	{
 		m_revision += (value != m_imageAllowAtlas);
@@ -243,11 +239,6 @@ namespace imapp
 	void Resource::setSkinImageName( const StringView& value )
 	{
 		m_skinImageName = value;
-		m_revision++;
-	}
-
-	void Resource::increaseRevision()
-	{
 		m_revision++;
 	}
 
@@ -297,9 +288,9 @@ namespace imapp
 			const char* name;
 			uint32 first;
 			uint32 last;
-			if( m_xml->QueryStringAttribute( "name", &name ) != XML_SUCCESS ||
-				m_xml->QueryUnsignedAttribute( "first", &first ) != XML_SUCCESS ||
-				m_xml->QueryUnsignedAttribute( "last", &last ) != XML_SUCCESS )
+			if( blockNode->QueryStringAttribute( "name", &name ) != XML_SUCCESS ||
+				blockNode->QueryUnsignedAttribute( "first", &first ) != XML_SUCCESS ||
+				blockNode->QueryUnsignedAttribute( "last", &last ) != XML_SUCCESS )
 			{
 				return false;
 			}

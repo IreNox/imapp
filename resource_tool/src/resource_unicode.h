@@ -9,5 +9,5 @@ namespace imapp
 		const char*	name;
 	};
 
-	ArrayView< ResourceUnicodeBlock > getUnicodeBlocks();
+	ConstArrayView< ResourceUnicodeBlock > getUnicodeBlocks();
 }

@@ -1,10 +1,9 @@
 #pragma once
 
+#include "resource_types.h"
 #include "resource_theme.h"
 
 #include <imapp/imapp.h>
-
-#include <tiki/tiki_dynamic_string.h>
 
 #include <tinyxml2.h>
 
@@ -24,30 +23,6 @@ namespace imapp
 
 	class ResourceTheme;
 
-	enum class ResourceType
-	{
-		Image,
-		Skin,
-		Font,
-		Theme,
-
-		Count
-	};
-
-	enum class ResourceImageFormat
-	{
-		RAW,
-		PNG,
-		JPEG
-	};
-
-	struct ResourceFontUnicodeBlock
-	{
-		DynamicString			name;
-		uint32					first	= 0u;
-		uint32					last	= 0u;
-	};
-
 	ArrayView< const char* >	getResourceTypeStrings();
 	bool						parseResourceType( ResourceType& type, const StringView& string );
 	StringView					getResourceTypeString( ResourceType type );
@@ -57,6 +32,7 @@ namespace imapp
 	public:
 
 		using FontUnicodeBlockArray = DynamicArray< ResourceFontUnicodeBlock >;
+		using FontUnicodeBlockView = ConstArrayView< ResourceFontUnicodeBlock >;
 
 								Resource();
 								Resource( const StringView& name, ResourceType type );
@@ -66,15 +42,14 @@ namespace imapp
 		void					serialize( XMLElement* resourcesNode );
 		void					remove();
 
-		void					updateFileData( ImAppContext* imapp, const Path& packagePath, float time );
-
-		StringView				getName() const { return m_name; }
-		void					setName( const StringView& value );
+		void					updateFileData( ImAppContext* imapp, const Path& packagePath, double time );
 
 		ResourceType			getType() const { return m_type; }
 
-		StringView				getFileSourcePath() const { return m_fileSourcePath; }
-		void					setFileSourcePath( const StringView& value );
+		DynamicString&			getName() { return m_name; }
+		const DynamicString&	getName() const { return m_name; }
+		DynamicString&			getFileSourcePath() { return m_fileSourcePath; }
+		const DynamicString&	getFileSourcePath() const { return m_fileSourcePath; }
 
 		TikiHash32				getFileHash() const { return m_fileHash; }
 		ArrayView< byte >		getFileData() const { return m_fileData; }
@@ -94,6 +69,7 @@ namespace imapp
 		bool					getFontIsScalable() const { return m_fontIsScalable; }
 		void					setFontIsScalable( bool value );
 		FontUnicodeBlockArray&	getFontUnicodeBlocks() { return m_fontBlocks; }
+		FontUnicodeBlockView	getFontUnicodeBlocksView() const { return m_fontBlocks; }
 
 		StringView				getSkinImageName() const { return m_skinImageName; }
 		void					setSkinImageName( const StringView& value );
@@ -105,7 +81,7 @@ namespace imapp
 		const ResourceTheme&	getTheme() const { return m_theme; }
 
 		uint32					getRevision() const { return m_revision; }
-		void					increaseRevision();
+		void					increaseRevision() { m_revision++; }
 
 	private:
 
@@ -121,9 +97,8 @@ namespace imapp
 		DynamicString			m_fileSourcePath;
 		ByteArray				m_fileData;
 		TikiHash32				m_fileHash			= 0u;
-		float					m_fileCheckTime		= -1000.0f;
+		double					m_fileCheckTime		= -1000.0;
 
-		ResourceImageFormat		m_imageFormat;
 		ByteArray				m_imageData;
 		uint32					m_imageWidth		= 0u;
 		uint32					m_imageHeight		= 0u;

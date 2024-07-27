@@ -336,8 +336,8 @@ namespace imapp
 		{ 0x100000, 0x10FFFF, "Supplementary Private Use Area-B" }
 	};
 
-	ArrayView< ResourceUnicodeBlock > getUnicodeBlocks()
+	ConstArrayView< ResourceUnicodeBlock > getUnicodeBlocks()
 	{
-		return ArrayView< ResourceUnicodeBlock >( s_unitcodeBlocks, TIKI_ARRAY_COUNT( s_unitcodeBlocks ) );
+		return ConstArrayView< ResourceUnicodeBlock >( s_unitcodeBlocks, TIKI_ARRAY_COUNT( s_unitcodeBlocks ) );
 	}
 }

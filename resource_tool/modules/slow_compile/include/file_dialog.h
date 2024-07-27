@@ -6,6 +6,6 @@ namespace imapp
 {
 	using namespace tiki;
 
-	DynamicString	openFileDialog( const StringView& title, const StringView& initialPath, const ArrayView< StringView >& filters );
-	DynamicString	saveFileDialog( const StringView& title, const StringView& initialPath, const ArrayView< StringView >& filters );
+	DynamicString	openFileDialog( const StringView& title, const StringView& initialPath, const ConstArrayView< StringView >& filters );
+	DynamicString	saveFileDialog( const StringView& title, const StringView& initialPath, const ConstArrayView< StringView >& filters );
 }

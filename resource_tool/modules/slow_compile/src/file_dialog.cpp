@@ -4,7 +4,7 @@
 
 namespace imapp
 {
-	DynamicString openFileDialog( const StringView& title, const StringView& initialPath, const ArrayView< StringView >& filters )
+	DynamicString openFileDialog( const StringView& title, const StringView& initialPath, const ConstArrayView< StringView >& filters )
 	{
 		std::vector< std::string > stdFilters;
 		stdFilters.reserve( filters.getLength() );
@@ -22,7 +22,7 @@ namespace imapp
 		return DynamicString( results[ 0u ].data(), results[ 0u ].size());
 	}
 
-	DynamicString saveFileDialog( const StringView& title, const StringView& initialPath, const ArrayView< StringView >& filters )
+	DynamicString saveFileDialog( const StringView& title, const StringView& initialPath, const ConstArrayView< StringView >& filters )
 	{
 		std::vector< std::string > stdFilters;
 		stdFilters.reserve( filters.getLength() );
