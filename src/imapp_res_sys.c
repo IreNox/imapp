@@ -58,21 +58,10 @@ static bool			ImAppResEventQueuePop( ImAppResEventQueue* queue, ImAppResEvent* o
 static ImUiHash		ImAppResSysNameMapHash( const void* key );
 static bool			ImAppResSysNameMapIsKeyEquals( const void* lhs, const void* rhs );
 
-//static const uint16_t*				ImAppResPakResourcesByType( const void* base, ImAppResPakType type );
-//static uint16_t						ImAppResPakResourcesByTypeCount( const void* base, ImAppResPakType type );
-
 static const ImAppResPakResource*	ImAppResPakResourceGet( const void* base, uint16_t index );
 static ImUiStringView				ImAppResPakResourceGetName( const void* base, const ImAppResPakResource* res );
 static const void*					ImAppResPakResourceGetHeader( const void* base, const ImAppResPakResource* res );
 static const void*					ImAppResPakResourceGetData( const void* base, const ImAppResPakResource* res );
-
-
-static void			ImAppResSysChangeUsage( ImAppResSys* ressys, ImAppRes* res, ImAppResUsage usage );
-static void			ImAppResSysDecRefCount( ImAppResSys* ressys, ImAppRes* res );
-static void			ImAppResSysFree( ImAppResSys* ressys, ImAppRes* res );
-
-static void			ImAppResListAdd( ImAppRes** list, ImAppRes* res );
-static void			ImAppResListRemove( ImAppRes** list, ImAppRes* res );
 
 ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui )
 {
@@ -248,6 +237,7 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 			ImAppRendererFormat format = ImAppRendererFormat_RGBA8;
 			switch( header->format )
 			{
+			case ImAppResPakTextureFormat_A8:		format = ImAppRendererFormat_R8; break;
 			case ImAppResPakTextureFormat_PNG24:
 			case ImAppResPakTextureFormat_JPEG:
 			case ImAppResPakTextureFormat_RGB8:		format = ImAppRendererFormat_RGB8; break;
@@ -270,7 +260,30 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 		break;
 
 	case ImAppResPakType_Font:
-		// TODO
+		{
+			ImAppResFontData* fontData = &res->data.font;
+
+			const ImAppResPakResource* sourceRes = ImAppResPakResourceGet( res->key.pak->metadata, res->key.index );
+			const ImAppResPakFontHeader* header = (const ImAppResPakFontHeader*)ImAppResPakResourceGetHeader( res->key.pak->metadata, sourceRes );
+
+			ImUiFontParameters parameters;
+			parameters.codepoints			= (const ImUiFontCodepoint*)resEvent->result.loadRes.data.data;
+			parameters.codepointCount		= header->codepointCount;
+			parameters.fontSize				= header->fontSize;
+			parameters.image.textureData	= fontData->textureRes->data.texture.texture;
+			parameters.image.width			= fontData->textureRes->data.texture.width;
+			parameters.image.height			= fontData->textureRes->data.texture.height;
+			parameters.image.uv.u0			= 0.0f;
+			parameters.image.uv.v0			= 0.0f;
+			parameters.image.uv.u1			= 1.0f;
+			parameters.image.uv.v1			= 1.0f;
+			parameters.isScalable			= false;
+			parameters.lineGap				= header->fontSize;
+
+			res->data.font.font				= ImUiFontCreate( ressys->imui, &parameters );
+
+			ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+		}
 		break;
 
 	case ImAppResPakType_Blob:
@@ -285,7 +298,6 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 	}
 
 	res->state = ImAppResState_Ready;
-	//ImAppResSysChangeUsage( ressys, res, ImAppResUsage_Used );
 }
 
 static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent )
@@ -441,8 +453,51 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 		{
 			ImAppResFontData* fontData = &res->data.font;
 
-			// TODO
-			fontData->font = ImAppResSysFontCreateSystem( res->key.pak->ressys, "arial.ttf", 16.0f, &fontData->texture );
+			if( sourceRes->textureIndex != IMAPP_RES_PAK_INVALID_INDEX )
+			{
+				if( !fontData->textureRes )
+				{
+					ImAppRes* textureRes = ImAppResSysLoad( pak, sourceRes->textureIndex );
+					if( !textureRes )
+					{
+						return res;
+					}
+
+					fontData->textureRes = textureRes;
+				}
+
+				if( fontData->textureRes->state == ImAppResState_Error )
+				{
+					res->state = ImAppResState_Error;
+					return NULL;
+				}
+				else if( fontData->textureRes->state != ImAppResState_Ready )
+				{
+					return res;
+				}
+
+				if( !fontData->loading )
+				{
+					ImAppResEvent resEvent;
+					resEvent.type			= ImAppResEventType_LoadResData;
+					resEvent.data.res.res	= res;
+
+					if( !ImAppResEventQueuePush( pak->ressys, &pak->ressys->sendQueue, &resEvent ) )
+					{
+						res->state = ImAppResState_Error;
+						return NULL;
+					}
+
+					fontData->loading = true;
+				}
+
+				return res;
+			}
+			else
+			{
+				// TODO
+				fontData->font = ImAppResSysFontCreateSystem( res->key.pak->ressys, "arial.ttf", 16.0f, &fontData->texture );
+			}
 		}
 		break;
 
@@ -497,16 +552,16 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 				config->skins[ i ] = skinRes->data.skin.skin;
 			}
 
-			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->images ); ++i )
+			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->icons ); ++i )
 			{
-				if( header->imageIndices[ i ] == IMAPP_RES_PAK_INVALID_INDEX )
+				if( header->iconIndices[ i ] == IMAPP_RES_PAK_INVALID_INDEX )
 				{
 					continue;
 				}
 
-				ImAppRes* imageRes = ImAppResSysLoad( pak, header->imageIndices[ i ] );
+				ImAppRes* imageRes = ImAppResSysLoad( pak, header->iconIndices[ i ] );
 				IMAPP_ASSERT( imageRes && imageRes->state == ImAppResState_Ready );
-				config->images[ i ] = imageRes->data.image.image;
+				config->icons[ i ] = imageRes->data.image.image;
 			}
 
 			config->button		= header->button;
@@ -942,7 +997,7 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	*texture = ImAppRendererTextureCreateFromMemory( ressys->renderer, textureData, width, height, ImAppRendererFormat_R8, ImAppResPakTextureFlags_Font );
 	free( textureData );
 
-	if( !texture )
+	if( !*texture )
 	{
 		ImUiFontTrueTypeDataDestroy( ttf );
 		ImUiMemoryFree( ressys->allocator, fontBlob.data );
@@ -955,8 +1010,8 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	uiImage.height		= height;
 	uiImage.uv.u0		= 0.0f;
 	uiImage.uv.v0		= 0.0f;
-	uiImage.uv.u0		= 1.0f;
-	uiImage.uv.v0		= 1.0f;
+	uiImage.uv.u1		= 1.0f;
+	uiImage.uv.v1		= 1.0f;
 
 	ImUiFont* font = ImUiFontCreateTrueType( ressys->imui, ttfImage, uiImage );
 
@@ -1036,8 +1091,13 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 			if( res->data.font.font )
 			{
 				ImUiFontDestroy( ressys->imui, res->data.font.font );
-				ImAppRendererTextureDestroy( ressys->renderer, res->data.font.texture );
 				res->data.font.font = NULL;
+			}
+
+			if( res->data.font.texture )
+			{
+				ImAppRendererTextureDestroy( ressys->renderer, res->data.font.texture );
+				res->data.font.texture = NULL;
 			}
 		}
 		break;
@@ -1426,23 +1486,6 @@ static bool ImAppResSysNameMapIsKeyEquals( const void* lhs, const void* rhs )
 		ImUiStringViewIsEquals( lhsRes->key.name, rhsRes->key.name );
 }
 
-//static const uint16_t* ImAppResPakResourcesByType( const void* base, ImAppResPakType type )
-//{
-//	const ImAppResPakHeader* header	= (const ImAppResPakHeader*)base;
-//	const uint32 offset				= header->resourcesByTypeIndexOffset[ type ];
-//
-//	const byte* bytes = (const byte*)base;
-//	bytes += offset;
-//
-//	return (const uint16*)bytes;
-//}
-//
-//static uint16_t ImAppResPakResourcesByTypeCount( const void* base, ImAppResPakType type )
-//{
-//	const ImAppResPakHeader* header	= (const ImAppResPakHeader*)base;
-//	return header->resourcesbyTypeCount[ type ];
-//}
-
 static const ImAppResPakResource* ImAppResPakResourceGet( const void* base, uint16_t index )
 {
 	const ImAppResPakHeader* header	= (const ImAppResPakHeader*)base;
@@ -1481,117 +1524,3 @@ static const void* ImAppResPakResourceGetData( const void* base, const ImAppResP
 
 	return bytes;
 }
-
-//
-//static void ImAppResSysChangeState( ImAppResSys* ressys, ImAppResource* resource, ImAppResourceState state )
-//{
-//	if( resource->state == state )
-//	{
-//		return;
-//	}
-//
-//	ImAppResourceList* pOldList = NULL;
-//	switch( resource->state )
-//	{
-//	case ImAppImageState_Invalid:
-//		break;
-//
-//	case ImAppImageState_Default:
-//		pOldList = &ressys->defaultImages;
-//		break;
-//
-//	case ImAppImageState_Managed:
-//		pOldList = &ressys->managedImages;
-//		break;
-//
-//	case ImAppImageState_Unused:
-//		pOldList = &ressys->unusedImages;
-//		break;
-//
-//	default:
-//		break;
-//	}
-//
-//	if( pOldList != NULL )
-//	{
-//		ImAppResourceListRemove( pOldList, resource );
-//	}
-//
-//	ImAppResourceList* pNewList = NULL;
-//	switch( state )
-//	{
-//	case ImAppImageState_Invalid:
-//		break;
-//
-//	case ImAppImageState_Default:
-//		pNewList = &ressys->defaultImages;
-//		break;
-//
-//	case ImAppImageState_Managed:
-//		pNewList = &ressys->managedImages;
-//		break;
-//
-//	case ImAppImageState_Unused:
-//		pNewList = &ressys->unusedImages;
-//		break;
-//
-//	default:
-//		break;
-//	}
-//
-//	if( pNewList != NULL )
-//	{
-//		ImAppResourceListAdd( pNewList, resource );
-//	}
-//
-//	resource->state = state;
-//}
-//
-//static void ImAppResourceListAdd( ImAppResourceList* list, ImAppResource* resource )
-//{
-//	IMAPP_ASSERT( resource->prevResource == NULL );
-//	IMAPP_ASSERT( resource->nextResource == NULL );
-//
-//	if( list->firstResource == NULL )
-//	{
-//		list->firstResource = resource;
-//	}
-//
-//	if( list->lastResource == NULL )
-//	{
-//		list->lastResource = resource;
-//		return;
-//	}
-//
-//	IMAPP_ASSERT( list->lastResource->nextResource == NULL );
-//	list->lastResource->nextResource = resource;
-//	resource->prevResource = list->lastResource;
-//
-//	list->lastResource = resource;
-//}
-//
-//static void ImAppResListRemove( ImAppResourceList* list, ImAppResource* resource )
-//{
-//	if( list->firstResource == resource )
-//	{
-//		list->firstResource = resource->nextResource;
-//	}
-//
-//	if( list->lastResource == resource )
-//	{
-//		list->lastResource = resource->prevResource;
-//	}
-//
-//	if( resource->prevResource != NULL )
-//	{
-//		resource->prevResource->nextResource = resource->nextResource;
-//	}
-//
-//	if( resource->nextResource != NULL )
-//	{
-//		resource->nextResource->prevResource = resource->prevResource;
-//	}
-//
-//	resource->prevResource = NULL;
-//	resource->nextResource = NULL;
-//}

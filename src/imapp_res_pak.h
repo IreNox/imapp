@@ -24,7 +24,7 @@ struct ImAppResPakResource
 {
 	uint8_t		type;
 	uint8_t		nameLength;
-	uint16_t	textureIndex;	// only for: image, text and font
+	uint16_t	textureIndex;	// only for: image and font
 	uint32_t	nameOffset;
 	uint32_t	headerOffset;
 	uint32_t	headerSize;
@@ -34,6 +34,7 @@ struct ImAppResPakResource
 
 typedef enum ImAppResPakTextureFormat
 {
+	ImAppResPakTextureFormat_A8,
 	ImAppResPakTextureFormat_RGB8,
 	ImAppResPakTextureFormat_RGBA8,
 	ImAppResPakTextureFormat_PNG24,
@@ -47,7 +48,8 @@ typedef enum ImAppResPakTextureFlags
 {
 	ImAppResPakTextureFlags_Opaque	= 1u << 0u,
 	ImAppResPakTextureFlags_Font	= 1u << 1u,
-	ImAppResPakTextureFlags_Repeat	= 1u << 2u
+	ImAppResPakTextureFlags_FontSdf	= 1u << 2u,
+	ImAppResPakTextureFlags_Repeat	= 1u << 3u
 } ImAppResPakTextureFlags;
 
 
@@ -95,7 +97,7 @@ typedef struct ImAppResPakThemeHeader
 
 	ImUiColor						colors[ ImUiToolboxColor_MAX ];
 	uint16_t						skinIndices[ ImUiToolboxSkin_MAX ];
-	uint16_t						imageIndices[ ImUiToolboxImage_MAX ];
+	uint16_t						iconIndices[ ImUiToolboxIcon_MAX ];
 	uint16_t						fontIndex;
 
 	ImUiToolboxButtonConfig			button;
