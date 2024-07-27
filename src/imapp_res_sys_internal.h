@@ -108,6 +108,7 @@ typedef struct ImAppResFontData
 	ImAppRes*				textureRes;
 	ImUiFont*				font;
 	ImAppRendererTexture*	texture;
+	bool					loading;
 } ImAppResFontData;
 
 typedef struct ImAppResThemeData

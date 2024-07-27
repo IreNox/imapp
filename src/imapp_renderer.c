@@ -16,6 +16,12 @@
 #	include <GLES/gl.h>
 #endif
 
+typedef struct ImAppRendererShader
+{
+	GLuint						fragmentShader;
+	GLuint						program;
+} ImAppRendererShader;
+
 struct ImAppRenderer
 {
 	ImUiAllocator*				allocator;
@@ -24,13 +30,10 @@ struct ImAppRenderer
 	float						clearColor[ 4u ];
 
 	GLuint						vertexShader;
-	GLuint						fragmentShader;
-	GLuint						fragmentShaderColor;
-	GLuint						fragmentShaderFont;
-
-	GLuint						program;
-	GLuint						programColor;
-	GLuint						programFont;
+	ImAppRendererShader			shaderTexture;
+	ImAppRendererShader			shaderColor;
+	ImAppRendererShader			shaderFont;
+	ImAppRendererShader			shaderFontSdf;
 	GLint						programUniformProjection;
 	GLint						programUniformTexture;
 
@@ -67,14 +70,14 @@ static const char s_vertexShader[] =
 	"	gl_Position	= ProjectionMatrix * vec4(Position.xy, 0, 1);\n"
 	"}\n";
 
-static const char s_fragmentShader[] =
+static const char s_fragmentShaderTexture[] =
 	"#version 100\n"
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
-	"	vec4 texColor = texture2D(Texture, vtfUV.xy);"
+	"void main() {\n"
+	"	vec4 texColor = texture2D(Texture, vtfUV.xy);\n"
 	"	gl_FragColor = vtfColor * texColor;\n"
 	"}\n";
 
@@ -83,7 +86,7 @@ static const char s_fragmentShaderColor[] =
 	"precision mediump float;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
+	"void main() {\n"
 	"	gl_FragColor = vtfColor;\n"
 	"}\n";
 
@@ -93,9 +96,26 @@ static const char s_fragmentShaderFont[] =
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
 	"varying vec4 vtfColor;\n"
-	"void main(){\n"
-	"	float charColor = texture2D(Texture, vtfUV.xy).a;"
-	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charColor );\n"
+	"void main() {\n"
+	"	float charAlpha = texture2D(Texture, vtfUV.xy).a;\n"
+	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
+	"}\n";
+
+static const char s_fragmentShaderFontSdf[] =
+	"#version 100\n"
+	"precision mediump float;\n"
+	"uniform sampler2D Texture;\n"
+	"varying vec2 vtfUV;\n"
+	"varying vec4 vtfColor;\n"
+	"float median( vec3 v ) {\n"
+	"	return max( min( v.r, v.g ), min( max( v.r, v.g ), v.b ) );\n"
+	"}\n"
+	"void main() {\n"
+	"	vec3 charDistances = texture2D(Texture, vtfUV.xy).rgb;\n"
+	"	float charDistanceMedian = median( charDistances );\n"
+	"	float charDistance = 2.0 * (charDistanceMedian - 0.5);\n"
+	"	float charAlpha = clamp( charDistance + 0.5, 0.0, 1.0 );\n"
+	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
 	"}\n";
 
 static const struct ImUiVertexElement s_vertexLayout[] = {
@@ -104,7 +124,9 @@ static const struct ImUiVertexElement s_vertexLayout[] = {
 	{ 1u,	ImUiVertexElementType_UInt,		ImUiVertexElementSemantic_ColorABGR },
 };
 
-static bool		ImAppRendererCompileShader( GLuint shader, const char* pShaderCode );
+static bool		ImAppRendererCompileShader( GLuint shader, const char* shaderCode );
+static bool		ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
+static void		ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
 
 static bool		ImAppRendererCreateResources( ImAppRenderer* renderer );
 static void		ImAppRendererDestroyResources( ImAppRenderer* renderer );
@@ -189,76 +211,88 @@ static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
 	return true;
 }
 
-static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
+static bool ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode )
 {
-	// Shader
-	renderer->vertexShader			= glCreateShader( GL_VERTEX_SHADER );
-	renderer->fragmentShader		= glCreateShader( GL_FRAGMENT_SHADER );
-	renderer->fragmentShaderColor	= glCreateShader( GL_FRAGMENT_SHADER );
-	renderer->fragmentShaderFont	= glCreateShader( GL_FRAGMENT_SHADER );
-	if( renderer->vertexShader == 0u ||
-		renderer->fragmentShader == 0u ||
-		renderer->fragmentShaderColor == 0u ||
-		renderer->fragmentShaderFont == 0u )
+	shader->fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
+	if( !shader->fragmentShader )
 	{
 		ImAppTrace( "[renderer] Failed to create GL Shader.\n" );
 		return false;
 	}
 
-	if( !ImAppRendererCompileShader( renderer->vertexShader, s_vertexShader ) ||
-		!ImAppRendererCompileShader( renderer->fragmentShader, s_fragmentShader ) ||
-		!ImAppRendererCompileShader( renderer->fragmentShaderColor, s_fragmentShaderColor ) ||
-		!ImAppRendererCompileShader( renderer->fragmentShaderFont, s_fragmentShaderFont ) )
+	if( !ImAppRendererCompileShader( shader->fragmentShader, shaderCode ) )
 	{
 		ImAppTrace( "[renderer] Failed to compile GL Shader.\n" );
 		return false;
 	}
 
-	renderer->program = glCreateProgram();
-	renderer->programColor = glCreateProgram();
-	renderer->programFont = glCreateProgram();
-	if( renderer->program == 0u ||
-		renderer->programColor == 0u ||
-		renderer->programFont == 0u )
+	shader->program = glCreateProgram();
+	if( !shader->program )
 	{
 		ImAppTrace( "[renderer] Failed to create GL Program.\n" );
 		return false;
 	}
 
-	glAttachShader( renderer->program, renderer->vertexShader );
-	glAttachShader( renderer->program, renderer->fragmentShader );
-	glLinkProgram( renderer->program );
+	glAttachShader( shader->program, renderer->vertexShader );
+	glAttachShader( shader->program, shader->fragmentShader );
+	glLinkProgram( shader->program );
 
-	glAttachShader( renderer->programColor, renderer->vertexShader );
-	glAttachShader( renderer->programColor, renderer->fragmentShaderColor );
-	glLinkProgram( renderer->programColor );
-
-	glAttachShader( renderer->programFont, renderer->vertexShader );
-	glAttachShader( renderer->programFont, renderer->fragmentShaderFont );
-	glLinkProgram( renderer->programFont );
-
-	bool ok = true;
 	GLint programStatus;
-	glGetProgramiv( renderer->program, GL_LINK_STATUS, &programStatus );
-	ok &= (programStatus == GL_TRUE);
-	glGetProgramiv( renderer->programColor, GL_LINK_STATUS, &programStatus );
-	ok &= (programStatus == GL_TRUE);
-	glGetProgramiv( renderer->programFont, GL_LINK_STATUS, &programStatus );
-	ok &= (programStatus == GL_TRUE);
-
-	if( !ok )
+	glGetProgramiv( shader->program, GL_LINK_STATUS, &programStatus );
+	if( programStatus != GL_TRUE )
 	{
 		ImAppTrace( "[renderer] Failed to link GL Program.\n" );
 		return false;
 	}
 
-	renderer->programUniformProjection	= glGetUniformLocation( renderer->program, "ProjectionMatrix" );
-	renderer->programUniformTexture		= glGetUniformLocation( renderer->program, "Texture" );
+	return true;
+}
+
+static void ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader )
+{
+	if( shader->program != 0u )
+	{
+		glDetachShader( shader->program, shader->fragmentShader );
+		glDetachShader( shader->program, renderer->vertexShader );
+		glDeleteProgram( shader->program );
+
+		shader->program = 0u;
+	}
+
+	if( shader->fragmentShader != 0u )
+	{
+		glDeleteShader( shader->fragmentShader );
+		shader->fragmentShader = 0u;
+	}
+}
+
+static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
+{
+	// Shader
+	renderer->vertexShader = glCreateShader( GL_VERTEX_SHADER );
+	if( !renderer->vertexShader ||
+		!ImAppRendererCompileShader( renderer->vertexShader, s_vertexShader ) )
+	{
+		ImAppTrace( "[renderer] Failed to create Vertex Shader.\n" );
+		return false;
+	}
+
+	if( !ImAppRendererCreateShaderProgram( renderer, &renderer->shaderTexture, s_fragmentShaderTexture ) ||
+		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderColor, s_fragmentShaderColor ) ||
+		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderFont, s_fragmentShaderFont ) ||
+		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderFontSdf, s_fragmentShaderFontSdf ) )
+	{
+		ImAppTrace( "[renderer] Failed to compile programs.\n" );
+		return false;
+	}
+
+	renderer->programUniformProjection	= glGetUniformLocation( renderer->shaderTexture.program, "ProjectionMatrix" );
+	renderer->programUniformTexture		= glGetUniformLocation( renderer->shaderTexture.program, "Texture" );
 
 	// Buffer
-	const GLuint attributePosition	= (GLuint)glGetAttribLocation( renderer->program, "Position" );
-	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( renderer->program, "TexCoord" );
-	const GLuint attributeColor		= (GLuint)glGetAttribLocation( renderer->program, "Color" );
+	const GLuint attributePosition	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Position" );
+	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "TexCoord" );
+	const GLuint attributeColor		= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Color" );
 
 	glGenBuffers( 1, &renderer->vertexBuffer );
 	glGenBuffers( 1, &renderer->elementBuffer );
@@ -303,25 +337,15 @@ static void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 		renderer->vertexBuffer = 0u;
 	}
 
-	if( renderer->program != 0u )
-	{
-		glDetachShader( renderer->program, renderer->fragmentShader );
-		glDetachShader( renderer->program, renderer->vertexShader );
-		glDeleteProgram( renderer->program );
-
-		renderer->program = 0u;
-	}
+	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderTexture );
+	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderColor );
+	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderFont );
+	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderFontSdf );
 
 	if( renderer->vertexShader != 0u )
 	{
 		glDeleteShader( renderer->vertexShader );
 		renderer->vertexShader = 0u;
-	}
-
-	if( renderer->fragmentShader != 0u )
-	{
-		glDeleteShader( renderer->fragmentShader );
-		renderer->fragmentShader = 0u;
 	}
 }
 
@@ -418,7 +442,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurfac
 	glDisable( GL_DEPTH_TEST );
 	glEnable( GL_SCISSOR_TEST );
 
-	glUseProgram( renderer->program );
+	glUseProgram( renderer->shaderTexture.program );
 	glUniform1i( renderer->programUniformTexture, 0 );
 
 	ImAppRendererDrawCommands( renderer, surface, width, height );
@@ -482,25 +506,31 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 		if( texture == NULL )
 		{
 			alphaBlend		= true;
-			programHandle	= renderer->programColor;
+			programHandle	= renderer->shaderColor.program;
 			textureHandle	= 0u;
 		}
 		else if( texture->flags & ImAppResPakTextureFlags_Font )
 		{
 			alphaBlend		= true;
-			programHandle	= renderer->programFont;
+			programHandle	= renderer->shaderFont.program;
+			textureHandle	= texture->handle;
+		}
+		else if( texture->flags & ImAppResPakTextureFlags_FontSdf )
+		{
+			alphaBlend		= true;
+			programHandle	= renderer->shaderFontSdf.program;
 			textureHandle	= texture->handle;
 		}
 		else if( texture->flags & ImAppResPakTextureFlags_Opaque )
 		{
 			alphaBlend		= false;
-			programHandle	= renderer->program;
+			programHandle	= renderer->shaderTexture.program;
 			textureHandle	= texture->handle;
 		}
 		else
 		{
 			alphaBlend		= true;
-			programHandle	= renderer->program;
+			programHandle	= renderer->shaderTexture.program;
 			textureHandle	= texture->handle;
 		}
 

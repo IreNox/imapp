@@ -2,6 +2,7 @@
 
 #include "resource_helpers.h"
 #include "resource_theme.h"
+#include "resource_unicode.h"
 
 #include "file_dialog.h"
 
@@ -71,7 +72,7 @@ namespace imapp
 			if( window.buttonLabel( "Open" ) )
 			{
 				const StringView filters[] = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
-				const DynamicString filePath = openFileDialog( "Open package...", "", ArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
+				const DynamicString filePath = openFileDialog( "Open package...", "", ConstArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
 				if( filePath.hasElements() )
 				{
 					load( filePath );
@@ -90,7 +91,7 @@ namespace imapp
 				else
 				{
 					const StringView filters[] = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
-					const DynamicString filePath = saveFileDialog( "Save package as...", "", ArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
+					const DynamicString filePath = saveFileDialog( "Save package as...", "", ConstArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
 					if( filePath.hasElements() &&
 						!m_package.saveAs( filePath ) )
 					{
@@ -184,22 +185,22 @@ namespace imapp
 			doView( imapp, window );
 		}
 
-		if( m_compiler.getOutputs().hasElements() )
+		if( m_compiler.getOutput().getMessages().hasElements() )
 		{
-			UiToolboxList outputList( window, 25.0f, m_compiler.getOutputs().getLength() );
+			UiToolboxList outputList( window, 25.0f, m_compiler.getOutput().getMessages().getLength() );
 			outputList.setHStretch( 1.0f );
 			outputList.setFixedHeight( 150.0f );
 
-			for( const ResourceCompilerOutput& output : m_compiler.getOutputs() )
+			for( const CompilerMessage& message : m_compiler.getOutput().getMessages() )
 			{
 				outputList.nextItem();
 
-				window.label( output.message );
+				window.label( message.text );
 			}
 		}
 	}
 
-	void ResourceTool::update( ImAppContext* imapp, float time )
+	void ResourceTool::update( ImAppContext* imapp, double time )
 	{
 		m_package.updateFileData( imapp, time );
 
@@ -380,21 +381,24 @@ namespace imapp
 
 		window.label( "Name:" );
 		{
-			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setHStretch( 1.0f );
-
-			const char* newName = window.textEditState( 256u, resource.getName() );
-			if( newName != resource.getName() &&
-				window.buttonLabel( "Change" ) )
+			DynamicString& name = resource.getName();
+			char* buffer = name.beginWrite();
+			if( window.textEdit( buffer, name.getCapacity() ) )
 			{
-				resource.setName( (StringView)newName );
+				resource.increaseRevision();
+				updateResourceNamesByType();
 			}
+			name.endWrite();
 		}
 
 		switch( resource.getType() )
 		{
 		case ResourceType::Image:
 			doViewImage( imapp, window, resource );
+			break;
+
+		case ResourceType::Font:
+			doViewFont( imapp, window, resource );
 			break;
 
 		case ResourceType::Skin:
@@ -411,28 +415,24 @@ namespace imapp
 	{
 		window.label( "Name:" );
 		{
-			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setHStretch( 1.0f );
-
-			const char* newName = window.textEditState( 256u, m_package.getName() );
-			if( newName != m_package.getName() &&
-				window.buttonLabel( "Change" ) )
+			DynamicString& name = m_package.getName();
+			char* buffer = name.beginWrite( 32u );
+			if( window.textEdit( buffer, name.getCapacity() ) )
 			{
-				m_package.setName( (StringView)newName );
+				m_package.increaseRevision();
 			}
+			name.endWrite();
 		}
 
 		window.label( "Output Path:" );
 		{
-			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setHStretch( 1.0f );
-
-			const char* newPath = window.textEditState( 256u, m_package.getOutputPath() );
-			if( newPath != m_package.getOutputPath() &&
-				window.buttonLabel( "Change" ) )
+			DynamicString& outputPath = m_package.getOutputPath();
+			char* buffer = outputPath.beginWrite( 32u );
+			if( window.textEdit( buffer, outputPath.getCapacity() ) )
 			{
-				m_package.setOutputPath( (StringView)newPath );
+				m_package.increaseRevision();
 			}
+			outputPath.endWrite();
 		}
 	}
 
@@ -440,15 +440,13 @@ namespace imapp
 	{
 		window.label( "Path:" );
 		{
-			UiWidgetLayoutHorizontal pathLayout( window, 8.0f );
-			pathLayout.setHStretch( 1.0f );
-
-			const char* newPath = window.textEditState( 256u, resource.getFileSourcePath() );
-			if( newPath != resource.getFileSourcePath() &&
-				window.buttonLabel( "Change" ) )
+			DynamicString& filePath = resource.getFileSourcePath();
+			char* buffer = filePath.beginWrite( 64u );
+			if( window.textEdit( buffer, filePath.getCapacity() ) )
 			{
-				resource.setFileSourcePath( (StringView)newPath );
+				resource.increaseRevision();
 			}
+			filePath.endWrite();
 		}
 
 		{
@@ -485,6 +483,91 @@ namespace imapp
 			skinResource.setSkinImageName( resource.getName() );
 
 			m_selecedEntry = m_package.getResourceCount() - 1u;
+		}
+	}
+
+	void ResourceTool::doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	{
+		window.label( "Path:" );
+		{
+			DynamicString& filePath = resource.getFileSourcePath();
+			char* buffer = filePath.beginWrite( 64u );
+			if( window.textEdit( buffer, filePath.getCapacity() ) )
+			{
+				resource.increaseRevision();
+			}
+			filePath.endWrite();
+		}
+
+		{
+			UiWidgetLayoutHorizontal flagsLayout( window, 4.0f );
+			flagsLayout.setHStretch( 1.0f );
+
+			window.label( "Font Size:" );
+
+			float fontSize = resource.getFontSize();
+			window.slider( fontSize, 0.1f, 72.0f );
+			resource.setFontSize( fontSize );
+
+			window.labelFormat( "%.1f", fontSize );
+		}
+
+		bool isScalable = resource.getFontIsScalable();
+		window.checkBox( isScalable, "Is Scalable" );
+		resource.setFontIsScalable( isScalable );
+
+		window.label( "Unicode Blocks:" );
+
+		Resource::FontUnicodeBlockArray& blocks = resource.getFontUnicodeBlocks();
+		if( blocks.isEmpty() )
+		{
+			window.label( "No Codepoint Blocks." );
+		}
+		else
+		{
+			UiToolboxList list( window, 26.0f, blocks.getLength() );
+			list.setStretchOne();
+
+			for( const ResourceFontUnicodeBlock& block : blocks )
+			{
+				list.nextItem();
+
+				UiWidgetLayoutHorizontal layout( window, 4.0f );
+				layout.setHStretch( 1.0f );
+
+				window.textEditState( 32u, "first" );
+				window.textEditState( 32u, "last" );
+				window.textEditState( 32u, block.name.getData() );
+			}
+		}
+
+		{
+			UiWidgetLayoutHorizontal blocksLayout( window, 4.0f );
+			blocksLayout.setHStretch( 1.0f );
+
+			const ConstArrayView< ResourceUnicodeBlock > unicodeBlocks = getUnicodeBlocks();
+
+			size_t selectedUnicodeBlock;
+			{
+				toolbox::UiToolboxDropdown blocksDropdown( window, &unicodeBlocks.getData()->name, unicodeBlocks.getLength(), unicodeBlocks.getElementSizeInBytes() );
+				blocksDropdown.setHStretch( 1.0f );
+				selectedUnicodeBlock = blocksDropdown.getSelectedIndex();
+			}
+
+			if( window.buttonLabel( "Add Unicode Block" ) )
+			{
+				const ResourceUnicodeBlock& sourceBlock = unicodeBlocks[ selectedUnicodeBlock ];
+
+				ResourceFontUnicodeBlock& targetBlock = blocks.pushBack();
+				targetBlock.first	= sourceBlock.first;
+				targetBlock.last	= sourceBlock.last;
+				targetBlock.name	= sourceBlock.name;
+			}
+
+			if( window.buttonLabel( "Add custom Block" ) )
+			{
+				blocks.pushBack();
+			}
 		}
 	}
 
@@ -812,6 +895,16 @@ namespace imapp
 					}
 				}
 				break;
+
+			case ResourceThemeFieldType::Time:
+				{
+					float floatValue = (float)*field.data.doublePtr;
+					if( doFloatTextEdit( window, floatValue ) )
+					{
+						*field.data.doublePtr = (double)floatValue;
+					}
+				}
+				break;
 			}
 		}
 	}
@@ -849,7 +942,7 @@ namespace imapp
 	{
 		uintsize selectedIndex = -1;
 		const char* selectedResourceNameUi = selectedResourceName;
-		const ArrayView< const char* > resourceNames = m_resourceNamesByType[ (uintsize)type ];
+		const ConstArrayView< const char* > resourceNames = m_resourceNamesByType[ (uintsize)type ];
 		for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
 		{
 			const char* resourceName = resourceNames[ i ];
@@ -887,8 +980,17 @@ namespace imapp
 			return;
 		}
 
+		ResourceType type = ResourceType::Count;
 		const DynamicString ext = path.getExtension();
-		if( ext != ".png" )
+		if( ext == ".png" )
+		{
+			type = ResourceType::Image;
+		}
+		else if( ext == ".ttf" )
+		{
+			type = ResourceType::Font;
+		}
+		else
 		{
 			showError( "Not supported file format: %s", ext.getData() );
 			return;
@@ -903,10 +1005,10 @@ namespace imapp
 			return;
 		}
 
-		Resource& resource = m_package.addResource( filename, ResourceType::Image );
+		Resource& resource = m_package.addResource( filename, type );
 		updateResourceNamesByType();
 
-		resource.setFileSourcePath( remainingPath );
+		resource.getFileSourcePath().assign( remainingPath );
 
 		m_selecedEntry = m_package.getResourceCount();
 	}

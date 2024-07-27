@@ -16,8 +16,9 @@
 static void		ImAppFillDefaultParameters( ImAppParameters* parameters );
 static bool		ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters );
 static void		ImAppCleanup( ImAppInternal* imapp );
-static void		ImAppHandleEvents( ImAppInternal* imapp );
+static void		ImAppHandleWindowEvents( ImAppInternal* imapp, ImAppWindow* window );
 static void		ImAppTick( void* arg );
+static void		ImAppTickWindow( ImAppWindow* window, void* arg );
 
 int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 {
@@ -79,24 +80,30 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 	return 0;
 }
 
-void ImAppTick( void* arg )
+static void ImAppTick( void* arg )
 {
 	ImAppInternal* imapp = (ImAppInternal*)arg;
 
 	imapp->lastTickValue = ImAppPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
 
-	ImAppPlatformWindowUpdate( imapp->window );
 	ImAppResSysUpdate( imapp->ressys );
-	ImAppHandleEvents( imapp );
+	ImAppPlatformWindowUpdate( imapp->window, ImAppTickWindow, imapp );
+
+	//ImAppTickWindow( imapp->window, arg );
+}
+
+static void ImAppTickWindow( ImAppWindow* window, void* arg )
+{
+	ImAppInternal* imapp = (ImAppInternal*)arg;
+
+	ImAppHandleWindowEvents( imapp, window );
 
 	ImAppPlatformWindowGetViewRect( imapp->window, &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height );
 
-	// UI
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)imapp->context.width, (float)imapp->context.height );
-
 		ImUiFrame* frame		= ImUiBegin( imapp->context.imui, imapp->lastTickValue / 1000.0f );
-		ImUiSurface* surface	= ImUiSurfaceBegin( frame, "default", size, 1.0f );
+		ImUiSurface* surface	= ImUiSurfaceBegin( frame, "default", size, ImAppPlatformWindowGetDpiScale( imapp->window ) );
 
 		ImAppProgramDoDefaultWindowUi( &imapp->context, imapp->programContext, surface );
 
@@ -285,9 +292,9 @@ static void ImAppCleanup( ImAppInternal* imapp )
 	ImUiMemoryFree( &imapp->allocator, imapp );
 }
 
-static void ImAppHandleEvents( ImAppInternal* imapp )
+static void ImAppHandleWindowEvents( ImAppInternal* imapp, ImAppWindow* window )
 {
-	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( imapp->window );
+	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( window );
 	ImUiInput* input = ImUiInputBegin( imapp->context.imui );
 
 	ImAppEvent windowEvent;

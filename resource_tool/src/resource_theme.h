@@ -1,6 +1,6 @@
 #pragma once
 
-#include <imui/imui_toolbox.h>
+#include <imui/imui_cpp.h>
 
 #include <tiki/tiki_static_array.h>
 #include <tiki/tiki_dynamic_string.h>
@@ -18,7 +18,6 @@ namespace tinyxml2
 namespace imapp
 {
 	using namespace imui::toolbox;
-	using namespace imui;
 	using namespace tiki;
 	using namespace tinyxml2;
 
@@ -32,7 +31,8 @@ namespace imapp
 		Border,
 		Size,
 		Image,
-		UInt32
+		UInt32,
+		Time
 	};
 
 	struct ResourceThemeField
@@ -46,6 +46,7 @@ namespace imapp
 			ImUiColor*			colorPtr;
 			DynamicString*		skinNamePtr;
 			float*				floatPtr;
+			double*				doublePtr;
 			ImUiBorder*			borderPtr;
 			ImUiSize*			sizePtr;
 			DynamicString*		imageNamePtr;
@@ -58,7 +59,7 @@ namespace imapp
 	{
 	public:
 
-		using FieldView = Array< ResourceThemeField >;
+		using FieldView = ArrayView< ResourceThemeField >;
 
 								ResourceTheme();
 								ResourceTheme( const ResourceTheme& theme );
@@ -73,17 +74,17 @@ namespace imapp
 
 		const UiToolboxConfig&	getConfig() const { return m_config; }
 		StringView				getSkinName( ImUiToolboxSkin skin ) const { return m_skins[ skin ]; }
-		StringView				getImageName( ImUiToolboxImage image ) const { return m_images[ image ]; }
+		StringView				getIconName( ImUiToolboxIcon icon ) const { return m_icons[ icon ]; }
 
 		ResourceTheme&			operator=( const ResourceTheme& rhs );
 
 	private:
 
-		static constexpr uintsize FieldCount = ImUiToolboxColor_MAX + ImUiToolboxSkin_MAX + ImUiToolboxImage_MAX + 41u;
+		static constexpr uintsize FieldCount = ImUiToolboxColor_MAX + ImUiToolboxSkin_MAX + ImUiToolboxIcon_MAX + 41u;
 
 		using FieldArray = StaticArray< ResourceThemeField, FieldCount >;
 		using SkinArray = StaticArray< DynamicString, ImUiToolboxSkin_MAX >;
-		using ImageArray = StaticArray< DynamicString, ImUiToolboxImage_MAX >;
+		using ImageArray = StaticArray< DynamicString, ImUiToolboxIcon_MAX >;
 
 		UiToolboxConfig			m_config;
 
@@ -91,7 +92,7 @@ namespace imapp
 
 		DynamicString			m_fontName;
 		SkinArray				m_skins;
-		ImageArray				m_images;
+		ImageArray				m_icons;
 
 		void					setFields();
 	};

@@ -19,6 +19,7 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	parameters->windowTitle			= "I'm App - Hello World";
 	parameters->windowWidth			= 400;
 	parameters->windowHeight		= 250;
+	parameters->windowMode			= ImAppDefaultWindow_Resizable;
 
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)malloc( sizeof( ImAppTestProgramContext ) );
 	context->tickIndex = 0u;

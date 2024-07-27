@@ -108,24 +108,12 @@ namespace imapp
 		return m_xml.SaveFile( m_path.getNativePath().getData() ) == XML_SUCCESS;
 	}
 
-	void ResourcePackage::updateFileData( ImAppContext* imapp, float time )
+	void ResourcePackage::updateFileData( ImAppContext* imapp, double time )
 	{
 		for( Resource* resource : m_resources )
 		{
 			resource->updateFileData( imapp, m_path.getGenericPath(), time );
 		}
-	}
-
-	void ResourcePackage::setName( const StringView& value )
-	{
-		m_name = value;
-		m_revision++;
-	}
-
-	void ResourcePackage::setOutputPath( const StringView& value )
-	{
-		m_outputPath = value;
-		m_revision++;
 	}
 
 	Resource& ResourcePackage::addResource( const StringView& name, ResourceType type )
