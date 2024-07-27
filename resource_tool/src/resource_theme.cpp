@@ -11,7 +11,7 @@ namespace imapp
 	ResourceTheme::ResourceTheme()
 		: m_config( nullptr )
 	{
-		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1232u );
+		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1240u );
 
 		setFields();
 	}
@@ -33,9 +33,15 @@ namespace imapp
 
 			for( ResourceThemeField& field : m_fields )
 			{
-				if( field.name != name )
+				if( field.type == ResourceThemeFieldType::Group ||
+					field.name != name )
 				{
 					continue;
+				}
+
+				if( field.xml )
+				{
+					resourceNode->DeleteChild( field.xml );
 				}
 
 				field.xml = configNode;
@@ -196,7 +202,7 @@ namespace imapp
 		m_fontName = rhs.m_fontName;
 
 		m_skins = rhs.m_skins;
-		m_images = rhs.m_images;
+		m_icons = rhs.m_icons;
 
 		setFields();
 
@@ -214,7 +220,7 @@ namespace imapp
 			{ "Button",							ResourceThemeFieldType::Group },
 
 			{ "Button Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Button ] } },
-			{ "Button",							ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Button ] } },
+			{ "Button Default",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Button ] } },
 			{ "Button Hover",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonHover ] } },
 			{ "Button Clocked",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonClicked ] } },
 			{ "Button Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonText ] } },
@@ -224,25 +230,25 @@ namespace imapp
 			// check box
 			{ "Check Box",						ResourceThemeFieldType::Group },
 
-			{ "Check Box",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBox ] } },
-			{ "Check Box Checked",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBoxChecked ] } },
-			{ "Check Box",						ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBox ] } },
+			{ "Check Box Unchecked Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBox ] } },
+			{ "Check Box Checked Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBoxChecked ] } },
+			{ "Check Box Default",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBox ] } },
 			{ "Check Box Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxHover ] } },
 			{ "Check Box Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxClicked ] } },
 			{ "Check Box Checked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxChecked ] } },
-			{ "Check Box Check Icon",			ResourceThemeFieldType::Image,		{ &m_images[ ImUiToolboxImage_CheckBoxChecked ] } },
+			{ "Check Box Check Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_CheckBoxChecked ] } },
 			{ "Check Box Size",					ResourceThemeFieldType::Size,		{ &m_config.checkBox.size } },
 			{ "Check Box Text Spacing",			ResourceThemeFieldType::Float,		{ &m_config.checkBox.textSpacing } },
 
 			// slider
 			{ "Slider",							ResourceThemeFieldType::Group },
 
-			{ "Slider Background",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderBackground ] } },
-			{ "Slider Pivot",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderPivot ] } },
+			{ "Slider Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderBackground ] } },
+			{ "Slider Pivot Skin",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderPivot ] } },
 			{ "Slider Background",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderBackground ] } },
 			{ "Slider Pivot",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivot ] } },
-			{ "Slider PivotHover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotHover ] } },
-			{ "Slider PivotClicked",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotClicked ] } },
+			{ "Slider Pivot Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotHover ] } },
+			{ "Slider Pivot Clicked",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotClicked ] } },
 			{ "Slider Height",					ResourceThemeFieldType::Float,		{ &m_config.slider.height } },
 			{ "Slider Padding",					ResourceThemeFieldType::Border,		{ &m_config.slider.padding } },
 			{ "Slider Pivot Size",				ResourceThemeFieldType::Size,		{ &m_config.slider.pivotSize } },
@@ -250,7 +256,7 @@ namespace imapp
 			// text edit
 			{ "Text Edit",						ResourceThemeFieldType::Group },
 
-			{ "Text Edit Background",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_TextEditBackground ] } },
+			{ "Text Edit Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_TextEditBackground ] } },
 			{ "Text Edit Background",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditBackground ] } },
 			{ "Text Edit Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditText ] } },
 			{ "Text Edit Cursor",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditCursor ] } },
@@ -258,13 +264,13 @@ namespace imapp
 			{ "Text Edit Height",				ResourceThemeFieldType::Float,		{ &m_config.textEdit.height } },
 			{ "Text Edit Padding",				ResourceThemeFieldType::Border,		{ &m_config.textEdit.padding } },
 			{ "Text Edit Cursor Size",			ResourceThemeFieldType::Size,		{ &m_config.textEdit.cursorSize } },
-			{ "Text Edit Blink time",			ResourceThemeFieldType::Float,		{ &m_config.textEdit.blinkTime } },
+			{ "Text Edit Blink time",			ResourceThemeFieldType::Time,		{ &m_config.textEdit.blinkTime } },
 
 			// progress bar
 			{ "Progress Bar",					ResourceThemeFieldType::Group },
 
-			{ "Progress Bar Background",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarBackground ] } },
-			{ "Progress Bar Progress",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarProgress ] } },
+			{ "Progress Bar Skin",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarBackground ] } },
+			{ "Progress Bar Progress Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarProgress ] } },
 			{ "Progress Bar Background",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ProgressBarBackground ] } },
 			{ "Progress Bar Progress",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ProgressBarProgress ] } },
 			{ "Progress Bar Height",			ResourceThemeFieldType::Float,		{ &m_config.progressBar.height } },
@@ -273,8 +279,8 @@ namespace imapp
 			// scroll area
 			{ "Scroll Area",					ResourceThemeFieldType::Group },
 
-			{ "Scroll Area Bar Background",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarBackground ] } },
-			{ "Scroll Area Bar Pivot",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarPivot ] } },
+			{ "Scroll Area Bar Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarBackground ] } },
+			{ "Scroll Area Bar Pivot Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarPivot ] } },
 			{ "Scroll Area Bar Background",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarBackground ] } },
 			{ "Scroll Area Bar Pivot",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarPivot ] } },
 			{ "Scroll Area Bar Size",			ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSize } },
@@ -294,10 +300,10 @@ namespace imapp
 			// drop down
 			{ "Drop Down",						ResourceThemeFieldType::Group },
 
-			{ "Drop Down",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDown ] } },
-			{ "Drop Down List",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownList ] } },
-			{ "Drop Down List Item",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownListItem ] } },
-			{ "Drop Down ",						ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDown ] } },
+			{ "Drop Down Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDown ] } },
+			{ "Drop Down List Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownList ] } },
+			{ "Drop Down List Item Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownListItem ] } },
+			{ "Drop Down Background",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDown ] } },
 			{ "Drop Down Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownText ] } },
 			{ "Drop Down Icon",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownIcon ] } },
 			{ "Drop Down Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownHover ] } },
@@ -308,8 +314,8 @@ namespace imapp
 			{ "Drop Down List Item Hover",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemHover ] } },
 			{ "Drop Down List Item Clicked",	ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemClicked ] } },
 			{ "Drop Down List Item Selected",	ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemSelected ] } },
-			{ "Drop Down Open Icon",			ResourceThemeFieldType::Image,		{ &m_images[ ImUiToolboxImage_DropDownOpenIcon ] } },
-			{ "Drop Down Close Icon",			ResourceThemeFieldType::Image,		{ &m_images[ ImUiToolboxImage_DropDownCloseIcon ] } },
+			{ "Drop Down Open Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_DropDownOpenIcon ] } },
+			{ "Drop Down Close Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_DropDownCloseIcon ] } },
 			{ "Drop Down Height",				ResourceThemeFieldType::Float,		{ &m_config.dropDown.height } },
 			{ "Drop Down Padding",				ResourceThemeFieldType::Border,		{ &m_config.dropDown.padding } },
 			{ "Drop Down List Z Order",			ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.listZOrder } },
@@ -323,7 +329,7 @@ namespace imapp
 
 			{ "Popup Skin",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Popup ] } },
 			{ "Popup Background",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_PopupBackground ] } },
-			{ "Popup",							ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Popup ] } },
+			{ "Popup Window",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Popup ] } },
 			{ "Pop-Up Z Order",					ResourceThemeFieldType::UInt32,		{ &m_config.popup.zOrder } },
 			{ "Pop-Up Padding",					ResourceThemeFieldType::Border,		{ &m_config.popup.padding } },
 			{ "Pop-Up Button Spacing",			ResourceThemeFieldType::Float,		{ &m_config.popup.buttonSpacing } },
