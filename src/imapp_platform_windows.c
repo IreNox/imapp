@@ -6,6 +6,7 @@
 #include "imapp_debug.h"
 #include "imapp_event_queue.h"
 
+#include <math.h>
 #include <windows.h>
 #include <shellapi.h>
 #include <windowsx.h>
@@ -38,20 +39,20 @@ static  IDropTargetVtbl s_dropTargetVtbl	= { ImAppPlatformWindowDropTargetQueryI
 
 struct ImAppPlatform
 {
-	ImUiAllocator*	allocator;
+	ImUiAllocator*		allocator;
 
-	uint8			inputKeyMapping[ 255u ];	// ImUiInputKey
+	uint8				inputKeyMapping[ 255u ];	// ImUiInputKey
 
-	wchar_t			resourcePath[ MAX_PATH ];
+	wchar_t				resourcePath[ MAX_PATH ];
 	uintsize			resourceBasePathLength;
 
-	wchar_t			fontPath[ MAX_PATH ];
+	wchar_t				fontPath[ MAX_PATH ];
 	uintsize			fontBasePathLength;
 
-	HCURSOR			cursors[ ImUiInputMouseCursor_MAX ];
-	HCURSOR			currentCursor;
+	HCURSOR				cursors[ ImUiInputMouseCursor_MAX ];
+	HCURSOR				currentCursor;
 
-	int64_t			tickFrequency;
+	int64_t				tickFrequency;
 };
 
 typedef struct ImAppWindowDrop ImAppWindowDrop;
@@ -68,7 +69,7 @@ struct ImAppWindow
 	IDropTarget			dropTarget;
 	FORMATETC			dropFormat;
 	ImAppWindowDrop*	firstNewDrop;
-	ImAppWindowDrop*	firstPopedDrop;
+	ImAppWindowDrop*	firstPoppedDrop;
 
 	ImAppPlatform*		platform;
 
@@ -77,13 +78,18 @@ struct ImAppWindow
 	HGLRC				hglrc;
 
 	bool				isOpen;
+	bool				isResize;
 	int					x;
 	int					y;
 	int					width;
 	int					height;
 	ImAppWindowState	state;
+	float				dpiScale;
 
 	ImAppEventQueue		eventQueue;
+
+	ImAppPlatformWindowUpdateCallback	updateCallback;
+	void*								updateCallbackArg;
 };
 
 typedef struct ImAppFileWatcherPath
@@ -158,6 +164,8 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	unsigned newControl = _EM_OVERFLOW | _EM_ZERODIVIDE | _EM_INVALID;
 	_controlfp_s( 0, ~newControl, newControl );
 #endif
+
+	SetProcessDpiAwarenessContext( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
 
 	ImAppPlatform platform = { 0 };
 
@@ -474,8 +482,8 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		winStyle,
 		2200, //CW_USEDEFAULT,
 		200,
-		width,
-		height,
+		0,
+		0,
 		NULL,
 		NULL,
 		hInstance,
@@ -490,6 +498,9 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	}
 
 	SetWindowLongPtr( window->hwnd, GWLP_USERDATA, (LONG_PTR)window );
+
+	window->dpiScale = GetDpiForWindow( window->hwnd ) / (float)USER_DEFAULT_SCREEN_DPI;
+	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, (int)ceil( width * window->dpiScale ), (int)ceil( height * window->dpiScale ), SWP_NOMOVE );
 
 	int showState = SW_SHOWNORMAL;
 	switch( state )
@@ -529,10 +540,10 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
 
-	while( window->firstPopedDrop )
+	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPopedDrop;
-		window->firstPopedDrop = drop->nextDrop;
+		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
@@ -593,12 +604,15 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->hglrc = NULL;
 }
 
-void ImAppPlatformWindowUpdate( ImAppWindow* window )
+void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
 {
-	while( window->firstPopedDrop )
+	window->updateCallback		= callback;
+	window->updateCallbackArg	= arg;
+
+	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPopedDrop;
-		window->firstPopedDrop = drop->nextDrop;
+		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
@@ -609,6 +623,11 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window )
 		TranslateMessage( &message );
 		DispatchMessage( &message );
 	}
+
+	callback( window, arg );
+
+	window->updateCallback		= NULL;
+	window->updateCallbackArg	= NULL;
 }
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
@@ -634,8 +653,8 @@ bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 
 	window->firstNewDrop = drop->nextDrop;
 
-	drop->nextDrop = window->firstPopedDrop;
-	window->firstPopedDrop = drop;
+	drop->nextDrop = window->firstPoppedDrop;
+	window->firstPoppedDrop = drop;
 
 	return true;
 }
@@ -663,6 +682,11 @@ void ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY )
 ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* window )
 {
 	return window->state;
+}
+
+float ImAppPlatformWindowGetDpiScale( ImAppWindow* window )
+{
+	return window->dpiScale;
 }
 
 static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -708,7 +732,21 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 				window->width	= (clientRect.right - clientRect.left);
 				window->height	= (clientRect.bottom - clientRect.top);
+
+				if( window->updateCallback )
+				{
+					window->updateCallback( window, window->updateCallbackArg );
+				}
 			}
+			return 0;
+
+		case WM_ENTERSIZEMOVE:
+			window->isResize = true;
+			return 0;
+
+		case WM_EXITSIZEMOVE:
+			window->isResize = false;
+			window->updateCallback( window, window->updateCallbackArg );
 			return 0;
 
 		case WM_SETCURSOR:
@@ -718,6 +756,16 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					SetCursor( window->platform->currentCursor );
 					return TRUE;
 				}
+			}
+			break;
+
+		case WM_DPICHANGED:
+			{
+				window->dpiScale = HIWORD( wParam ) / (float)USER_DEFAULT_SCREEN_DPI;
+
+				const RECT* targetRect = (const RECT*)lParam;
+				SetWindowPos( hWnd, HWND_TOP, targetRect->left, targetRect->top, targetRect->right - targetRect->left, targetRect->bottom - targetRect->top, 0u );
+				window->updateCallback( window, window->updateCallbackArg );
 			}
 			break;
 

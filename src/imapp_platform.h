@@ -39,13 +39,15 @@ enum ImAppWindowState
 	ImAppWindowState_Minimized
 };
 
+typedef void(*ImAppPlatformWindowUpdateCallback)( ImAppWindow* window, void* arg );
+
 ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state );
 void					ImAppPlatformWindowDestroy( ImAppWindow* window );
 
 bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );
 void					ImAppPlatformWindowDestroyGlContext( ImAppWindow* window );
 
-void					ImAppPlatformWindowUpdate( ImAppWindow* window );
+void					ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg );
 bool					ImAppPlatformWindowPresent( ImAppWindow* window );
 
 ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
@@ -56,6 +58,7 @@ void					ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* ou
 void					ImAppPlatformWindowGetSize( ImAppWindow* window, int* outWidth, int* outHeight );
 void					ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY );
 ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
+float					ImAppPlatformWindowGetDpiScale( ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
 // Files/Resources
