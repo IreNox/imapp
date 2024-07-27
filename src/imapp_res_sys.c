@@ -28,6 +28,8 @@ struct ImAppResSys
 	ImUiHashMap			nameMap;
 	ImAppRes*			firstUnusedRes;
 
+	ImUiHashMap			imageMap;
+
 	ImAppThread*		thread;
 
 	ImAppResEventQueue	sendQueue;
@@ -57,6 +59,8 @@ static bool			ImAppResEventQueuePop( ImAppResEventQueue* queue, ImAppResEvent* o
 
 static ImUiHash		ImAppResSysNameMapHash( const void* key );
 static bool			ImAppResSysNameMapIsKeyEquals( const void* lhs, const void* rhs );
+static ImUiHash		ImAppResSysImageMapHash( const void* key );
+static bool			ImAppResSysImageMapIsKeyEquals( const void* lhs, const void* rhs );
 
 static const ImAppResPakResource*	ImAppResPakResourceGet( const void* base, uint16_t index );
 static ImUiStringView				ImAppResPakResourceGetName( const void* base, const ImAppResPakResource* res );
@@ -74,6 +78,7 @@ ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platfor
 	ressys->watcher		= ImAppPlatformFileWatcherCreate( platform );
 
 	if( !ImUiHashMapConstructSize( &ressys->nameMap, allocator, sizeof( ImAppRes* ), ImAppResSysNameMapHash, ImAppResSysNameMapIsKeyEquals, 64u ) ||
+		!ImUiHashMapConstructSize( &ressys->imageMap, allocator, sizeof( ImAppRes* ), ImAppResSysImageMapHash, ImAppResSysImageMapIsKeyEquals, 64u ) ||
 		!ImAppResEventQueueConstruct( ressys, &ressys->sendQueue, 16u ) ||
 		!ImAppResEventQueueConstruct( ressys, &ressys->receiveQueue, 16u ) )
 	{
@@ -97,9 +102,16 @@ void ImAppResSysDestroy( ImAppResSys* ressys )
 		ressys->thread = NULL;
 	}
 
+	for( uintsize i = ImUiHashMapFindFirstIndex( &ressys->imageMap ); i != IMUI_SIZE_MAX; i = ImUiHashMapFindNextIndex( &ressys->imageMap, i ) )
+	{
+		ImAppImage* image = *(ImAppImage**)ImUiHashMapGetEntry( &ressys->imageMap, i );
+		ImAppResSysImageFree( ressys, image );
+	}
+
 	ImAppResEventQueueDestruct( ressys, &ressys->sendQueue );
 	ImAppResEventQueueDestruct( ressys, &ressys->receiveQueue );
 
+	ImUiHashMapDestruct( &ressys->imageMap );
 	ImUiHashMapDestruct( &ressys->nameMap );
 
 	ImAppPlatformFileWatcherDestroy( ressys->platform, ressys->watcher );
@@ -311,13 +323,15 @@ static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent
 	}
 
 	const ImAppResEventResultImageData* result = &resEvent->result.image;
-	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, ImAppRendererFormat_RGBA8, 0u );
+	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
 	image->data.width		= result->width;
 	image->data.height		= result->height;
 	image->data.uv.u0		= 0.0f;
 	image->data.uv.v0		= 0.0f;
 	image->data.uv.u1		= 1.0f;
 	image->data.uv.v1		= 1.0f;
+
+	ImUiMemoryFree( ressys->allocator, result->data.data );
 
 	image->state = ImAppResState_Ready;
 }
@@ -862,6 +876,7 @@ void ImAppResPakActivateTheme( ImAppResPak* pak, const char* name )
 ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW( ressys->allocator, ImAppImage );
+	image->resourceName		= ImUiStringViewCreateEmpty();
 	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
 	image->data.width		= width;
 	image->data.height		= height;
@@ -870,8 +885,6 @@ ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelDat
 	image->data.uv.u1		= 1.0f;
 	image->data.uv.v1		= 1.0f;
 	image->state			= ImAppResState_Ready;
-
-	image->resourceName[ 0u ]	= '\0';
 
 	if( !image->data.textureData )
 	{
@@ -882,25 +895,39 @@ ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelDat
 	return image;
 }
 
-ImAppImage* ImAppResSysImageCreateResource( ImAppResSys* ressys, const char* resourceName )
+ImAppImage* ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName )
 {
-	const uintsize resourceNameLength = strlen( resourceName );
+	const ImUiStringView resourceNameView = ImUiStringViewCreate( resourceName );
+	const ImUiStringView* resourceNameViewEntry = &resourceNameView;
 
-	ImAppImage* image = (ImAppImage*)ImUiMemoryAllocZero( ressys->allocator, sizeof( *image ) + resourceNameLength );
-	memcpy( image->resourceName, resourceName, resourceNameLength );
-	image->resourceName[ resourceNameLength ] = '\0';
-
-	ImAppResEvent loadEvent;
-	loadEvent.type				= ImAppResEventType_LoadImage;
-	loadEvent.data.image.image	= image;
-
-	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &loadEvent ) )
+	bool isNew;
+	ImAppImage** imageEntry = (ImAppImage**)ImUiHashMapInsertNew( &ressys->imageMap, &resourceNameViewEntry, &isNew );
+	if( isNew )
 	{
-		ImUiMemoryFree( ressys->allocator, image );
-		return NULL;
+		ImAppImage* image = (ImAppImage*)ImUiMemoryAllocZero( ressys->allocator, sizeof( *image ) + resourceNameView.length + 1u );
+
+		char* targetResourceName = (char*)&image[ 1u ];
+		memcpy( targetResourceName, resourceName, resourceNameView.length );
+		targetResourceName[ resourceNameView.length ] = '\0';
+
+		image->resourceName.data	= targetResourceName;
+		image->resourceName.length	= resourceNameView.length;
+
+		ImAppResEvent loadEvent;
+		loadEvent.type				= ImAppResEventType_LoadImage;
+		loadEvent.data.image.image	= image;
+
+		if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &loadEvent ) )
+		{
+			ImUiHashMapRemove( &ressys->imageMap, &image );
+			ImUiMemoryFree( ressys->allocator, image );
+			return NULL;
+		}
+
+		*imageEntry = image;
 	}
 
-	return image;
+	return *imageEntry;
 }
 
 ImAppImage* ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize )
@@ -1228,7 +1255,7 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 {
 	ImAppImage* image = resEvent->data.image.image;
 
-	const ImAppBlob data = ImAppPlatformResourceLoad( ressys->platform, image->resourceName );
+	const ImAppBlob data = ImAppPlatformResourceLoad( ressys->platform, image->resourceName.data );
 	if( !data.data )
 	{
 		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName );
@@ -1254,9 +1281,10 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 			ImAppResThreadHandleDecodeJpeg( ressys, &decodeEvent );
 		}
 
+		ImAppPlatformResourceFree( ressys->platform, data );
+
 		if( !decodeEvent.success )
 		{
-			ImAppPlatformResourceFree( ressys->platform, data );
 			return;
 		}
 
@@ -1484,6 +1512,21 @@ static bool ImAppResSysNameMapIsKeyEquals( const void* lhs, const void* rhs )
 	return lhsRes->key.pak == rhsRes->key.pak &&
 		lhsRes->key.type == rhsRes->key.type &&
 		ImUiStringViewIsEquals( lhsRes->key.name, rhsRes->key.name );
+}
+
+static ImUiHash ImAppResSysImageMapHash( const void* key )
+{
+	const ImAppImage* image = *(const ImAppImage**)key;
+
+	return ImUiHashString( image->resourceName, 0u );
+}
+
+static bool ImAppResSysImageMapIsKeyEquals( const void* lhs, const void* rhs )
+{
+	const ImAppImage* lhsImage = *(const ImAppImage**)lhs;
+	const ImAppImage* rhsImage = *(const ImAppImage**)rhs;
+
+	return ImUiStringViewIsEquals( lhsImage->resourceName, rhsImage->resourceName );
 }
 
 static const ImAppResPakResource* ImAppResPakResourceGet( const void* base, uint16_t index )

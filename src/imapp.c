@@ -380,7 +380,7 @@ void ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak )
 ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceName )
 {
 	ImAppInternal* imappInt = (ImAppInternal*)imapp;
-	ImAppImage* pImage = ImAppResSysImageCreateResource( imappInt->ressys, resourceName );
+	ImAppImage* pImage = ImAppResSysImageLoadResource( imappInt->ressys, resourceName );
 	if( pImage == NULL )
 	{
 		return NULL;
