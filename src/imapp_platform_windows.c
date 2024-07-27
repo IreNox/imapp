@@ -713,7 +713,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_SETCURSOR:
 			{
-				if( (HWND)wParam == GetDlgItem( window->hwnd, 4000 ) )
+				if( LOWORD( lParam ) == 1 )
 				{
 					SetCursor( window->platform->currentCursor );
 					return TRUE;
