@@ -15,10 +15,10 @@ typedef struct ImUiContext ImUiContext;
 
 struct ImAppImage
 {
+	ImUiStringView			resourceName;
+
 	ImUiImage				data;
 	ImAppResState			state;
-
-	char					resourceName[ 1u ];
 };
 
 ImAppResSys*	ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
@@ -31,9 +31,9 @@ ImAppResPak*	ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName );
 void			ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
 
 ImAppImage*		ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height );
-ImAppImage*		ImAppResSysImageCreateResource( ImAppResSys* ressys, const char* resourceName );
 ImAppImage*		ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
 ImAppImage*		ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImAppImage*		ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName );
 ImAppResState	ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
 void			ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
 
