@@ -57,7 +57,8 @@ namespace imapp
 	{
 		update( imapp, surface.getTime() );
 
-		doPopupState( surface );
+		doPopups( surface );
+		doNotifications( surface );
 
 		UiToolboxWindow window( surface, "main", surface.getRect(), 1 );
 
@@ -230,7 +231,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doPopupState( UiSurface& surface )
+	void ResourceTool::doPopups( UiSurface& surface )
 	{
 		switch( m_popupState )
 		{
@@ -358,6 +359,58 @@ namespace imapp
 		}
 	}
 
+	void ResourceTool::doNotifications( UiSurface& surface )
+	{
+		if( m_notifications.isEmpty() )
+		{
+			return;
+		}
+
+		UiRect notificationsRect;
+		notificationsRect.pos.x			= surface.getSize().width - 250.0f;
+		notificationsRect.pos.y			= 50.0f;
+		notificationsRect.size.width	= 200.0f;
+		notificationsRect.size.height	= 120.0f * m_notifications.getCount();
+
+		UiToolboxWindow window( surface, "notifications", notificationsRect, 5u );
+
+		UiWidgetLayoutVertical mainLayout( window, 10.0f );
+
+		for( uintsize i = (uintsize)Notifications::Count - 1u; i < (uintsize)Notifications::Count; --i )
+		{
+			const Notifications notification = (Notifications)i;
+			if( !m_notifications.isSet( notification ) )
+			{
+				continue;
+			}
+
+			UiWidget notificationWidget( window );
+			notificationWidget.setPadding( UiBorder( 10.0f ) );
+
+			notificationWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_Popup ), UiToolboxConfig::getColor( ImUiToolboxColor_PopupBackground ) );
+
+			switch( notification )
+			{
+			case Notifications::Loaded:
+				window.label( "Loaded!" );
+				break;
+
+			case Notifications::Saved:
+				window.label( "Saved!" );
+				break;
+
+			case Notifications::Count:
+				break;
+			}
+
+			UiAnimation< float > animation( notificationWidget, 1.0f, 0.0f, 2.5f );
+
+			UiWidget barWidget( window );
+			barWidget.setFixedHeight( 2.0f );
+			//barWidget.setHStretch( animation.getValue() );
+		}
+	}
+
 	void ResourceTool::doView( ImAppContext* imapp, UiToolboxWindow& window )
 	{
 		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
@@ -382,7 +435,7 @@ namespace imapp
 		window.label( "Name:" );
 		{
 			DynamicString& name = resource.getName();
-			char* buffer = name.beginWrite();
+			char* buffer = name.beginWrite( name.getLength() + 2u );
 			if( window.textEdit( buffer, name.getCapacity() ) )
 			{
 				resource.increaseRevision();
@@ -416,7 +469,7 @@ namespace imapp
 		window.label( "Name:" );
 		{
 			DynamicString& name = m_package.getName();
-			char* buffer = name.beginWrite( 32u );
+			char* buffer = name.beginWrite( name.getLength() + 2u );
 			if( window.textEdit( buffer, name.getCapacity() ) )
 			{
 				m_package.increaseRevision();
@@ -441,7 +494,7 @@ namespace imapp
 		window.label( "Path:" );
 		{
 			DynamicString& filePath = resource.getFileSourcePath();
-			char* buffer = filePath.beginWrite( 64u );
+			char* buffer = filePath.beginWrite( filePath.getLength() + 2u );
 			if( window.textEdit( buffer, filePath.getCapacity() ) )
 			{
 				resource.increaseRevision();
@@ -491,7 +544,7 @@ namespace imapp
 		window.label( "Path:" );
 		{
 			DynamicString& filePath = resource.getFileSourcePath();
-			char* buffer = filePath.beginWrite( 64u );
+			char* buffer = filePath.beginWrite( filePath.getLength() + 2u );
 			if( window.textEdit( buffer, filePath.getCapacity() ) )
 			{
 				resource.increaseRevision();
@@ -1049,16 +1102,22 @@ namespace imapp
 		m_scrollArea.setStretchOne();
 		m_scrollArea.setLayoutScroll( m_state->offset.x, m_state->offset.y );
 
-		const ImUiImage* bgImage = ImAppResPakGetImage( ImAppResourceGetDefaultPak( imapp ), "transparent_bg" );
-		if( bgImage )
+		m_bgImage = ImAppResPakGetImage( ImAppResourceGetDefaultPak( imapp ), "transparent_bg" );
+		if( m_bgImage && m_state->bgColor.alpha == 0.0f )
 		{
 			const UiSize size = getSize();
 
-			ImUiImage image = *bgImage;
-			image.uv.u1		= size.width / image.width;
-			image.uv.v1		= size.height / image.height;
+			ImUiImage image = *m_bgImage;
+			image.uv.u0		= m_state->offset.x / image.width;
+			image.uv.v0		= m_state->offset.y / image.height;
+			image.uv.u1		= image.uv.u0 + (size.width / image.width);
+			image.uv.v1		= image.uv.v0 + (size.height / image.height);
 
 			m_scrollArea.drawImage( image );
+		}
+		else
+		{
+			m_scrollArea.drawColor( m_state->bgColor );
 		}
 
 		ImUiWidgetInputState widgetInput;
@@ -1097,10 +1156,10 @@ namespace imapp
 
 		UiToolboxWindow window = getWindow();
 
-		UiWidgetLayoutHorizontal buttonsLayout( window );
+		UiWidgetLayoutHorizontal buttonsLayout( window, 5.0f );
 		buttonsLayout.setPadding( UiBorder( 4.0f ) );
 
-		buttonsLayout.drawColor( UiColor::CreateWhite( 0xa0u ) );
+		buttonsLayout.drawColor( UiColor::CreateBlack( 0xa0u ) );
 
 		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
 		//{
@@ -1112,7 +1171,41 @@ namespace imapp
 		//
 		//}
 
-		window.labelFormat( "Zoom: %.0f %%", m_state->zoom * 100.0f );
+		{
+			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
+			window.labelFormat( "Zoom: %.0f%%", m_state->zoom * 100.0f );
+		}
+
+		doBackgroundButton( UiColor::TransparentBlack );
+		doBackgroundButton( UiColor::Black );
+		doBackgroundButton( UiColor::CreateGray( 128u ) );
+		doBackgroundButton( UiColor::White );
+	}
+
+	void ResourceTool::ImageViewWidget::doBackgroundButton( const UiColor& color )
+	{
+		UiSize size = UiSize( 16.0f );
+		if( m_bgImage )
+		{
+			size = UiSize( *m_bgImage );
+		}
+
+		UiToolboxButton bgButton( getWindow() );
+		bgButton.setFixedSize( size );
+
+		if( m_bgImage && color.alpha == 0.0f )
+		{
+			bgButton.drawImage( *m_bgImage );
+		}
+		else
+		{
+			bgButton.drawColor( color );
+		}
+
+		if( bgButton.end() )
+		{
+			m_state->bgColor = color;
+		}
 	}
 
 }

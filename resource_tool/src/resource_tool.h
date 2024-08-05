@@ -5,6 +5,7 @@
 #include "resource_package.h"
 
 #include <tiki/tiki_dynamic_string.h>
+#include <tiki/tiki_flags.h>
 #include <tiki/tiki_static_array.h>
 
 struct ImAppContext;
@@ -47,30 +48,45 @@ namespace imapp
 			Error
 		};
 
+		enum class Notifications
+		{
+			Loaded,
+			Saved,
+
+			Count
+		};
+
+		using NotificationFlags = Flags8< Notifications >;
+
 		class ImageViewWidget : public UiWidget
 		{
 		public:
 
-							ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window );
-							~ImageViewWidget();
+								ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window );
+								~ImageViewWidget();
 
-			UiWidget&		getContent() { return m_scrollContent; }
+			UiWidget&			getContent() { return m_scrollContent; }
 
-			float			getZoom() const { return m_state->zoom; }
+			float				getZoom() const { return m_state->zoom; }
 
 		private:
 
 			struct ScrollState
 			{
-				UiPos		lastMousePos;
-				UiPos		offset;
-				float		zoom		= 1.0f;
+				UiPos			lastMousePos;
+				UiPos			offset;
+				float			zoom		= 1.0f;
+
+				UiColor			bgColor		= UiColor::TransparentBlack;
 			};
 
-			UiWidget		m_scrollArea;
-			UiWidget		m_scrollContent;
+			UiWidget			m_scrollArea;
+			UiWidget			m_scrollContent;
 
-			ScrollState*	m_state;
+			const ImUiImage*	m_bgImage;
+			ScrollState*		m_state;
+
+			void				doBackgroundButton( const UiColor& color );
 		};
 
 		struct SkinState
@@ -84,13 +100,14 @@ namespace imapp
 		};
 
 		ResourcePackage		m_package;
-		Compiler	m_compiler;
+		Compiler			m_compiler;
 
 		bool				m_autoCompile			= false;
 		uint32				m_lastCompileRevision	= 0u;
 
 		PopupState			m_popupState			= PopupState::Home;
 		DynamicString		m_errorMessage;
+		NotificationFlags	m_notifications;
 
 		size_t				m_selecedEntry			= (size_t)-1;
 
@@ -98,10 +115,12 @@ namespace imapp
 
 		void				update( ImAppContext* imapp, double time );
 
-		void				doPopupState( UiSurface& surface );
+		void				doPopups( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );
 		void				doPopupStateDeleteConfirm( UiSurface& surface );
 		void				doPopupStateError( UiSurface& surface );
+
+		void				doNotifications( UiSurface& surface );
 
 		void				doView( ImAppContext* imapp, UiToolboxWindow& window );
 		void				doViewPackage( UiToolboxWindow& window );

@@ -912,7 +912,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		case WM_MOUSEHWHEEL:
 			{
 				const int xDelta = GET_WHEEL_DELTA_WPARAM( wParam );
-				const ImAppEvent scrollEvent = { .scroll = {.type = ImAppEventType_Scroll, .x = xDelta, .y = 0 } };
+				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = xDelta, .y = 0 } };
 				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			return 0;
@@ -922,16 +922,10 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		}
 	}
 
-	switch( message )
+	if( message == WM_DESTROY )
 	{
-	case WM_DESTROY:
-		{
-			PostQuitMessage( 0 );
-		}
+		PostQuitMessage( 0 );
 		return 0;
-
-	default:
-		break;
 	}
 
 	return DefWindowProc( hWnd, message, wParam, lParam );
