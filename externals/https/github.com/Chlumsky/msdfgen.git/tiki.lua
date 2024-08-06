@@ -17,6 +17,8 @@ msdf_module:add_files( "core/*.cpp" )
 msdf_module:add_files( "ext/*.h" )
 msdf_module:add_files( "ext/*.cpp" )
 
+msdf_module:set_define( "MSDFGEN_PUBLIC", "" )
+
 msdf_module:add_external( "https://github.com/freetype/freetype.git" )
 
 if tiki.use_lib then
