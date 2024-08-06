@@ -380,8 +380,8 @@ namespace imapp
 		const float count = (float)m_notifications.getCount();
 
 		UiRect notificationsRect;
-		notificationsRect.pos.x			= surface.getSize().width - 210.0f;
-		notificationsRect.pos.y			= 50.0f;
+		notificationsRect.pos.x			= surface.getSize().width - 208.0f;
+		notificationsRect.pos.y			= 8.0f;
 		notificationsRect.size.width	= 200.0f;
 		notificationsRect.size.height	= (50.0f * count) + (10.0f * (count - 1.0f));
 
@@ -402,8 +402,12 @@ namespace imapp
 			notificationWidget.setStretchOne();
 			notificationWidget.setPadding( UiBorder( 10.0f ) );
 
-			notificationWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_Popup ), UiToolboxConfig::getColor( ImUiToolboxColor_PopupBackground ) );
+			UiColor bgColor = UiToolboxConfig::getColor( ImUiToolboxColor_Button );
+			bgColor.alpha = 196u;
 
+			notificationWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_Popup ), bgColor );
+
+			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
 			switch( notification )
 			{
 			case Notifications::Loaded:
@@ -429,7 +433,7 @@ namespace imapp
 			barWidget.setFixedHeight( 2.0f );
 			barWidget.setHStretch( animation.getValue() );
 
-			barWidget.drawColor( UiToolboxConfig::getColor( ImUiToolboxColor_Button ) );
+			barWidget.drawColor( UiToolboxConfig::getColor( ImUiToolboxColor_Text ) );
 
 			if( animation.getValue() == 0.0f )
 			{
@@ -1020,16 +1024,20 @@ namespace imapp
 
 	StringView ResourceTool::doResourceSelect( UiToolboxWindow& window, ResourceType type, const StringView& selectedResourceName )
 	{
-		uintsize selectedIndex = -1;
-		const char* selectedResourceNameUi = selectedResourceName;
 		const ConstArrayView< const char* > resourceNames = m_resourceNamesByType[ (uintsize)type ];
-		for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
+
+		uintsize selectedIndex = -1;
+		if( selectedResourceName.isSet() )
 		{
-			const char* resourceName = resourceNames[ i ];
-			if( strcmp( resourceName, selectedResourceNameUi ) == 0 )
+			const char* selectedResourceNameUi = selectedResourceName;
+			for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
 			{
-				selectedIndex = i;
-				break;
+				const char* resourceName = resourceNames[ i ];
+				if( strcmp( resourceName, selectedResourceNameUi ) == 0 )
+				{
+					selectedIndex = i;
+					break;
+				}
 			}
 		}
 
