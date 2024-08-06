@@ -52,6 +52,7 @@ namespace imapp
 		{
 			Loaded,
 			Saved,
+			Compiled,
 
 			Count
 		};
@@ -103,6 +104,7 @@ namespace imapp
 		Compiler			m_compiler;
 
 		bool				m_autoCompile			= false;
+		bool				m_wasCompiling			= false;
 		uint32				m_lastCompileRevision	= 0u;
 
 		PopupState			m_popupState			= PopupState::Home;

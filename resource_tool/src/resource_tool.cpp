@@ -51,6 +51,7 @@ namespace imapp
 		}
 
 		updateResourceNamesByType();
+		m_notifications.set( Notifications::Loaded );
 	}
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
@@ -99,6 +100,7 @@ namespace imapp
 						showError( "Failed to save package: %s", filePath.toConstCharPointer() );
 					}
 				}
+				m_notifications.set( Notifications::Saved );
 			}
 
 			window.label( m_package.getName() );
@@ -111,14 +113,23 @@ namespace imapp
 			{
 				window.checkBox( m_autoCompile, "Auto Compile" );
 
-				if( m_compiler.isRunning() )
+				const bool isCompiling = m_compiler.isRunning();
+				if( isCompiling )
 				{
 					window.progressBar( -1.0f );
 					window.label( "Compiling..." );
+					m_wasCompiling = true;
 				}
 				else if( window.buttonLabel( "Compile" ) )
 				{
 					m_compiler.startCompile( m_package );
+					m_wasCompiling = true;
+				}
+
+				if( !isCompiling && m_wasCompiling )
+				{
+					m_notifications.set( Notifications::Compiled );
+					m_wasCompiling = false;
 				}
 			}
 		}
@@ -366,15 +377,18 @@ namespace imapp
 			return;
 		}
 
+		const float count = (float)m_notifications.getCount();
+
 		UiRect notificationsRect;
-		notificationsRect.pos.x			= surface.getSize().width - 250.0f;
+		notificationsRect.pos.x			= surface.getSize().width - 210.0f;
 		notificationsRect.pos.y			= 50.0f;
 		notificationsRect.size.width	= 200.0f;
-		notificationsRect.size.height	= 120.0f * m_notifications.getCount();
+		notificationsRect.size.height	= (50.0f * count) + (10.0f * (count - 1.0f));
 
 		UiToolboxWindow window( surface, "notifications", notificationsRect, 5u );
 
 		UiWidgetLayoutVertical mainLayout( window, 10.0f );
+		mainLayout.setStretchOne();
 
 		for( uintsize i = (uintsize)Notifications::Count - 1u; i < (uintsize)Notifications::Count; --i )
 		{
@@ -385,6 +399,7 @@ namespace imapp
 			}
 
 			UiWidget notificationWidget( window );
+			notificationWidget.setStretchOne();
 			notificationWidget.setPadding( UiBorder( 10.0f ) );
 
 			notificationWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_Popup ), UiToolboxConfig::getColor( ImUiToolboxColor_PopupBackground ) );
@@ -399,6 +414,10 @@ namespace imapp
 				window.label( "Saved!" );
 				break;
 
+			case Notifications::Compiled:
+				window.label( "Compiled!" );
+				break;
+
 			case Notifications::Count:
 				break;
 			}
@@ -406,8 +425,16 @@ namespace imapp
 			UiAnimation< float > animation( notificationWidget, 1.0f, 0.0f, 2.5f );
 
 			UiWidget barWidget( window );
+			barWidget.setMargin( UiBorder( 25.0f, 0.0f, 0.0f, 0.0f ) );
 			barWidget.setFixedHeight( 2.0f );
-			//barWidget.setHStretch( animation.getValue() );
+			barWidget.setHStretch( animation.getValue() );
+
+			barWidget.drawColor( UiToolboxConfig::getColor( ImUiToolboxColor_Button ) );
+
+			if( animation.getValue() == 0.0f )
+			{
+				m_notifications.unset( notification );
+			}
 		}
 	}
 
@@ -1160,16 +1187,6 @@ namespace imapp
 		buttonsLayout.setPadding( UiBorder( 4.0f ) );
 
 		buttonsLayout.drawColor( UiColor::CreateBlack( 0xa0u ) );
-
-		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
-		//{
-		//
-		//}
-
-		//if( window.buttonIcon( ImAppImageGetTexture( m_icon ) ) )
-		//{
-		//
-		//}
 
 		{
 			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );

@@ -24,12 +24,6 @@ typedef struct ImAppInternal
 	ImUiAllocator			allocator;
 
 	bool					running;
-	uint8_t					inputMaskShift;
-	uint8_t					inputMaskControl;
-	uint8_t					inputMaskAlt;
-	uint32_t				inputModifiers;
-	uint32_t				inputDownMask;
-
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
 	ImUiInputMouseCursor	lastCursor;
