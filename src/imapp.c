@@ -98,6 +98,11 @@ static void ImAppTickWindow( ImAppWindow* window, void* arg )
 
 	ImAppHandleWindowEvents( imapp, window );
 
+	if( ImUiInputGetShortcut( imapp->context.imui ) == ImUiInputShortcut_Paste )
+	{
+		ImAppPlatformGetClipboardText( imapp->platform, imapp->context.imui );
+	}
+
 	ImAppPlatformWindowGetViewRect( imapp->window, &imapp->context.x, &imapp->context.y, &imapp->context.width, &imapp->context.height );
 
 	{
@@ -119,6 +124,13 @@ static void ImAppTickWindow( ImAppWindow* window, void* arg )
 	{
 		ImAppPlatformSetMouseCursor( imapp->platform, cursor );
 		imapp->lastCursor = cursor;
+	}
+
+	const char* copyText = ImUiInputGetCopyText( imapp->context.imui );
+	if( copyText )
+	{
+		ImAppPlatformSetClipboardText( imapp->platform, copyText );
+		ImUiInputSetCopyText( imapp->context.imui, NULL, 0u );
 	}
 
 	if( !ImAppPlatformWindowPresent( imapp->window ) )
@@ -145,7 +157,7 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->resPath				= "./assets";
 	parameters->defaultFontName		= "arial.ttf";
 	parameters->defaultFontSize		= 16.0f;
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
 #else
 	parameters->windowMode			= ImAppDefaultWindow_Resizable;
@@ -154,8 +166,32 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
 	parameters->windowClearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
-	//pParameters->shortcuts				= s_inputShortcuts;
-	//pParameters->shortcutsLength		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
+
+	static const ImUiShortcut s_inputShortcuts[] =
+	{
+		{ ImUiInputShortcut_ToggleInsertReplace,	0u,								ImUiInputKey_Insert },
+		{ ImUiInputShortcut_Home,					0u,								ImUiInputKey_Home },
+		{ ImUiInputShortcut_End,					0u,								ImUiInputKey_End },
+		{ ImUiInputShortcut_Undo,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_Z },
+		{ ImUiInputShortcut_Undo,					ImUiInputModifier_RightCtrl,	ImUiInputKey_Z },
+		{ ImUiInputShortcut_Redo,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_Y },
+		{ ImUiInputShortcut_Redo,					ImUiInputModifier_RightCtrl,	ImUiInputKey_Y },
+		{ ImUiInputShortcut_Cut,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_X },
+		{ ImUiInputShortcut_Cut,					ImUiInputModifier_RightCtrl,	ImUiInputKey_X },
+		{ ImUiInputShortcut_Cut,					ImUiInputModifier_LeftShift,	ImUiInputKey_Delete },
+		{ ImUiInputShortcut_Cut,					ImUiInputModifier_RightShift,	ImUiInputKey_Delete },
+		{ ImUiInputShortcut_Copy,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_C },
+		{ ImUiInputShortcut_Copy,					ImUiInputModifier_RightCtrl,	ImUiInputKey_C },
+		{ ImUiInputShortcut_Paste,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_V },
+		{ ImUiInputShortcut_Paste,					ImUiInputModifier_RightCtrl,	ImUiInputKey_V },
+		{ ImUiInputShortcut_Paste,					ImUiInputModifier_LeftShift,	ImUiInputKey_Insert },
+		{ ImUiInputShortcut_Paste,					ImUiInputModifier_RightShift,	ImUiInputKey_Insert },
+		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_LeftCtrl,		ImUiInputKey_A },
+		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_RightCtrl,	ImUiInputKey_A }
+	};
+
+	parameters->shortcuts			= s_inputShortcuts;
+	parameters->shortcutCount		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
 }
 
 static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parameters )
@@ -202,6 +238,8 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 	uiParameters.allocator		= imapp->allocator;
 	uiParameters.vertexType		= ImUiVertexType_IndexedVertexList;
 	uiParameters.vertexFormat	= ImAppRendererGetVertexFormat();
+	uiParameters.shortcuts		= parameters->shortcuts;
+	uiParameters.shortcutCount	= parameters->shortcutCount;
 
 	imapp->context.imui = ImUiCreate( &uiParameters );
 	if( !imapp->context.imui )

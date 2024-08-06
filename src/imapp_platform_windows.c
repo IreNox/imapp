@@ -438,6 +438,81 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	SetCursor( platform->currentCursor );
 }
 
+void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+{
+	if( !OpenClipboard( NULL ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to open Clipboard." );
+		return;
+	}
+
+	if( !EmptyClipboard() )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to clear Clipboard." );
+		CloseClipboard();
+		return;
+	}
+
+	const uintsize textLength = strlen( text );
+	HGLOBAL clipboardMemory = GlobalAlloc( GMEM_MOVEABLE, (textLength + 1u) * sizeof( WCHAR ) );
+	if( !clipboardMemory )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to allocate Clipboard memory." );
+		CloseClipboard();
+		return;
+	}
+
+	{
+		WCHAR* wideText = (WCHAR*)GlobalLock( clipboardMemory );
+		MultiByteToWideChar( CP_UTF8, 0u, text, (int)textLength, wideText, (int)textLength + 1 );
+		wideText[ textLength ] = L'\0';
+		GlobalUnlock( clipboardMemory );
+	}
+
+	if( !SetClipboardData( CF_UNICODETEXT, clipboardMemory ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to set Clipboard." );
+	}
+
+	CloseClipboard();
+}
+
+void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+{
+	if( !OpenClipboard( NULL ) )
+	{
+		IMAPP_DEBUG_LOGW( "Failed to open Clipboard." );
+		return;
+	}
+
+	HGLOBAL clipboardMemory = GetClipboardData( CF_UNICODETEXT );
+	if( !clipboardMemory )
+	{
+		CloseClipboard();
+		return;
+	}
+
+	{
+		const WCHAR* wideText = (WCHAR*)GlobalLock( clipboardMemory );
+		const size_t textLength = wcslen( wideText );
+
+		char* text = ImUiInputBeginWritePasteText( imui, textLength );
+		if( !text )
+		{
+			GlobalUnlock( clipboardMemory );
+			CloseClipboard();
+			return;
+		}
+
+		WideCharToMultiByte( CP_UTF8, 0u, wideText, (int)textLength, text, (int)textLength + 1, NULL, NULL );
+		GlobalUnlock( clipboardMemory );
+
+		ImUiInputEndWritePasteText( imui, textLength );
+	}
+
+	CloseClipboard();
+}
+
 ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );

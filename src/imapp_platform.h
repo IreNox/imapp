@@ -18,6 +18,9 @@ sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sin
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 
 void					ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor );
+void					ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text );
+
+void					ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui );
 
 //////////////////////////////////////////////////////////////////////////
 // Window
