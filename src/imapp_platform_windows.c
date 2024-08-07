@@ -734,7 +734,7 @@ bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 	return true;
 }
 
-void ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
+void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
 	*outX = 0;
 	*outY = 0;
@@ -742,24 +742,24 @@ void ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, 
 	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-void ImAppPlatformWindowGetSize( ImAppWindow* window, int* outWidth, int* outHeight )
+void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
 {
 	*outWidth	= window->width;
 	*outHeight	= window->height;
 }
 
-void ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY )
+void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
 {
 	*outX = window->x;
 	*outY = window->y;
 }
 
-ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* window )
+ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* window )
 {
 	return window->state;
 }
 
-float ImAppPlatformWindowGetDpiScale( ImAppWindow* window )
+float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
 	return window->dpiScale;
 }

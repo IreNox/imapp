@@ -57,11 +57,11 @@ ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
 
 bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );
 
-void					ImAppPlatformWindowGetViewRect( ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
-void					ImAppPlatformWindowGetSize( ImAppWindow* window, int* outWidth, int* outHeight );
-void					ImAppPlatformWindowGetPosition( ImAppWindow* window, int* outX, int* outY );
-ImAppWindowState		ImAppPlatformWindowGetState( ImAppWindow* window );
-float					ImAppPlatformWindowGetDpiScale( ImAppWindow* window );
+void					ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
+void					ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
+void					ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
+ImAppWindowState		ImAppPlatformWindowGetState( const ImAppWindow* window );
+float					ImAppPlatformWindowGetDpiScale( const ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
 // Files/Resources

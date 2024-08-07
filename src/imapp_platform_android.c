@@ -2,8 +2,9 @@
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 
-#include "../imapp_debug.h"
-#include "../imapp_event_queue.h"
+#include "imapp_debug.h"
+#include "imapp_internal.h"
+#include "imapp_event_queue.h"
 
 #include <android/asset_manager.h>
 #include <android/native_activity.h>
@@ -13,7 +14,10 @@
 #include <errno.h>
 #include <jni.h>
 #include <pthread.h>
+#include <semaphore.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 //////////////////////////////////////////////////////////////////////////
@@ -37,6 +41,7 @@ typedef struct ImAppPlatform
 	int						viewLeft;
 	int						viewWidth;
 	int						viewHeight;
+	float					dpiScale;
 
 	bool					started;
 	bool					stoped;
@@ -90,12 +95,25 @@ typedef struct ImAppAndroidEvent
 	ImAppAndroidEventData		data;
 } ImAppAndroidEvent;
 
+struct ImAppThread
+{
+	ImAppPlatform*		platform;
+
+	pthread_t			handle;
+
+	ImAppThreadFunc		func;
+	void*				arg;
+
+	uint8				hasExit;
+};
+
+
 static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
 static void		ImAppAndroidDestroy( ImAppPlatform* platform );
 
 static void*	ImAppAndroidThreadEntryPoint( void* pArgument );
 
-static void		ImAppAndroidGetViewBounds( ImAppPlatform* platform );
+static void		ImAppAndroidUpdateViewBoundsAndDpiScale( ImAppPlatform* platform );
 
 static bool		ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* platform );
 static void		ImAppAndroidEventPush( ImAppPlatform* platform, const ImAppAndroidEvent* pEvent );
@@ -115,12 +133,54 @@ static void		ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANat
 static void		ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 static void		ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 
+static void*	ImAppPlatformThreadEntry( void* voidThread );
+
 void ImAppPlatformShowError( ImAppPlatform* platform, const char* message )
 {
 }
 
 void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
 {
+}
+
+void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+{
+	JNIEnv* pEnv = NULL;
+	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
+
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
+	jmethodID getSystemServiceMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getSystemService", "()Ljava/lang/Object;" );
+
+	jobject clipboardManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getSystemServiceMethod, "clipboard" );
+
+	jclass clipboardManagerClass = (*pEnv)->GetObjectClass( pEnv, clipboardManager );
+	jmethodID setTextMethod = (*pEnv)->GetMethodID( pEnv, clipboardManagerClass, "setText", "(Ljava/lang/CharSequence;)V" );
+
+	jstring textString = (*pEnv)->NewStringUTF( pEnv, text );
+	(*pEnv)->CallVoidMethod( pEnv, clipboardManager, setTextMethod, textString );
+
+	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
+}
+
+void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+{
+	JNIEnv* pEnv = NULL;
+	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
+
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
+	jmethodID getSystemServiceMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getSystemService", "()Ljava/lang/Object;" );
+
+	jobject clipboardManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getSystemServiceMethod, "clipboard" );
+
+	jclass clipboardManagerClass = (*pEnv)->GetObjectClass( pEnv, clipboardManager );
+	jmethodID getTextMethod = (*pEnv)->GetMethodID( pEnv, clipboardManagerClass, "getText", "()Ljava/lang/CharSequence;" );
+
+	jstring textString = (*pEnv)->CallObjectMethod( pEnv, clipboardManager, getTextMethod );
+
+	const char* text = (*pEnv)->GetStringUTFChars( pEnv, textString, NULL );
+	ImUiInputSetPasteText( imui, text );
+
+	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
 }
 
 void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
@@ -148,6 +208,7 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
 	ImAppPlatform* platform = (ImAppPlatform*)malloc( sizeof( *platform ) );
+    memset( platform, 0, sizeof( *platform ) );
 
 	platform->pActivity = pActivity;
 
@@ -220,41 +281,82 @@ static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 	return NULL;
 }
 
-static void ImAppAndroidGetViewBounds( ImAppPlatform* platform )
+static void ImAppAndroidUpdateViewBoundsAndDpiScale( ImAppPlatform* platform )
 {
 	JNIEnv* pEnv = NULL;
 	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
 
 	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
-	jmethodID getWindowMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindow", "()Landroid/view/Window;" );
 
-	jobject window = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowMethod );
+	{
+		jmethodID getWindowMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindow", "()Landroid/view/Window;" );
 
-	jclass windowClass = (*pEnv)->GetObjectClass( pEnv, window );
-	jmethodID getDecorViewMethod = (*pEnv)->GetMethodID( pEnv, windowClass, "getDecorView", "()Landroid/view/View;" );
+		jobject window = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowMethod );
 
-	jobject view = (*pEnv)->CallObjectMethod( pEnv, window, getDecorViewMethod );
+		jclass windowClass = (*pEnv)->GetObjectClass( pEnv, window );
+		jmethodID getDecorViewMethod = (*pEnv)->GetMethodID( pEnv, windowClass, "getDecorView", "()Landroid/view/View;" );
 
-	jclass viewClass = (*pEnv)->GetObjectClass( pEnv, view );
-	jmethodID getWindowVisibleDisplayFrameMethod = (*pEnv)->GetMethodID( pEnv, viewClass, "getWindowVisibleDisplayFrame", "(Landroid/graphics/Rect;)V" );
+		jobject view = (*pEnv)->CallObjectMethod( pEnv, window, getDecorViewMethod );
 
-	jclass rectClass = (*pEnv)->FindClass( pEnv, "android/graphics/Rect" );
-	jmethodID rectConstructor = (*pEnv)->GetMethodID( pEnv, rectClass, "<init>", "()V" );
-	jfieldID topField = (*pEnv)->GetFieldID( pEnv, rectClass, "top", "I" );
-	jfieldID leftField = (*pEnv)->GetFieldID( pEnv, rectClass, "left", "I" );
-	jfieldID rightField = (*pEnv)->GetFieldID( pEnv, rectClass, "right", "I" );
-	jfieldID bottomField = (*pEnv)->GetFieldID( pEnv, rectClass, "bottom", "I" );
+		jclass viewClass = (*pEnv)->GetObjectClass( pEnv, view );
+		jmethodID getWindowVisibleDisplayFrameMethod = (*pEnv)->GetMethodID( pEnv, viewClass, "getWindowVisibleDisplayFrame", "(Landroid/graphics/Rect;)V" );
 
-	jobject rect = (*pEnv)->NewObject( pEnv, rectClass, rectConstructor );
+		jclass rectClass = (*pEnv)->FindClass( pEnv, "android/graphics/Rect" );
+		jmethodID rectConstructor = (*pEnv)->GetMethodID( pEnv, rectClass, "<init>", "()V" );
+		jfieldID topField = (*pEnv)->GetFieldID( pEnv, rectClass, "top", "I" );
+		jfieldID leftField = (*pEnv)->GetFieldID( pEnv, rectClass, "left", "I" );
+		jfieldID rightField = (*pEnv)->GetFieldID( pEnv, rectClass, "right", "I" );
+		jfieldID bottomField = (*pEnv)->GetFieldID( pEnv, rectClass, "bottom", "I" );
 
-	(*pEnv)->CallVoidMethod( pEnv, view, getWindowVisibleDisplayFrameMethod, rect );
+		jobject rect = (*pEnv)->NewObject( pEnv, rectClass, rectConstructor );
 
-	const int viewRight = (*pEnv)->GetIntField( pEnv, rect, rightField );
-	const int viewBottom = (*pEnv)->GetIntField( pEnv, rect, bottomField );
-	platform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
-	platform->viewLeft		= (*pEnv)->GetIntField( pEnv, rect, leftField );
-	platform->viewWidth	= viewRight - platform->viewLeft;
-	platform->viewHeight	= viewBottom - platform->viewTop;
+		(*pEnv)->CallVoidMethod( pEnv, view, getWindowVisibleDisplayFrameMethod, rect );
+
+		const int viewRight = (*pEnv)->GetIntField( pEnv, rect, rightField );
+		const int viewBottom = (*pEnv)->GetIntField( pEnv, rect, bottomField );
+		platform->viewTop		= (*pEnv)->GetIntField( pEnv, rect, topField );
+		platform->viewLeft		= (*pEnv)->GetIntField( pEnv, rect, leftField );
+		platform->viewWidth		= viewRight - platform->viewLeft;
+		platform->viewHeight	= viewBottom - platform->viewTop;
+	}
+
+	{
+		jmethodID getWindowManagerMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindowManager", "()Landroid/view/WindowManager;" );
+
+		jobject windowManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowManagerMethod );
+
+		jclass windowManagerClass = (*pEnv)->GetObjectClass( pEnv, windowManager );
+		jmethodID getCurrentWindowMetricsMethod = NULL;//(*pEnv)->GetMethodID( pEnv, windowManagerClass, "getCurrentWindowMetrics ", "()Landroid/view/WindowMetrics;" );
+		if( getCurrentWindowMetricsMethod )
+		{
+			jobject metrics = (*pEnv)->CallObjectMethod( pEnv, windowManager, getCurrentWindowMetricsMethod );
+
+			jclass metricsClass = (*pEnv)->GetObjectClass( pEnv, metrics );
+			jmethodID getDensityMethod = (*pEnv)->GetMethodID( pEnv, metricsClass, "getDensity", "()F" );
+
+			platform->dpiScale = (*pEnv)->CallFloatMethod( pEnv, metrics, getDensityMethod );
+		}
+		else
+		{
+			jmethodID getDisplayMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getDisplay", "()Landroid/view/Display;" );
+
+			jobject display = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getDisplayMethod );
+
+			jclass displayClass = (*pEnv)->GetObjectClass( pEnv, display );
+			jmethodID getRealMetricsMethod = (*pEnv)->GetMethodID( pEnv, displayClass, "getRealMetrics", "(Landroid/util/DisplayMetrics;)V" );
+
+			jclass displayMetricsClass = (*pEnv)->FindClass( pEnv, "android/util/DisplayMetrics" );
+			jmethodID displayMetricsConstructor = (*pEnv)->GetMethodID( pEnv, displayMetricsClass, "<init>", "()V" );
+			jfieldID densityField = (*pEnv)->GetFieldID( pEnv, displayMetricsClass, "density", "F" );
+
+			jobject displayMetrics = (*pEnv)->NewObject( pEnv, displayMetricsClass, displayMetricsConstructor );
+
+			(*pEnv)->CallVoidMethod( pEnv, display, getRealMetricsMethod, displayMetrics );
+
+			platform->dpiScale = (*pEnv)->GetFloatField( pEnv, displayMetrics, densityField );
+		}
+
+	}
 
 	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
 }
@@ -394,6 +496,30 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
+sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
+{
+	int waitDuration;
+	int64_t currentTickValue;
+	{
+		struct timespec currentTime;
+		clock_gettime( CLOCK_REALTIME, &currentTime );
+
+		const int64_t currentSeconds		= currentTime.tv_sec;
+		const int64_t currentNanoSeconds	= currentTime.tv_nsec;
+		currentTickValue					= (currentSeconds * 1000ll) + (currentNanoSeconds / 1000000ll);
+		const int64_t lastTickDuration		= currentTickValue - lastTickValue;
+		waitDuration						= (int)(tickInterval - (lastTickDuration < tickInterval ? lastTickDuration : tickInterval));
+		IMAPP_ASSERT( waitDuration <= tickInterval );
+	}
+
+	if( waitDuration > 0 )
+	{
+		// TODO
+	}
+
+	return currentTickValue;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Window
 
@@ -401,7 +527,8 @@ struct ImAppWindow
 {
 	ImUiAllocator*		allocator;
 	ImAppPlatform*		platform;
-	ImAppEventQueue*	eventQueue;
+
+	ImAppEventQueue		eventQueue;
 
 	ANativeWindow*		pNativeWindow;
 	bool				isOpen;
@@ -421,7 +548,7 @@ static void	ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, con
 
 static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent );
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* pWindowTitle, int x, int y, int width, int height, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -431,16 +558,17 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* pWi
 
 	window->allocator	= platform->allocator;
 	window->platform	= platform;
-	window->eventQueue	= ImAppEventQueueCreate( platform->allocator );
 	window->isOpen		= true;
 	window->display		= EGL_NO_DISPLAY;
 	window->surface		= EGL_NO_SURFACE;
 	window->context		= EGL_NO_CONTEXT;
 
+	ImAppEventQueueConstruct( &window->eventQueue, platform->allocator );
+
 	while( window->isOpen &&
 		   window->pNativeWindow == NULL )
 	{
-		ImAppPlatformWindowTick( window, 0, 0 );
+		ImAppPlatformWindowUpdate( window, NULL, NULL );
 	}
 
 	if( window->pNativeWindow == NULL )
@@ -458,11 +586,7 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
 	IMAPP_ASSERT( window->context == EGL_NO_CONTEXT );
 
-	if( window->eventQueue != NULL )
-	{
-		ImAppEventQueueDestroy( window->eventQueue );
-		window->eventQueue = NULL;
-	}
+	ImAppEventQueueDestruct( &window->eventQueue );
 
 	ImUiMemoryFree( window->allocator, window );
 }
@@ -509,7 +633,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	eglQuerySurface( window->display, window->surface, EGL_WIDTH, &window->width );
 	eglQuerySurface( window->display, window->surface, EGL_HEIGHT, &window->height );
 
-	ImAppAndroidGetViewBounds( window->platform );
+	ImAppAndroidUpdateViewBoundsAndDpiScale( window->platform );
 
 	return true;
 }
@@ -541,30 +665,14 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->pNativeWindow = NULL;
 }
 
-int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int64_t tickInterval )
+void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
 {
-	int waitDuration;
-	int64_t currentTickValue;
-	{
-		struct timespec currentTime;
-		clock_gettime( CLOCK_REALTIME, &currentTime );
-
-		const int64_t currentSeconds		= currentTime.tv_sec;
-		const int64_t currentNanoSeconds	= currentTime.tv_nsec;
-		currentTickValue					= (currentSeconds * 1000ll) + (currentNanoSeconds / 1000000ll);
-		const int64_t lastTickDuration		= currentTickValue - lastTickValue;
-		waitDuration						= (int)(tickInterval - (lastTickDuration < tickInterval ? lastTickDuration : tickInterval));
-		IMAPP_ASSERT( waitDuration <= tickInterval );
-	}
-
-	int timeoutValue = tickInterval == 0 ? -1 : (int)waitDuration;
 	int eventCount;
 	int eventType;
 	void* pUserData;
-	while( (eventType = ALooper_pollAll( timeoutValue, NULL, &eventCount, &pUserData )) >= 0 )
+	while( (eventType = ALooper_pollOnce( 0, NULL, &eventCount, &pUserData )) >= 0 )
 	{
 		IMAPP_ASSERT( pUserData == window->platform );
-		timeoutValue = 0;
 
 		if( eventType == ImAppAndroidLooperType_Event )
 		{
@@ -600,13 +708,16 @@ int64_t ImAppPlatformWindowTick( ImAppWindow* window, int64_t lastTickValue, int
 					continue;
 				}
 
-				const bool  handled = ImAppPlatformWindowHandleInputEvent( window, pInputEvent );
+				const bool handled = ImAppPlatformWindowHandleInputEvent( window, pInputEvent );
 				AInputQueue_finishEvent( window->platform->pInputQueue, pInputEvent, handled );
 			}
 		}
 	}
 
-	return currentTickValue;
+	if( callback )
+	{
+		callback( window, arg );
+	}
 }
 
 static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
@@ -630,7 +741,7 @@ static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, con
 	window->width	= ANativeWindow_getWidth( window->pNativeWindow );
 	window->height	= ANativeWindow_getHeight( window->pNativeWindow );
 
-	ImAppAndroidGetViewBounds( window->platform );
+	ImAppAndroidUpdateViewBoundsAndDpiScale( window->platform );
 }
 
 static void ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
@@ -704,13 +815,13 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 					const int y = (int)AMotionEvent_getY( pInputEvent, 0 );
 
 					const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = x, .y = y } };
-					ImAppEventQueuePush( window->eventQueue, &motionEvent );
+					ImAppEventQueuePush( &window->eventQueue, &motionEvent );
 
 					if( motionAction != AMOTION_EVENT_ACTION_MOVE )
 					{
 						const ImAppEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
 						const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImUiInputMouseButton_Left, .repeateCount = 1 } };
-						ImAppEventQueuePush( window->eventQueue, &buttonEvent );
+						ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 					}
 
 					return true;
@@ -744,10 +855,15 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 
 ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
-	return window->eventQueue;
+	return &window->eventQueue;
 }
 
-void ImAppPlatformWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight, ImAppWindow* window )
+bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+{
+	return false;
+}
+
+void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* pX, int* pY, int* pWidth, int* pHeight )
 {
 	*pX			= 0u; //window->platform->viewLeft;
 	*pY			= window->platform->viewTop;
@@ -755,36 +871,46 @@ void ImAppPlatformWindowGetViewRect( int* pX, int* pY, int* pWidth, int* pHeight
 	*pHeight	= window->platform->viewHeight;
 }
 
-void ImAppPlatformWindowGetSize( int* pWidth, int* pHeight, ImAppWindow* window )
+void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* pWidth, int* pHeight )
 {
 	*pWidth		= window->width;
 	*pHeight	= window->height;
 }
 
-void ImAppPlatformWindowGetPosition( int* pX, int* pY, ImAppWindow* window )
+void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* pX, int* pY )
 {
-	*pX	= 0u;
-	*pY	= 0u;
+	*pX			= 0u;
+	*pY			= window->platform->viewTop;
 }
 
-ImAppWindowState ImAppPlatformWindowGetState( ImAppWindow* window )
+ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* window )
 {
 	return ImAppWindowState_Maximized;
+}
+
+float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
+{
+	return window->platform->dpiScale;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView resourceName )
+void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
-	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName.data, AASSET_MODE_BUFFER );
+	strncpy( outPath, resourceName, pathCapacity );
+}
+
+ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+{
+	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
 	if( asset == NULL )
 	{
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	const size_t size = AAsset_getLength64( asset );
+	const uintsize size = AAsset_getLength64( asset );
 	void* data = ImUiMemoryAlloc( platform->allocator, size );
 
 	const void* sourceData = AAsset_getBuffer( asset );
@@ -796,10 +922,270 @@ ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, ImUiStringView res
 	return result;
 }
 
-ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, ImUiStringView resourceName )
+ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
+	ImAppBlob result = { NULL, 0u };
+
+	ImAppFile* file = ImAppPlatformResourceOpen( platform, resourceName );
+	if( !file )
+	{
+		return result;
+	}
+
+	if( length == (uintsize)-1 )
+	{
+		length = AAsset_getLength64( (AAsset*)file ) - offset;
+	}
+
+	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	if( !memory )
+	{
+		ImAppPlatformResourceClose( platform, file );
+		return result;
+	}
+
+	const uintsize readResult = ImAppPlatformResourceRead( file, memory, length, offset );
+	ImAppPlatformResourceClose( platform, file );
+
+	if( readResult != length )
+	{
+		ImUiMemoryFree( platform->allocator, memory );
+		return result;
+	}
+
+	result.data	= memory;
+	result.size	= length;
+	return result;
+}
+
+ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+{
+	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
+	if( asset == NULL )
+	{
+		return NULL;
+	}
+
+	return (ImAppFile*)asset;
+}
+
+uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+{
+	AAsset* asset = (AAsset*)file;
+
+	const uintsize size = AAsset_getLength64( asset );
+	if( offset >= size )
+	{
+		return 0u;
+	}
+	else if( offset + length > size )
+	{
+		length = size - offset;
+	}
+
+	const byte* sourceData = (const byte*)AAsset_getBuffer( asset );
+	memcpy( outData, sourceData + offset, length );
+
+	return length;
+}
+
+void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+{
+	AAsset* asset = (AAsset*)file;
+
+	AAsset_close( asset );
+}
+
+ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+{
+	static const char* s_fontDirectories[] =
+	{
+		"/system/fonts",
+		"/system/font",
+		"/data/fonts"
+	};
+
+	char path[ 256u ];
+	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( s_fontDirectories ); ++i )
+	{
+		snprintf( path, sizeof( path ), "%s/%s", s_fontDirectories[ i ], fontName );
+
+		FILE* file = fopen( path, "rb" );
+		if( !file )
+		{
+			continue;
+		}
+
+		const int fd = fileno( file );
+		struct stat st;
+		fstat( fd, &st );
+
+		void* data = ImUiMemoryAlloc( platform->allocator, st.st_size );
+		if( !data )
+		{
+			fclose( file );
+
+			const ImAppBlob result = { NULL, 0u };
+			return result;
+		}
+
+		fread( data, 1u, st.st_size, file );
+		fclose( file );
+
+		const ImAppBlob result = { data, st.st_size };
+		return result;
+	}
+
 	const ImAppBlob result = { NULL, 0u };
 	return result;
+}
+
+void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+{
+	ImUiMemoryFree( platform->allocator, blob.data );
+}
+
+ImAppFileWatcher* ImAppPlatformFileWatcherCreate( ImAppPlatform* platform )
+{
+	return NULL;
+}
+
+void ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+{
+}
+
+void ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+{
+}
+
+void ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+{
+}
+
+bool ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+{
+	return false;
+}
+
+ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+{
+	pthread_attr_t attr;
+	if( pthread_attr_init( &attr ) < 0 )
+	{
+		return NULL;
+	}
+
+	if( pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE ) < 0 )
+	{
+		pthread_attr_destroy( &attr );
+		return NULL;
+	}
+
+	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
+	if( !thread )
+	{
+		return NULL;
+	}
+
+	thread->platform	= platform;
+	thread->func		= func;
+	thread->arg			= arg;
+
+	const int result = pthread_create( &thread->handle, &attr, ImAppPlatformThreadEntry, thread );
+	pthread_attr_destroy( &attr );
+
+	if( result < 0 )
+	{
+		ImUiMemoryFree( platform->allocator, thread );
+		return NULL;
+	}
+
+	return thread;
+}
+
+void ImAppPlatformThreadDestroy( ImAppThread* thread )
+{
+	pthread_join( thread->handle, NULL );
+
+	ImUiMemoryFree( thread->platform->allocator, thread );
+}
+
+bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
+{
+	return __atomic_load_n( &thread->hasExit, __ATOMIC_RELAXED ) == 0;
+}
+
+static void* ImAppPlatformThreadEntry( void* voidThread )
+{
+	ImAppThread* thread = (ImAppThread*)voidThread;
+
+	thread->func( thread->arg );
+
+	__atomic_store_n( &thread->hasExit, 1u, __ATOMIC_RELAXED );
+
+	return NULL;
+}
+
+ImAppMutex* ImAppPlatformMutexCreate( ImAppPlatform* platform )
+{
+	pthread_mutex_t* mutex = IMUI_MEMORY_NEW_ZERO( platform->allocator, pthread_mutex_t );
+	if( pthread_mutex_init( mutex, NULL ) < 0 )
+	{
+		ImUiMemoryFree( platform->allocator, mutex );
+		return NULL;
+	}
+
+	return (ImAppMutex*)mutex;
+}
+
+void ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+{
+	pthread_mutex_destroy( (pthread_mutex_t*)mutex );
+	ImUiMemoryFree( platform->allocator, mutex );
+}
+
+void ImAppPlatformMutexLock( ImAppMutex* mutex )
+{
+	pthread_mutex_lock( (pthread_mutex_t*)mutex );
+}
+
+void ImAppPlatformMutexUnlock( ImAppMutex* mutex )
+{
+	pthread_mutex_unlock( (pthread_mutex_t*)mutex );
+}
+
+ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
+{
+	sem_t* semaphore = IMUI_MEMORY_NEW_ZERO( platform->allocator, sem_t );
+	if( sem_init( semaphore, 0, 0 ) < 0 )
+	{
+		ImUiMemoryFree( platform->allocator, semaphore );
+		return NULL;
+	}
+
+	return (ImAppSemaphore*)semaphore;
+}
+
+void ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+{
+	sem_destroy( (sem_t*)semaphore );
+	ImUiMemoryFree( platform->allocator, semaphore );
+}
+
+void ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+{
+	sem_post( (sem_t*)semaphore );
+}
+
+bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+{
+	if( wait )
+	{
+		sem_wait( (sem_t*)semaphore );
+		return true;
+	}
+
+	return sem_trywait( (sem_t*)semaphore ) == 0;
 }
 
 #endif

@@ -167,7 +167,7 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->windowHeight		= 720;
 	parameters->windowClearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
 
-	static const ImUiShortcut s_inputShortcuts[] =
+	static const ImUiInputShortcutConfig s_inputShortcuts[] =
 	{
 		{ ImUiInputShortcut_Home,					0u,								ImUiInputKey_Home },
 		{ ImUiInputShortcut_End,					0u,								ImUiInputKey_End },
