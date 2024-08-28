@@ -65,7 +65,6 @@ static bool			ImAppResSysImageMapIsKeyEquals( const void* lhs, const void* rhs )
 static const ImAppResPakResource*	ImAppResPakResourceGet( const void* base, uint16_t index );
 static ImUiStringView				ImAppResPakResourceGetName( const void* base, const ImAppResPakResource* res );
 static const void*					ImAppResPakResourceGetHeader( const void* base, const ImAppResPakResource* res );
-static const void*					ImAppResPakResourceGetData( const void* base, const ImAppResPakResource* res );
 
 ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui )
 {
@@ -175,6 +174,9 @@ void ImAppResSysUpdate( ImAppResSys* ressys )
 			case ImAppResEventType_DecodeJpeg:
 				ImAppResSysHandleImage( ressys, &resEvent );
 				break;
+
+			case ImAppResEventType_Quit:
+				return;
 			}
 		}
 	}
@@ -305,6 +307,7 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 	case ImAppResPakType_Image:
 	case ImAppResPakType_Skin:
 	case ImAppResPakType_Theme:
+	case ImAppResPakType_MAX:
 		// no data
 		break;
 	}
@@ -593,7 +596,10 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 		break;
 
 	case ImAppResPakType_Blob:
+		// TODO
+		break;
 
+	case ImAppResPakType_MAX:
 		break;
 	}
 
@@ -1149,6 +1155,7 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 
 	case ImAppResPakType_Image:
 	case ImAppResPakType_Skin:
+	case ImAppResPakType_MAX:
 		break;
 	}
 
@@ -1499,7 +1506,9 @@ static ImUiHash ImAppResSysNameMapHash( const void* key )
 	const uintsize pakInt = (uintsize)res->key.pak;
 	ImUiHash hash = res->key.type;
 	hash ^= pakInt & 0xffffffffu;
+#if IMAPP_ENABLED( IMAPP_POINTER_64 )
 	hash ^= pakInt >> 32u;
+#endif
 
 	return ImUiHashMix( ImUiHashString( res->key.name, 0u ), hash );
 }
@@ -1556,14 +1565,6 @@ static const void* ImAppResPakResourceGetHeader( const void* base, const ImAppRe
 {
 	const byte* bytes = (const byte*)base;
 	bytes += res->headerOffset;
-
-	return bytes;
-}
-
-static const void* ImAppResPakResourceGetData( const void* base, const ImAppResPakResource* res )
-{
-	const byte* bytes = (const byte*)base;
-	bytes += res->dataOffset;
 
 	return bytes;
 }

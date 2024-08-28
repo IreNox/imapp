@@ -167,9 +167,8 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->windowHeight		= 720;
 	parameters->windowClearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
 
-	static const ImUiShortcut s_inputShortcuts[] =
+	static const ImUiInputShortcutConfig s_inputShortcuts[] =
 	{
-		{ ImUiInputShortcut_ToggleInsertReplace,	0u,								ImUiInputKey_Insert },
 		{ ImUiInputShortcut_Home,					0u,								ImUiInputKey_Home },
 		{ ImUiInputShortcut_End,					0u,								ImUiInputKey_End },
 		{ ImUiInputShortcut_Undo,					ImUiInputModifier_LeftCtrl,		ImUiInputKey_Z },
@@ -187,7 +186,8 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 		{ ImUiInputShortcut_Paste,					ImUiInputModifier_LeftShift,	ImUiInputKey_Insert },
 		{ ImUiInputShortcut_Paste,					ImUiInputModifier_RightShift,	ImUiInputKey_Insert },
 		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_LeftCtrl,		ImUiInputKey_A },
-		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_RightCtrl,	ImUiInputKey_A }
+		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_RightCtrl,	ImUiInputKey_A },
+		{ ImUiInputShortcut_ToggleInsertReplace,	0u,								ImUiInputKey_Insert }
 	};
 
 	parameters->shortcuts			= s_inputShortcuts;

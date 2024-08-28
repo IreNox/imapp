@@ -37,7 +37,7 @@ typedef struct ImAppParameters
 	const char*				defaultFontName;	// Default: arial.ttf;
 	float					defaultFontSize;	// Default: 16
 
-	const ImUiShortcut*		shortcuts;
+	const ImUiInputShortcutConfig*		shortcuts;
 	size_t					shortcutCount;
 
 	// Only for windowed Platforms:
