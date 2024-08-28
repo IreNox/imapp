@@ -1164,7 +1164,7 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 	ImAppFile* file = ImAppPlatformResourceOpen( ressys->platform, pak->resourceName );
 	if( !file )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to open ResPak." );
+		IMAPP_DEBUG_LOGE( "Failed to open ResPak '%s'.", pak->resourceName );
 		return;
 	}
 
@@ -1258,7 +1258,7 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 	const ImAppBlob data = ImAppPlatformResourceLoad( ressys->platform, image->resourceName.data );
 	if( !data.data )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName );
+		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName.data );
 		return;
 	}
 
