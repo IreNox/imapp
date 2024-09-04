@@ -33,6 +33,12 @@ namespace imapp
 		}
 	}
 
+	void Compiler::reset()
+	{
+		m_resources.clear();
+		m_atlasImages.clear();
+	}
+
 	bool Compiler::startCompile( const ResourcePackage& package )
 	{
 		if( isRunning() )

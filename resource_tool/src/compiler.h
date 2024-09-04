@@ -25,6 +25,8 @@ namespace imapp
 								Compiler();
 								~Compiler();
 
+		void					reset();
+
 		bool					startCompile( const ResourcePackage& package );
 		bool					isRunning();
 

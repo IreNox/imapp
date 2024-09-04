@@ -50,6 +50,7 @@ namespace imapp
 			showError( "Failed to load package '%s'.", filename );
 		}
 
+		m_compiler.reset();
 		updateResourceNamesByType();
 		m_notifications.set( Notifications::Loaded );
 	}
@@ -590,10 +591,21 @@ namespace imapp
 			window.label( "Font Size:" );
 
 			float fontSize = resource.getFontSize();
-			window.slider( fontSize, 0.1f, 72.0f );
-			resource.setFontSize( fontSize );
 
-			window.labelFormat( "%.1f", fontSize );
+			{
+				UiToolboxSlider sizeSlider( window, fontSize, 0.1f, 72.0f );
+				sizeSlider.setHStretch( 4.0f );
+
+				if( sizeSlider.end() )
+				{
+					resource.setFontSize( fontSize );
+				}
+			}
+
+			if( doFloatTextEdit( window, fontSize, 1 ) )
+			{
+				resource.setFontSize( fontSize );
+			}
 		}
 
 		bool isScalable = resource.getFontIsScalable();
@@ -609,19 +621,38 @@ namespace imapp
 		}
 		else
 		{
-			UiToolboxList list( window, 26.0f, blocks.getLength() );
-			list.setStretchOne();
+			UiWidgetLayoutGrid grid( window, 4u, 4.0f, 4.0f );
+			grid.setStretchOne();
 
-			for( const ResourceFontUnicodeBlock& block : blocks )
+			ResourceFontUnicodeBlock* blockToRemove = nullptr;
+			for( ResourceFontUnicodeBlock& block : blocks )
 			{
-				list.nextItem();
+				bool chnaged = false;
+				chnaged |= doUIntTextEdit( window, block.first );
+				chnaged |= doUIntTextEdit( window, block.last );
 
-				UiWidgetLayoutHorizontal layout( window, 4.0f );
-				layout.setHStretch( 1.0f );
+				char* buffer = block.name.beginWrite( 32u );
+				if( window.textEdit( buffer, block.name.getCapacity() ) )
+				{
+					chnaged = true;
+				}
+				block.name.endWrite();
 
-				window.textEditState( 32u, "first" );
-				window.textEditState( 32u, "last" );
-				window.textEditState( 32u, block.name.getData() );
+				if( window.buttonLabel( "Remove" ) )
+				{
+					blockToRemove = &block;
+					chnaged = true;
+				}
+
+				if( chnaged )
+				{
+					resource.increaseRevision();
+				}
+			}
+
+			if( blockToRemove )
+			{
+				blocks.eraseSorted( blockToRemove );
 			}
 		}
 
@@ -697,7 +728,7 @@ namespace imapp
 						resource.increaseRevision();
 					}
 
-					if( doFloatTextEdit( window, border.value ) )
+					if( doFloatTextEdit( window, border.value, 0 ) )
 					{
 						resource.increaseRevision();
 					}
@@ -893,7 +924,7 @@ namespace imapp
 				break;
 
 			case ResourceThemeFieldType::Float:
-				if( doFloatTextEdit( window, *field.data.floatPtr ) )
+				if( doFloatTextEdit( window, *field.data.floatPtr, 1 ) )
 				{
 					resource.increaseRevision();
 				}
@@ -909,10 +940,10 @@ namespace imapp
 					window.label( "Right" );
 					window.label( "Bottom" );
 
-					if( doFloatTextEdit( window, field.data.borderPtr->top ) ||
-						doFloatTextEdit( window, field.data.borderPtr->left ) ||
-						doFloatTextEdit( window, field.data.borderPtr->right ) ||
-						doFloatTextEdit( window, field.data.borderPtr->bottom ) )
+					if( doFloatTextEdit( window, field.data.borderPtr->top, 0 ) ||
+						doFloatTextEdit( window, field.data.borderPtr->left, 0 ) ||
+						doFloatTextEdit( window, field.data.borderPtr->right, 0 ) ||
+						doFloatTextEdit( window, field.data.borderPtr->bottom, 0 ) )
 					{
 						resource.increaseRevision();
 					}
@@ -927,8 +958,8 @@ namespace imapp
 					window.label( "Width" );
 					window.label( "Height" );
 
-					if( doFloatTextEdit( window, field.data.sizePtr->width ) ||
-						doFloatTextEdit( window, field.data.sizePtr->height ) )
+					if( doFloatTextEdit( window, field.data.sizePtr->width, 0 ) ||
+						doFloatTextEdit( window, field.data.sizePtr->height, 0 ) )
 					{
 						resource.increaseRevision();
 					}
@@ -972,18 +1003,14 @@ namespace imapp
 
 			case ResourceThemeFieldType::UInt32:
 				{
-					float floatValue = (float)*field.data.uintPtr;
-					if( doFloatTextEdit( window, floatValue ) )
-					{
-						*field.data.uintPtr = (uint32)floatValue;
-					}
+					doUIntTextEdit( window, *field.data.uintPtr );
 				}
 				break;
 
 			case ResourceThemeFieldType::Time:
 				{
 					float floatValue = (float)*field.data.doublePtr;
-					if( doFloatTextEdit( window, floatValue ) )
+					if( doFloatTextEdit( window, floatValue, 3 ) )
 					{
 						*field.data.doublePtr = (double)floatValue;
 					}
@@ -993,8 +1020,39 @@ namespace imapp
 		}
 	}
 
-	bool ResourceTool::doFloatTextEdit( UiToolboxWindow& window, float& value )
+	bool ResourceTool::doUIntTextEdit( UiToolboxWindow& window, uint32& value )
 	{
+		struct FloatEditState
+		{
+			uint32						lastValue;
+			StaticArray< char, 32u >	buffer;
+		};
+
+		UiToolboxTextEdit textEdit( window );
+
+		bool isNew;
+		FloatEditState* state = textEdit.newState< FloatEditState >( isNew );
+		if( isNew || state->lastValue != value )
+		{
+			snprintf( state->buffer.getData(), state->buffer.getLength(), "%u", value );
+		}
+
+		textEdit.setBuffer( state->buffer.getData(), state->buffer.getLength() );
+
+		if( textEdit.end() )
+		{
+			string_tools::tryParseUInt32( value, StringView( state->buffer.getData() ) );
+			state->lastValue = value;
+			return true;
+		}
+
+		return false;
+	}
+
+	bool ResourceTool::doFloatTextEdit( UiToolboxWindow& window, float& value, uintsize decimalNumbers )
+	{
+		TIKI_ASSERT( decimalNumbers < 10u );
+
 		struct FloatEditState
 		{
 			float						lastValue;
@@ -1007,7 +1065,9 @@ namespace imapp
 		FloatEditState* state = textEdit.newState< FloatEditState >( isNew );
 		if( isNew || state->lastValue != value )
 		{
-			snprintf( state->buffer.getData(), state->buffer.getLength(), "%.0f", value );
+			char format[] = "%.0f";
+			format[ 2u ] = '0' + (char)decimalNumbers;
+			snprintf( state->buffer.getData(), state->buffer.getLength(), format, value );
 		}
 
 		textEdit.setBuffer( state->buffer.getData(), state->buffer.getLength() );
