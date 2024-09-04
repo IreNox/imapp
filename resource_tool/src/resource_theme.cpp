@@ -11,7 +11,7 @@ namespace imapp
 	ResourceTheme::ResourceTheme()
 		: m_config( nullptr )
 	{
-		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1240u );
+		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1256u );
 
 		setFields();
 	}
@@ -284,7 +284,7 @@ namespace imapp
 			{ "Scroll Area Bar Background",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarBackground ] } },
 			{ "Scroll Area Bar Pivot",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarPivot ] } },
 			{ "Scroll Area Bar Size",			ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSize } },
-			{ "Scroll Area Bar Spacing",		ResourceThemeFieldType::Border,		{ &m_config.scrollArea.barSpacing } },
+			{ "Scroll Area Bar Spacing",		ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSpacing } },
 			{ "Scroll Area Bar Min Size",		ResourceThemeFieldType::Size,		{ &m_config.scrollArea.barMinSize } },
 
 			// list
@@ -319,7 +319,8 @@ namespace imapp
 			{ "Drop Down Height",				ResourceThemeFieldType::Float,		{ &m_config.dropDown.height } },
 			{ "Drop Down Padding",				ResourceThemeFieldType::Border,		{ &m_config.dropDown.padding } },
 			{ "Drop Down List Z Order",			ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.listZOrder } },
-			{ "Drop Down List Max Length",		ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.maxListLength } },
+			{ "Drop Down List Margin",			ResourceThemeFieldType::Border,		{ &m_config.dropDown.listMargin } },
+			{ "Drop Down List Max Length",		ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.listMaxLength } },
 			{ "Drop Down Item Padding",			ResourceThemeFieldType::Border,		{ &m_config.dropDown.itemPadding } },
 			{ "Drop Down Item Size",			ResourceThemeFieldType::Float,		{ &m_config.dropDown.itemSize } },
 			{ "Drop Down Item Spacing",			ResourceThemeFieldType::Float,		{ &m_config.dropDown.itemSpacing } },

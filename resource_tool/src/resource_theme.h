@@ -80,7 +80,7 @@ namespace imapp
 
 	private:
 
-		static constexpr uintsize FieldCount = ImUiToolboxColor_MAX + ImUiToolboxSkin_MAX + ImUiToolboxIcon_MAX + 41u;
+		static constexpr uintsize FieldCount = ImUiToolboxColor_MAX + ImUiToolboxSkin_MAX + ImUiToolboxIcon_MAX + 38u;
 
 		using FieldArray = StaticArray< ResourceThemeField, FieldCount >;
 		using SkinArray = StaticArray< DynamicString, ImUiToolboxSkin_MAX >;

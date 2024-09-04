@@ -242,7 +242,7 @@
             <value name="List Item Selected" color="d8daee" skinName="skin_skin_solid_border_small"/>
             <value name="List Item Spacing" value="8"/>
             <value name="Scroll Area Bar Size" value="8"/>
-            <value name="Scroll Area Bar Spacing" top="8" left="25" right="25" bottom="8"/>
+            <value name="Scroll Area Bar Spacing" value="8"/>
             <value name="Scroll Area Bar Min Size" width="25" height="8"/>
             <value name="Drop Down Skin" skinName="skin_skin_solid_border_small"/>
             <value name="Drop Down List Skin" skinName="skin_skin_solid_small"/>
@@ -276,8 +276,9 @@
             <value name="List Item Selected Skin" skinName="skin_skin_solid_border_small"/>
             <value name="Popup Skin" skinName="skin_skin_solid_border_small"/>
             <value name="Button Skin" skinName="skin_skin_solid_small"/>
+            <value name="Drop Down List Margin" top="0" left="0" right="0" bottom="0"/>
         </resource>
-        <resource name="font_arial" type="Font" path="arial.ttf" size="19" scalable="false">
+        <resource name="font_arial" type="Font" path="arial.ttf" size="16" scalable="false">
             <block name="Basic Latin" first="0" last="127"/>
             <block name="Latin-1 Supplement" first="128" last="255"/>
         </resource>
