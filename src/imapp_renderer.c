@@ -458,6 +458,9 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurfac
 
 static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height )
 {
+	width = width <= 0 ? 1 : width;
+	height = height <= 0 ? 1 : height;
+
 	// bind buffers
 	glBindVertexArray( renderer->vertexArray );
 	glBindBuffer( GL_ARRAY_BUFFER, renderer->vertexBuffer );
@@ -483,7 +486,7 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
 
-	const GLfloat projectionMatrix[ 4 ][ 4 ] ={
+	const GLfloat projectionMatrix[ 4 ][ 4 ] = {
 		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
 		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
 		{  0.0f,			0.0f,			-1.0f,	0.0f },
