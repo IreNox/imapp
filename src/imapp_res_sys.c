@@ -1265,7 +1265,7 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 	const ImAppBlob data = ImAppPlatformResourceLoad( ressys->platform, image->resourceName.data );
 	if( !data.data )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName );
+		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName.data );
 		return;
 	}
 
