@@ -1171,7 +1171,7 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 	ImAppFile* file = ImAppPlatformResourceOpen( ressys->platform, pak->resourceName );
 	if( !file )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to open ResPak." );
+		IMAPP_DEBUG_LOGE( "Failed to open '%s' ResPak.", pak->resourceName );
 		return;
 	}
 

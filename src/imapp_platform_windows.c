@@ -129,7 +129,7 @@ struct ImAppThread
 	volatile ULONG		isRunning;
 };
 
-static const LPWSTR s_windowsSystemCursorMapping[] =
+static const LPTSTR s_windowsSystemCursorMapping[] =
 {
 	IDC_ARROW,
 	IDC_WAIT,
@@ -577,6 +577,32 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	window->dpiScale = GetDpiForWindow( window->hwnd ) / (float)USER_DEFAULT_SCREEN_DPI;
 	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, (int)ceil( width * window->dpiScale ), (int)ceil( height * window->dpiScale ), SWP_NOMOVE );
 
+	{
+		RECT windowRect;
+		GetWindowRect( window->hwnd, &windowRect );
+
+		HANDLE monitorHandle = MonitorFromRect( &windowRect, MONITOR_DEFAULTTONULL );
+		if( monitorHandle == NULL )
+		{
+			monitorHandle = MonitorFromRect( &windowRect, MONITOR_DEFAULTTONEAREST );
+
+			MONITORINFO monitorInfo;
+			monitorInfo.cbSize = sizeof( monitorInfo );
+
+			if( GetMonitorInfo( monitorHandle, &monitorInfo ) )
+			{
+				const int windowWidth	= windowRect.right - windowRect.left;
+				const int windowHeight	= windowRect.bottom - windowRect.top;
+				const int monitorWidth	= monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
+				const int monitorHeight	= monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+				const int windowX		= monitorInfo.rcMonitor.left + (monitorWidth / 2) - (windowWidth / 2);
+				const int windowY		= monitorInfo.rcMonitor.top + (monitorHeight / 2) - (windowHeight / 2);
+
+				SetWindowPos( window->hwnd, NULL, windowX, windowY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE );
+			}
+		}
+	}
+
 	int showState = SW_SHOWNORMAL;
 	switch( state )
 	{
@@ -586,12 +612,14 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	}
 	ShowWindow( window->hwnd, showState );
 
-	RECT clientRect;
-	GetClientRect( window->hwnd, &clientRect );
+	{
+		RECT clientRect;
+		GetClientRect( window->hwnd, &clientRect );
 
-	window->hdc			= GetDC( window->hwnd );
-	window->width		= (clientRect.right - clientRect.left);
-	window->height		= (clientRect.bottom - clientRect.top);
+		window->hdc			= GetDC( window->hwnd );
+		window->width		= (clientRect.right - clientRect.left);
+		window->height		= (clientRect.bottom - clientRect.top);
+	}
 
 	ImAppEventQueueConstruct( &window->eventQueue, platform->allocator );
 
