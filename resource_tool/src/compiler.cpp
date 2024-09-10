@@ -85,6 +85,17 @@ namespace imapp
 		return true;
 	}
 
+	void Compiler::waitForCompile()
+	{
+		if( !m_thread )
+		{
+			return;
+		}
+
+		destroyThread( m_thread );
+		m_thread = nullptr;
+	}
+
 	bool Compiler::isRunning()
 	{
 		if( !m_thread )
@@ -159,8 +170,6 @@ namespace imapp
 		}
 
 		writeResourceData( resourcesOffset, compiledResources, resourceIndexMapping );
-
-		//mkdir( m_outputPath.getParent().getNativePath().getData() );
 
 		FILE* file = fopen( m_outputPath.getNativePath().getData(), "wb" );
 		if( !file )

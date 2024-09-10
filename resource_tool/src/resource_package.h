@@ -23,8 +23,8 @@ namespace imapp
 
 		using ResourceView = ArrayView< Resource* >;
 
-								ResourcePackage();
-								~ResourcePackage();
+		ResourcePackage();
+		~ResourcePackage();
 
 		bool					load( const StringView& filename );
 
@@ -32,13 +32,15 @@ namespace imapp
 		bool					save();
 		bool					saveAs( const StringView& filename );
 
-		void					updateFileData( ImAppContext* imapp, double time );
+		void					updateFileData( double time );
 
 		const Path&				getPath() const { return m_path; }
 
 		DynamicString&			getName() { return m_name; }
 		DynamicString&			getOutputPath() { return m_outputPath; }
 		const DynamicString&	getOutputPath() const { return m_outputPath; }
+
+		bool&					getExportCode() { return m_exportCode; }
 
 		Resource&				addResource( const StringView& name, ResourceType type );
 		Resource&				getResource( uintsize index );
@@ -62,6 +64,8 @@ namespace imapp
 
 		DynamicString			m_name;
 		DynamicString			m_outputPath;
+		bool					m_exportCode;
+
 		ResourceArray			m_resources;
 	};
 }

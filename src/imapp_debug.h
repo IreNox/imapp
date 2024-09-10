@@ -11,5 +11,3 @@
 #	define IMAPP_DEBUG_LOGW( fmt, ... )
 #	define IMAPP_DEBUG_LOGE( fmt, ... )
 #endif
-
-void ImAppTrace( const char* format, ... );

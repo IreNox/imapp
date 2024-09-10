@@ -10,6 +10,7 @@
 #include <imui/imui_cpp.h>
 
 #include <tiki/tiki_path.h>
+#include <tiki/tiki_string.h>
 #include <tiki/tiki_string_tools.h>
 
 #include <cstdarg>
@@ -43,16 +44,139 @@ namespace imapp
 	{
 	}
 
-	void ResourceTool::load( const char* filename )
+	bool ResourceTool::handleArgs( int argc, char* argv[], bool& shutdown )
 	{
-		if( !m_package.load( (StringView)filename ) )
+		int argi = 1;
+		bool compile = false;
+		bool writeCode = false;
+		Path codePath;
+		for( ; argi < argc - 1; ++argi )
 		{
-			showError( "Failed to load package '%s'.", filename );
+			const char* arg = argv[ argi ];
+
+			if( isStringEquals( arg, "-c" ) ||
+				isStringEquals( arg, "--compile" ) )
+			{
+				compile = true;
+			}
+			else if( isStringEquals( arg, "-e" ) ||
+					 isStringEquals( arg, "--export-c" ) )
+			{
+				if( argi == argc - 1u )
+				{
+					ImAppTrace( "Error: Export C needs output path.\n" );
+					return false;
+				}
+
+				compile = true;
+				writeCode = true;
+				codePath = argv[ argi + 1u ];
+				argi++;
+			}
+			else if( isStringEquals( arg, "--help" ) )
+			{
+				const char* helpFormat = R"V0G0N(Using %s [OPTIONS] filename
+
+Options:
+-c, --compile           Compile loaded resource package
+-e, --export-c output   Writes resource package as C file to 'output'
+--help                  Show this help message
+)V0G0N";
+
+				Path exePath( argv[ 0u ] );
+				ImAppTrace( helpFormat, exePath.getFilename().toConstCharPointer() );
+				shutdown = true;
+				return true;
+			}
 		}
 
-		m_compiler.reset();
-		updateResourceNamesByType();
-		m_notifications.set( Notifications::Loaded );
+		bool loaded = false;
+		const char* filename = nullptr;
+		if( argi < argc )
+		{
+			filename = argv[ argi ];
+			loaded = load( filename );
+		}
+
+		if( (compile || writeCode) &&
+			!loaded )
+		{
+			ImAppTrace( "Error: Failed to load '%s'\n", filename ? filename : "no file" );
+			return false;
+		}
+
+		if( compile )
+		{
+			m_package.updateFileData( 0.0 );
+
+			m_compiler.startCompile( m_package );
+			m_compiler.waitForCompile();
+
+			const CompilerOutput& output = m_compiler.getOutput();
+			for( const CompilerMessage& message : output.getMessages() )
+			{
+				const char* level = "Error";
+				switch( message.level )
+				{
+				case CompilerErrorLevel::Info:		level = "Info"; break;
+				case CompilerErrorLevel::Warning:	level = "Warning"; break;
+				case CompilerErrorLevel::Error:		break;
+				}
+				ImAppTrace( "%s: [%s] %s\n", level, message.resourceName.toConstCharPointer(), message.text.toConstCharPointer() );
+			}
+
+			if( output.hasError() )
+			{
+				return false;
+			}
+		}
+
+		if( writeCode )
+		{
+			const DynamicString cPath = codePath.getNativePath();
+			FILE* file = fopen( cPath.toConstCharPointer(), "w" );
+			if( !file )
+			{
+				ImAppTrace( "Error: Failed to open '%s'\n", cPath.toConstCharPointer() );
+				return false;
+			}
+
+			DynamicString varName = m_package.getName();
+			varName = varName.replace( ' ', '_' );
+			varName = varName.replace( '.', '_' );
+			varName = "ImAppResPak" + varName;
+
+			DynamicString content = DynamicString::format( "#pragma once\n\nstatic const unsigned char %s[] =\n{\n\t", varName.toConstCharPointer() );
+
+			char buffer[ 32u ];
+			uintsize lineLength = 0u;
+			for( byte b : m_compiler.getData() )
+			{
+				if( lineLength == 16u )
+				{
+					content += ",\n\t";
+					lineLength = 0u;
+				}
+				else if( lineLength != 0u )
+				{
+					content += ", ";
+				}
+
+				snprintf( buffer, sizeof( buffer ), "0x%02x", b );
+				content += buffer;
+
+				lineLength++;
+			}
+
+			content += "\n};\n";
+
+			fputs( content.toConstCharPointer(), file );
+			fclose( file );
+		}
+
+
+		shutdown = (compile || writeCode);
+		return true;
 	}
 
 	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
@@ -213,9 +337,24 @@ namespace imapp
 		}
 	}
 
+	bool ResourceTool::load( const char* filename )
+	{
+		const bool loaded = m_package.load( (StringView)filename );
+		if( !loaded )
+		{
+			showError( "Failed to load package '%s'.", filename );
+		}
+
+		m_compiler.reset();
+		updateResourceNamesByType();
+		m_notifications.set( Notifications::Loaded );
+
+		return loaded;
+	}
+
 	void ResourceTool::update( ImAppContext* imapp, double time )
 	{
-		m_package.updateFileData( imapp, time );
+		m_package.updateFileData( time );
 
 		{
 			const uint32 revision = m_package.getRevision();
@@ -491,7 +630,7 @@ namespace imapp
 			break;
 
 		case ResourceType::Theme:
-			doViewTheme( window, resource );
+			doViewTheme( imapp, window, resource );
 			break;
 		}
 	}
@@ -519,6 +658,8 @@ namespace imapp
 			}
 			outputPath.endWrite();
 		}
+
+
 	}
 
 	void ResourceTool::doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
@@ -546,7 +687,7 @@ namespace imapp
 			resource.setImageRepeat( repeat );
 		}
 
-		const ImUiImage image = ImAppImageGetImage( resource.getImage() );
+		const ImUiImage image = ImAppImageGetImage( resource.getOrCreateImage( imapp ) );
 
 		{
 			ImageViewWidget imageView( imapp, window );
@@ -698,7 +839,7 @@ namespace imapp
 		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
 		if( imageResource )
 		{
-			const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
+			const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 			UiBorder& skinBorder = resource.getSkinBorder();
 			{
@@ -778,7 +919,7 @@ namespace imapp
 		}
 	}
 
-	void ResourceTool::doViewTheme( UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewTheme( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		UiToolboxScrollArea scrollArea( window );
 		scrollArea.setStretchOne();
@@ -897,7 +1038,7 @@ namespace imapp
 
 						if( skinResource && imageResource )
 						{
-							const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
+							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 							ImUiSkin skin;
 							skin.textureData	= image.textureData;
@@ -979,7 +1120,7 @@ namespace imapp
 						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
 						if( imageResource )
 						{
-							const ImUiImage image = ImAppImageGetImage( imageResource->getImage() );
+							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 							const float width = (previewWidget.getRect().size.height / float( image.height )) * float( image.width );
 							previewWidget.setFixedWidth( width );

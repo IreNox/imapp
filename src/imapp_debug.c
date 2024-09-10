@@ -28,7 +28,10 @@ void ImAppTrace( const char* format, ... )
 	va_end( args );
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+	puts( buffer );
+#	if IMAPP_ENABLED( IMAPP_DEBUG )
 	OutputDebugStringA( buffer );
+#	endif
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
 	__android_log_write( ANDROID_LOG_INFO, "ImApp", buffer );
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )

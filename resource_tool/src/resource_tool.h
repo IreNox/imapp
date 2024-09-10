@@ -32,7 +32,7 @@ namespace imapp
 
 							ResourceTool();
 
-		void				load( const char* filename );
+		bool				handleArgs( int argc, char* argv[], bool& shutdown );
 
 		void				doUi( ImAppContext* imapp, UiSurface& surface );
 
@@ -115,6 +115,8 @@ namespace imapp
 
 		TypeNameArray		m_resourceNamesByType;
 
+		bool				load( const char* filename );
+
 		void				update( ImAppContext* imapp, double time );
 
 		void				doPopups( UiSurface& surface );
@@ -129,7 +131,7 @@ namespace imapp
 		void				doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 		void				doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
-		void				doViewTheme( UiToolboxWindow& window, Resource& resource );
+		void				doViewTheme( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
 
 		bool				doUIntTextEdit( UiToolboxWindow& window, uint32& value );
 		bool				doFloatTextEdit( UiToolboxWindow& window, float& value, uintsize decimalNumbers );

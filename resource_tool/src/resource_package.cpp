@@ -108,11 +108,11 @@ namespace imapp
 		return m_xml.SaveFile( m_path.getNativePath().getData() ) == XML_SUCCESS;
 	}
 
-	void ResourcePackage::updateFileData( ImAppContext* imapp, double time )
+	void ResourcePackage::updateFileData( double time )
 	{
 		for( Resource* resource : m_resources )
 		{
-			resource->updateFileData( imapp, m_path.getGenericPath(), time );
+			resource->updateFileData( m_path.getGenericPath(), time );
 		}
 	}
 

@@ -42,7 +42,7 @@ namespace imapp
 		void					serialize( XMLElement* resourcesNode );
 		void					remove();
 
-		void					updateFileData( ImAppContext* imapp, const Path& packagePath, double time );
+		void					updateFileData( const Path& packagePath, double time );
 
 		ResourceType			getType() const { return m_type; }
 
@@ -59,7 +59,6 @@ namespace imapp
 		bool					getImageRepeat() const { return m_imageRepeat; }
 		void					setImageRepeat( bool value );
 
-		ImAppImage*				getImage() const { return m_image; }
 		ArrayView< byte >		getImageData() const { return m_imageData; }
 		uint32					getImageWidth() const { return m_imageWidth; }
 		uint32					getImageHeight() const { return m_imageHeight; }
@@ -79,6 +78,8 @@ namespace imapp
 
 		ResourceTheme&			getTheme() { return m_theme; }
 		const ResourceTheme&	getTheme() const { return m_theme; }
+
+		ImAppImage*				getOrCreateImage( ImAppContext* imapp );
 
 		uint32					getRevision() const { return m_revision; }
 		void					increaseRevision() { m_revision++; }
@@ -123,7 +124,6 @@ namespace imapp
 		void					serializeSkinXml();
 		void					serializeFontXml();
 
-		void					updateImageFileData( ImAppContext* imapp );
-		void					updateFontFileData( ImAppContext* imapp );
+		bool					updateImageFileData();
 	};
 }

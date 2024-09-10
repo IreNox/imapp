@@ -14,9 +14,16 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 
 	imapp::ResourceTool* context = new imapp::ResourceTool();
 
-	if( argc > 1u )
+	if( !context->handleArgs( argc, argv, parameters->shutdownAfterInit ) )
 	{
-		context->load( argv[ 1u ] );
+		parameters->shutdownAfterInit	= true;
+		parameters->exitCode			= 1;
+	}
+
+	if( parameters->shutdownAfterInit )
+	{
+		delete context;
+		return nullptr;
 	}
 
 	return context;

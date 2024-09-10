@@ -24,6 +24,7 @@ typedef struct ImAppInternal
 	ImUiAllocator			allocator;
 
 	bool					running;
+	int						exitCode;
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
 	ImUiInputMouseCursor	lastCursor;

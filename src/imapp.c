@@ -29,7 +29,11 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 		ImAppFillDefaultParameters( &parameters );
 
 		programContext = ImAppProgramInitialize( &parameters, argc, argv );
-		if( programContext == NULL )
+		if( parameters.shutdownAfterInit )
+		{
+			return parameters.exitCode;
+		}
+		else if( programContext == NULL )
 		{
 			ImAppPlatformShowError( platform, "Failed to initialize Program." );
 			return 1;
@@ -45,7 +49,7 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 			return 1;
 		}
 
-		ImUiMemoryAllocatorPrepare( &imapp->allocator, &allocator );
+		ImUiMemoryAllocatorFinalize( &imapp->allocator, &allocator );
 
 		imapp->running			= true;
 		imapp->platform			= platform;
@@ -137,13 +141,13 @@ static void ImAppTickWindow( ImAppWindow* window, void* arg )
 	{
 		if( !ImAppRendererRecreateResources( imapp->renderer ) )
 		{
-			ImAppQuit( &imapp->context );
+			ImAppQuit( &imapp->context, 2 );
 			return;
 		}
 
 		if( !ImAppResSysRecreateEverything( imapp->ressys ) )
 		{
-			ImAppQuit( &imapp->context );
+			ImAppQuit( &imapp->context, 2 );
 			return;
 		}
 	}
@@ -157,6 +161,8 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->resPath				= "./assets";
 	parameters->defaultFontName		= "arial.ttf";
 	parameters->defaultFontSize		= 16.0f;
+	parameters->shutdownAfterInit	= false;
+	parameters->exitCode			= 0;
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
 #else
@@ -387,14 +393,15 @@ bool ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 	return ImAppPlatformWindowPopDropData( window, outData );
 }
 
-void ImAppQuit( ImAppContext* imapp )
+void ImAppQuit( ImAppContext* imapp, int exitCode )
 {
 	ImAppInternal* imappInt = (ImAppInternal*)imapp;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	emscripten_cancel_main_loop();
 #endif
-	imappInt->running = false;
+	imappInt->running	= false;
+	imappInt->exitCode	= exitCode;
 }
 
 ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )

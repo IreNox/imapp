@@ -22,61 +22,21 @@ namespace imapp
 	{
 	public:
 
+		using ByteArray = DynamicArray< byte >;
+
 								Compiler();
 								~Compiler();
 
 		void					reset();
 
 		bool					startCompile( const ResourcePackage& package );
+		void					waitForCompile();
 		bool					isRunning();
 
+		const ByteArray&		getData() const { return m_buffer; }
 		const CompilerOutput&	getOutput() const { return m_output; }
 
 	private:
-
-		using ByteArray = DynamicArray< byte >;
-
-		//struct ImageData
-		//{
-		//	uint32			width			= 0u;
-		//	uint32			height			= 0u;
-		//	bool			allowAtlas		= false;
-		//	bool			repeat			= false;
-		//	ByteArray		imageData;
-		//};
-
-		//struct FontData
-		//{
-		//	float			size			= 0u;
-		//	bool			isScalable		= false;
-		//};
-
-
-		//struct SkinData
-		//{
-		//	DynamicString	imageName;
-		//	UiBorder		border;
-		//};
-
-		//struct ThemeData
-		//{
-		//	ResourceTheme*	theme	= nullptr;
-		//};
-
-		//struct ResourceData
-		//{
-		//	ResourceType	type			= ResourceType::Count;
-		//	DynamicString	name;
-		//	ImUiHash		fileHash		= 0u;
-		//	ByteArray		fileData;
-
-		//	ByteArray		compiledData;
-
-		//	ImageData		image;
-		//	FontData		font;
-		//	SkinData		skin;
-		//	ThemeData		theme;
-		//};
 
 		struct CompiledResource
 		{

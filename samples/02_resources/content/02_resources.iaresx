@@ -290,8 +290,6 @@
         <resource name="skin_skin_gray_down" type="Skin" image_name="skin_gray_down" top="8" left="8" bottom="8" right="8"/>
         <resource name="img_skin_check_box" type="Image" path="skins/skin_check_box.png" allow_atlas="true" repeat="false"/>
         <resource name="skin_skin_check_box" type="Skin" image_name="img_skin_check_box" top="2" left="5" bottom="2" right="5"/>
-        <resource name="skin_scroll_pivot" type="Image" path="skins/skin_scroll_pivot.png" allow_atlas="true" repeat="false"/>
-        <resource name="skin_skin_scroll_pivot" type="Skin" image_name="skin_scroll_pivot" top="4" left="0" bottom="4" right="0"/>
         <resource name="skin_solid" type="Image" path="skins/skin_solid.png" allow_atlas="true" repeat="false"/>
         <resource name="skin_skin_solid" type="Skin" image_name="skin_solid" top="0" left="0" bottom="0" right="0"/>
     </resources>

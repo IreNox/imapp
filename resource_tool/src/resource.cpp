@@ -145,7 +145,7 @@ namespace imapp
 		}
 	}
 
-	void Resource::updateFileData( ImAppContext* imapp, const Path& packagePath, double time )
+	void Resource::updateFileData( const Path& packagePath, double time )
 	{
 		if( (m_type != ResourceType::Image && m_type != ResourceType::Font) ||
 			time - m_fileCheckTime < FileCheckInterval )
@@ -192,10 +192,11 @@ namespace imapp
 			return;
 		}
 
+		bool ok = true;
 		switch( m_type )
 		{
 		case ResourceType::Image:
-			updateImageFileData( imapp );
+			ok = updateImageFileData();
 			break;
 
 		case ResourceType::Font:
@@ -208,7 +209,10 @@ namespace imapp
 			break;
 		}
 
-		m_fileHash = newFileHash;
+		if( ok )
+		{
+			m_fileHash = newFileHash;
+		}
 		m_revision++;
 	}
 
@@ -240,6 +244,17 @@ namespace imapp
 	{
 		m_skinImageName = value;
 		m_revision++;
+	}
+
+	ImAppImage* Resource::getOrCreateImage( ImAppContext* imapp )
+	{
+		if( !m_image )
+		{
+			m_imapp			= imapp;
+			m_image			= ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), (int)m_imageWidth, (int)m_imageHeight );
+		}
+
+		return m_image;
 	}
 
 	bool Resource::loadImageXml()
@@ -337,11 +352,11 @@ namespace imapp
 		}
 	}
 
-	void Resource::updateImageFileData( ImAppContext* imapp )
+	bool Resource::updateImageFileData()
 	{
 		if( m_image )
 		{
-			ImAppImageFree( imapp, m_image );
+			ImAppImageFree( m_imapp, m_image );
 			m_image = nullptr;
 		}
 
@@ -349,27 +364,27 @@ namespace imapp
 		const int bufferResult = spng_set_png_buffer( spng, m_fileData.getData(), m_fileData.getSizeInBytes() );
 		if( bufferResult != SPNG_OK )
 		{
-			//IMAPP_DEBUG_LOGE( "Failed to set PNG buffer. Result: %d", bufferResult );
+			ImAppTrace( "Error: Failed to set PNG buffer. Result: %d", bufferResult );
 			spng_ctx_free( spng );
-			return;
+			return false;
 		}
 
 		size_t pixelDataSize;
 		const int sizeResult = spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
 		if( sizeResult != SPNG_OK )
 		{
-			//IMAPP_DEBUG_LOGE( "Failed to calculate PNG size. Result: %d", sizeResult );
+			ImAppTrace( "Error: Failed to calculate PNG size. Result: %d", sizeResult );
 			spng_ctx_free( spng );
-			return;
+			return false;
 		}
 
 		struct spng_ihdr ihdr;
 		const int headerResult = spng_get_ihdr( spng, &ihdr );
 		if( headerResult != SPNG_OK )
 		{
-			//IMAPP_DEBUG_LOGE( "Failed to get PNG header. Result: %d", headerResult );
+			ImAppTrace( "Error: Failed to get PNG header. Result: %d", headerResult );
 			spng_ctx_free( spng );
-			return;
+			return false;
 		}
 
 		m_imageData.setLengthUninitialized( pixelDataSize );
@@ -379,13 +394,13 @@ namespace imapp
 
 		if( decodeResult != 0 )
 		{
-			//IMAPP_DEBUG_LOGE( "Failed to decode PNG. Result: %d", decodeResult );
-			return;
+			ImAppTrace( "Error: Failed to decode PNG. Result: %d", decodeResult );
+			return false;
 		}
 
-		m_imapp			= imapp;
-		m_image			= ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), ihdr.width, ihdr.height );
 		m_imageWidth	= ihdr.width;
 		m_imageHeight	= ihdr.height;
+
+		return true;
 	}
 }

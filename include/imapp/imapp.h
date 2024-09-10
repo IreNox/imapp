@@ -37,8 +37,11 @@ typedef struct ImAppParameters
 	const char*				defaultFontName;	// Default: arial.ttf;
 	float					defaultFontSize;	// Default: 16
 
-	const ImUiInputShortcutConfig*		shortcuts;
-	size_t					shortcutCount;
+	const ImUiInputShortcutConfig*	shortcuts;
+	size_t							shortcutCount;
+
+	bool					shutdownAfterInit;	// Shutdown after initialization call. ImAppProgramShutdown will not be called.
+	int						exitCode;			// Set exit code for shutdown after initialization
 
 	// Only for windowed Platforms:
 	ImAppDefaultWindow		windowMode;			// Opens a default Window. Default: Linux/Windows: Resizable, Android: Fullscreen
@@ -85,7 +88,8 @@ typedef struct ImAppDropData
 
 bool						ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );	// data freed after tick
 
-void						ImAppQuit( ImAppContext* imapp );
+void						ImAppTrace( const char* format, ... );
+void						ImAppQuit( ImAppContext* imapp, int exitCode );
 
 //////////////////////////////////////////////////////////////////////////
 // Resources
