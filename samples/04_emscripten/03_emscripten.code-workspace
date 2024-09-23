@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"imapp_internal.h": "c",
+			"imapp.h": "c",
+			"imui_cpp.h": "c"
+		}
+	}
+}
