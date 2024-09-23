@@ -5,6 +5,7 @@
 #include "imapp_internal.h"
 #include "imapp_debug.h"
 #include "imapp_event_queue.h"
+#include "imapp_platform_windows_resources.h"
 
 #include <math.h>
 #include <windows.h>
@@ -41,7 +42,7 @@ struct ImAppPlatform
 {
 	ImUiAllocator*		allocator;
 
-	uint8				inputKeyMapping[ 255u ];	// ImUiInputKey
+	uint8				inputKeyMapping[ 223u ];
 
 	wchar_t				resourcePath[ MAX_PATH ];
 	uintsize			resourceBasePathLength;
@@ -169,6 +170,9 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
 	ImAppPlatform platform = { 0 };
 
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	uintsize maxScanCode = 0u;
+#endif
 	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
 	{
 		const ImUiInputKey keyValue = (ImUiInputKey)i;
@@ -278,8 +282,14 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 		case ImUiInputKey_MAX:				break;
 		}
 
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+		maxScanCode = scanCode > maxScanCode ? scanCode : maxScanCode;
+#endif
+
+		IMAPP_ASSERT( scanCode < IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
 		platform.inputKeyMapping[ scanCode ] = keyValue;
 	}
+	IMAPP_ASSERT( maxScanCode + 1u == IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
 
 	int argc;
 	char** argv = NULL;
@@ -531,6 +541,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize			= sizeof( WNDCLASSEXW );
 	windowClass.hInstance		= hInstance;
+	windowClass.hIcon			= LoadIcon( hInstance, MAKEINTRESOURCE( IDI_APPICON ) );
 	windowClass.lpfnWndProc		= &ImAppPlatformWindowProc;
 	windowClass.lpszClassName	= s_pWindowClass;
 	windowClass.hbrBackground	= (HBRUSH)COLOR_WINDOW;
@@ -912,8 +923,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		case WM_KEYDOWN:
 			{
 				const ImUiInputKey key = ImAppPlatformWindowMapKey( window, wParam, lParam );
-				const bool repeat = lParam & 0x40000000;
 
+				const bool repeat = lParam & 0x40000000;
 				const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key, .repeat = repeat } };
 				ImAppEventQueuePush( &window->eventQueue, &keyEvent );
 			}
@@ -1036,6 +1047,11 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 static ImUiInputKey ImAppPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam )
 {
+	if( wParam > IMAPP_ARRAY_COUNT( window->platform->inputKeyMapping ) )
+	{
+		return ImUiInputKey_None;
+	}
+
 	ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
 	if( wParam == VK_RETURN &&
 		lParam & 0x1000000 )

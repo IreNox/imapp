@@ -159,7 +159,12 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 
 	parameters->tickIntervalMs		= 0;
 	parameters->resPath				= "./assets";
-	parameters->defaultFontName		= "arial.ttf";
+
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+    parameters->defaultFontName		= "Roboto-Regular.ttf";
+#else
+    parameters->defaultFontName		= "Arial.ttf";
+#endif
 	parameters->defaultFontSize		= 16.0f;
 	parameters->shutdownAfterInit	= false;
 	parameters->exitCode			= 0;

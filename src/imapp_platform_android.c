@@ -36,6 +36,8 @@ typedef struct ImAppPlatform
 
 	ALooper*				pLooper;
 	AInputQueue*			pInputQueue;
+	uint8					inputKeyMapping[ 161u ];
+    uint32					inputKeyRepeat[ ImUiInputKey_MAX ];
 
 	int						viewTop;
 	int						viewLeft;
@@ -97,16 +99,15 @@ typedef struct ImAppAndroidEvent
 
 struct ImAppThread
 {
-	ImAppPlatform*		platform;
+	ImAppPlatform*				platform;
 
-	pthread_t			handle;
+	pthread_t					handle;
 
-	ImAppThreadFunc		func;
-	void*				arg;
+	ImAppThreadFunc				func;
+	void*						arg;
 
-	uint8				hasExit;
+	uint8						hasExit;
 };
-
 
 static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
 static void		ImAppAndroidDestroy( ImAppPlatform* platform );
@@ -211,6 +212,127 @@ static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, s
     memset( platform, 0, sizeof( *platform ) );
 
 	platform->pActivity = pActivity;
+	
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	uintsize maxScanCode = 0u;
+#endif
+	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
+	{
+		const ImUiInputKey keyValue = (ImUiInputKey)i;
+
+		uint16 scanCode = 0u;
+		switch( keyValue )
+		{
+		case ImUiInputKey_None:				break;
+		case ImUiInputKey_A:				scanCode = AKEYCODE_A; break;
+		case ImUiInputKey_B:				scanCode = AKEYCODE_B; break;
+		case ImUiInputKey_C:				scanCode = AKEYCODE_C; break;
+		case ImUiInputKey_D:				scanCode = AKEYCODE_D; break;
+		case ImUiInputKey_E:				scanCode = AKEYCODE_E; break;
+		case ImUiInputKey_F:				scanCode = AKEYCODE_F; break;
+		case ImUiInputKey_G:				scanCode = AKEYCODE_G; break;
+		case ImUiInputKey_H:				scanCode = AKEYCODE_H; break;
+		case ImUiInputKey_I:				scanCode = AKEYCODE_I; break;
+		case ImUiInputKey_J:				scanCode = AKEYCODE_J; break;
+		case ImUiInputKey_K:				scanCode = AKEYCODE_K; break;
+		case ImUiInputKey_L:				scanCode = AKEYCODE_L; break;
+		case ImUiInputKey_M:				scanCode = AKEYCODE_M; break;
+		case ImUiInputKey_N:				scanCode = AKEYCODE_N; break;
+		case ImUiInputKey_O:				scanCode = AKEYCODE_O; break;
+		case ImUiInputKey_P:				scanCode = AKEYCODE_P; break;
+		case ImUiInputKey_Q:				scanCode = AKEYCODE_Q; break;
+		case ImUiInputKey_R:				scanCode = AKEYCODE_R; break;
+		case ImUiInputKey_S:				scanCode = AKEYCODE_S; break;
+		case ImUiInputKey_T:				scanCode = AKEYCODE_T; break;
+		case ImUiInputKey_U:				scanCode = AKEYCODE_U; break;
+		case ImUiInputKey_V:				scanCode = AKEYCODE_V; break;
+		case ImUiInputKey_W:				scanCode = AKEYCODE_W; break;
+		case ImUiInputKey_X:				scanCode = AKEYCODE_X; break;
+		case ImUiInputKey_Y:				scanCode = AKEYCODE_Y; break;
+		case ImUiInputKey_Z:				scanCode = AKEYCODE_Z; break;
+		case ImUiInputKey_1:				scanCode = AKEYCODE_1; break;
+		case ImUiInputKey_2:				scanCode = AKEYCODE_2; break;
+		case ImUiInputKey_3:				scanCode = AKEYCODE_3; break;
+		case ImUiInputKey_4:				scanCode = AKEYCODE_4; break;
+		case ImUiInputKey_5:				scanCode = AKEYCODE_5; break;
+		case ImUiInputKey_6:				scanCode = AKEYCODE_6; break;
+		case ImUiInputKey_7:				scanCode = AKEYCODE_7; break;
+		case ImUiInputKey_8:				scanCode = AKEYCODE_8; break;
+		case ImUiInputKey_9:				scanCode = AKEYCODE_9; break;
+		case ImUiInputKey_0:				scanCode = AKEYCODE_0; break;
+		case ImUiInputKey_Enter:			scanCode = AKEYCODE_ENTER; break;
+		case ImUiInputKey_Escape:			scanCode = AKEYCODE_ESCAPE; break;
+		case ImUiInputKey_Backspace:		scanCode = AKEYCODE_DEL; break;
+		case ImUiInputKey_Tab:				scanCode = AKEYCODE_TAB; break;
+		case ImUiInputKey_Space:			scanCode = AKEYCODE_SPACE; break;
+		case ImUiInputKey_LeftShift:		scanCode = AKEYCODE_SHIFT_LEFT; break;
+		case ImUiInputKey_RightShift:		scanCode = AKEYCODE_SHIFT_RIGHT; break;
+		case ImUiInputKey_LeftControl:		scanCode = AKEYCODE_CTRL_LEFT; break;
+		case ImUiInputKey_RightControl:		scanCode = AKEYCODE_CTRL_RIGHT; break;
+		case ImUiInputKey_LeftAlt:			scanCode = AKEYCODE_ALT_LEFT; break;
+		case ImUiInputKey_RightAlt:			scanCode = AKEYCODE_ALT_RIGHT; break;
+		case ImUiInputKey_Minus:			scanCode = AKEYCODE_MINUS; break;
+		case ImUiInputKey_Equals:			scanCode = AKEYCODE_EQUALS; break;
+		case ImUiInputKey_LeftBracket:		scanCode = AKEYCODE_LEFT_BRACKET; break;
+		case ImUiInputKey_RightBracket:		scanCode = AKEYCODE_RIGHT_BRACKET; break;
+		case ImUiInputKey_Backslash:		scanCode = AKEYCODE_BACKSLASH; break;
+		case ImUiInputKey_Semicolon:		scanCode = AKEYCODE_SEMICOLON; break;
+		case ImUiInputKey_Apostrophe:		scanCode = AKEYCODE_APOSTROPHE; break;
+		case ImUiInputKey_Grave:			scanCode = AKEYCODE_GRAVE; break;
+		case ImUiInputKey_Comma:			scanCode = AKEYCODE_COMMA; break;
+		case ImUiInputKey_Period:			scanCode = AKEYCODE_PERIOD; break;
+		case ImUiInputKey_Slash:			scanCode = AKEYCODE_SLASH; break;
+		case ImUiInputKey_F1:				scanCode = AKEYCODE_F1; break;
+		case ImUiInputKey_F2:				scanCode = AKEYCODE_F2; break;
+		case ImUiInputKey_F3:				scanCode = AKEYCODE_F3; break;
+		case ImUiInputKey_F4:				scanCode = AKEYCODE_F4; break;
+		case ImUiInputKey_F5:				scanCode = AKEYCODE_F5; break;
+		case ImUiInputKey_F6:				scanCode = AKEYCODE_F6; break;
+		case ImUiInputKey_F7:				scanCode = AKEYCODE_F7; break;
+		case ImUiInputKey_F8:				scanCode = AKEYCODE_F8; break;
+		case ImUiInputKey_F9:				scanCode = AKEYCODE_F9; break;
+		case ImUiInputKey_F10:				scanCode = AKEYCODE_F10; break;
+		case ImUiInputKey_F11:				scanCode = AKEYCODE_F11; break;
+		case ImUiInputKey_F12:				scanCode = AKEYCODE_F12; break;
+		case ImUiInputKey_Print:			scanCode = AKEYCODE_SYSRQ; break;
+		case ImUiInputKey_Pause:			scanCode = AKEYCODE_BREAK; break;
+		case ImUiInputKey_Insert:			scanCode = AKEYCODE_INSERT; break;
+		case ImUiInputKey_Delete:			scanCode = AKEYCODE_FORWARD_DEL; break;
+		case ImUiInputKey_Home:				scanCode = AKEYCODE_MOVE_HOME; break;
+		case ImUiInputKey_End:				scanCode = AKEYCODE_MOVE_END; break;
+		case ImUiInputKey_PageUp:			scanCode = AKEYCODE_PAGE_UP; break;
+		case ImUiInputKey_PageDown:			scanCode = AKEYCODE_PAGE_DOWN; break;
+		case ImUiInputKey_Up:				scanCode = AKEYCODE_DPAD_UP; break;
+		case ImUiInputKey_Left:				scanCode = AKEYCODE_DPAD_LEFT; break;
+		case ImUiInputKey_Down:				scanCode = AKEYCODE_DPAD_DOWN; break;
+		case ImUiInputKey_Right:			scanCode = AKEYCODE_DPAD_RIGHT; break;
+		case ImUiInputKey_Numpad_Divide:	scanCode = AKEYCODE_NUMPAD_DIVIDE; break;
+		case ImUiInputKey_Numpad_Multiply:	scanCode = AKEYCODE_NUMPAD_MULTIPLY; break;
+		case ImUiInputKey_Numpad_Minus:		scanCode = AKEYCODE_NUMPAD_SUBTRACT; break;
+		case ImUiInputKey_Numpad_Plus:		scanCode = AKEYCODE_NUMPAD_ADD; break;
+		case ImUiInputKey_Numpad_Enter:		scanCode = AKEYCODE_NUMPAD_ENTER; break;
+		case ImUiInputKey_Numpad_1:			scanCode = AKEYCODE_NUMPAD_1; break;
+		case ImUiInputKey_Numpad_2:			scanCode = AKEYCODE_NUMPAD_2; break;
+		case ImUiInputKey_Numpad_3:			scanCode = AKEYCODE_NUMPAD_3; break;
+		case ImUiInputKey_Numpad_4:			scanCode = AKEYCODE_NUMPAD_4; break;
+		case ImUiInputKey_Numpad_5:			scanCode = AKEYCODE_NUMPAD_5; break;
+		case ImUiInputKey_Numpad_6:			scanCode = AKEYCODE_NUMPAD_6; break;
+		case ImUiInputKey_Numpad_7:			scanCode = AKEYCODE_NUMPAD_7; break;
+		case ImUiInputKey_Numpad_8:			scanCode = AKEYCODE_NUMPAD_8; break;
+		case ImUiInputKey_Numpad_9:			scanCode = AKEYCODE_NUMPAD_9; break;
+		case ImUiInputKey_Numpad_0:			scanCode = AKEYCODE_NUMPAD_0; break;
+		case ImUiInputKey_Numpad_Period:	scanCode = AKEYCODE_NUMPAD_DOT; break;
+		case ImUiInputKey_MAX:				break;
+		}
+
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+		maxScanCode = scanCode > maxScanCode ? scanCode : maxScanCode;
+#endif
+
+		IMAPP_ASSERT( scanCode < IMAPP_ARRAY_COUNT( platform->inputKeyMapping ) );
+		platform->inputKeyMapping[ scanCode ] = keyValue;
+	}
+	IMAPP_ASSERT( maxScanCode + 1u == IMAPP_ARRAY_COUNT( platform->inputKeyMapping ) );
 
 	pthread_mutex_init( &platform->threadConditionMutex, NULL );
 	pthread_cond_init( &platform->threadCondition, NULL );
@@ -761,34 +883,76 @@ static void ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, con
 
 static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent )
 {
-	const uint32_t eventType = AInputEvent_getType( pInputEvent );
+	const int32_t eventType = AInputEvent_getType( pInputEvent );
 	switch( eventType )
 	{
 	case AINPUT_EVENT_TYPE_KEY:
 		{
 			// not implemented
-			const uint32_t keyAction = AKeyEvent_getAction( pInputEvent );
+			const int32_t keyAction = AKeyEvent_getAction( pInputEvent );
 			switch( keyAction )
 			{
 			case AKEY_EVENT_ACTION_DOWN:
 			case AKEY_EVENT_ACTION_UP:
 				{
-					//const int32_t scanCode = AKeyEvent_getScanCode( pInputEvent );
-					//const enum nk_keys nkKey = s_inputKeyMapping[ scanCode ];
-					//if( nkKey != NK_KEY_NONE )
-					//{
-					//	nk_input_key( pNkContext, nkKey, pKeyEvent->type == SDL_KEYDOWN );
-					//}
+                    const int32_t keyCode = AKeyEvent_getKeyCode( pInputEvent );
 
-					//if( pKeyEvent->state == SDL_PRESSED &&
-					//	pKeyEvent->keysym.sym >= ' ' &&
-					//	pKeyEvent->keysym.sym <= '~' )
-					//{
-					//	nk_input_char( pNkContext, (char)pKeyEvent->keysym.sym );
-					//}
+                    // Text Input
+                    {
+                        JNIEnv* jniEnv = NULL;
+                        (*window->platform->pActivity->vm)->AttachCurrentThread( window->platform->pActivity->vm, &jniEnv, NULL );
 
-					//const nk_bool down = keyAction == AKEY_EVENT_ACTION_DOWN;
-					//nk_input_key( pNkContext, ..., down );
+                        jclass keyEventClass = (*jniEnv)->FindClass( jniEnv, "android/view/KeyEvent" );
+                        jmethodID keyEventConstructor = (*jniEnv)->GetMethodID( jniEnv, keyEventClass, "<init>", "(II)V");
+                        jobject keyEventObj = (*jniEnv)->NewObject( jniEnv, keyEventClass, keyEventConstructor, eventType, keyCode );
+
+                        int unicodeKey;
+                        const int32_t metaState = AKeyEvent_getMetaState( pInputEvent );
+                        if( metaState == 0 )
+                        {
+                            jmethodID getUnicodeCharMethod = (*jniEnv)->GetMethodID( jniEnv, keyEventClass, "getUnicodeChar", "()I");
+                            unicodeKey = (*jniEnv)->CallIntMethod( jniEnv, keyEventObj, getUnicodeCharMethod );
+                        }
+                        else
+                        {
+                            jmethodID getUnicodeCharMethod = (*jniEnv)->GetMethodID( jniEnv, keyEventClass, "getUnicodeChar", "(I)I");
+                            unicodeKey = (*jniEnv)->CallIntMethod( jniEnv, keyEventObj, getUnicodeCharMethod, metaState );
+                        }
+
+                        (*window->platform->pActivity->vm)->DetachCurrentThread( window->platform->pActivity->vm );
+
+                        if( unicodeKey != 0 )
+                        {
+                            const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = unicodeKey } };
+                            ImAppEventQueuePush( &window->eventQueue, &charEvent );
+                        }
+                    }
+
+                    // Key Press
+                    {
+                        if( keyCode > IMAPP_ARRAY_COUNT( window->platform->inputKeyMapping ) )
+                        {
+                            break;
+                        }
+
+                        const ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ keyCode ];
+                        if( key == ImUiInputKey_None )
+                        {
+                            break;
+                        }
+
+                        const uint32_t repeatCount = AKeyEvent_getRepeatCount( pInputEvent );
+                        bool repeat = false;
+                        if( repeatCount != window->platform->inputKeyRepeat[ key ] )
+                        {
+                            window->platform->inputKeyRepeat[ key ] = repeatCount;
+                            repeat = true;
+                        }
+
+                        const ImAppEventType eventType = keyAction == AKEY_EVENT_ACTION_DOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+                        const ImAppEvent keyEvent = { .key = { .type = eventType, .key = key, .repeat = repeat } };
+                        ImAppEventQueuePush( &window->eventQueue, &keyEvent );
+                    }
 				}
 				break;
 
