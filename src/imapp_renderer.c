@@ -14,6 +14,11 @@
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <GL/glew.h>
 #	include <GLES/gl.h>
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
+#	include <GL/gl.h>
+#	include <GL/glext.h>
+#else
+#	error "Platform not supported"
 #endif
 
 typedef struct ImAppRendererShader

@@ -262,7 +262,7 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 	imapp->ressys = ImAppResSysCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->context.imui );
 	if( imapp->ressys == NULL )
 	{
-		ImAppPlatformShowError( imapp->platform, "Failed to create Image Storage." );
+		ImAppPlatformShowError( imapp->platform, "Failed to create Resource System." );
 		return false;
 	}
 
