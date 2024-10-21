@@ -1,7 +1,12 @@
 {
 	"folders": [
 		{
+			"name": "sample",
 			"path": "."
+		},
+		{
+			"name": "imapp",
+			"path": "../.."
 		}
 	],
 	"settings": {
@@ -10,5 +15,57 @@
 			"imapp.h": "c",
 			"imui_cpp.h": "c"
 		}
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"type": "cmake",
+				"label": "CMake build",
+				"command": "build",
+				"problemMatcher": "$gcc",
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				}
+			},
+			{
+				"type": "cmake",
+				"label": "CMake config",
+				"command": "configure",
+				"group": {
+					"kind": "build"
+				}
+			},
+			{
+				"type": "shell",
+				"label": "run-server",
+				"command": "${workspaceFolder}/run-server.cmd"
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "WASM Debug Chrome",
+				"port": 8081,
+				"request": "launch",
+				"type": "chrome",
+				"url": "http://localhost:8080/sample_emscripten.html",
+				"webRoot": "${workspaceFolder}/build"
+			},
+			{
+				"name": "Launch Server",
+				"type": "cppdbg",
+				"preLaunchTask": "run-server",
+				"request": "launch",
+				"program": "D:\\misc\\emsdk\\node\\18.20.3_64bit\\bin\\node_modules\\http-server\\bin\\http-server",
+				"args": [
+					"${workspaceFolder}/build",
+					"-p", "8080"
+				]
+			}
+		]
 	}
 }

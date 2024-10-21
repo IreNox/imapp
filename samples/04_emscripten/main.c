@@ -54,7 +54,7 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 
 	if( ImUiToolboxButtonLabel( window, "Exit" ) )
 	{
-		ImAppQuit( imapp );
+		ImAppQuit( imapp, 0 );
 	}
 
 	ImUiWidgetEnd( vLayout );
