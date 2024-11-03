@@ -80,4 +80,5 @@ elseif tiki.target_platform == Platforms.Android then
 	end 
 elseif tiki.target_platform == Platforms.Linux then
 	module:add_library_file( "GL" )
+	module:add_library_file( "GLEW" )
 end

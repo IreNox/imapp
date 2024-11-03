@@ -9,6 +9,7 @@ mkShell {
     bear
     libGLU
     libGL.dev
+    glew.dev
     dbus.dev
     #libxkbcommon.dev    
     #wayland.dev
