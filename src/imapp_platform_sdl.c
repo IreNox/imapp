@@ -235,6 +235,18 @@ int main( int argc, char* argv[] )
 		WideCharToMultiByte( CP_UTF8, 0u, fontBuffer, (int)windowPathLength, platform.fontBasePath, (int)platform.fontBasePathLength + 1, NULL, NULL );
 		strncpy_s( platform.fontBasePath + windowPathLength, platform.fontBasePathLength - windowPathLength + 1, fontsPath, IMAPP_ARRAY_COUNT( fontsPath ) );
 	}
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
+	// Linux sucks and there one million ways to store fonts, so hard coded one path for my distribution.
+	const char fontsPath[] = "/run/current-system/sw/share/X11/fonts/";
+
+	platform.fontBasePathLength = IMAPP_ARRAY_COUNT( fontsPath ) - 1;
+	platform.fontBasePath = malloc( platform.fontBasePathLength + 1 );
+	if( !fontsPath )
+	{
+		return 1;
+	}
+
+	strncpy( platform.fontBasePath, fontsPath, platform.fontBasePathLength + 1 );
 #else
 	static char s_emptyFontBasePath[] = { '\0' };
 	platform.fontBasePath = s_emptyFontBasePath;
@@ -905,7 +917,10 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 
 void ImAppPlatformThreadDestroy( ImAppThread* thread )
 {
-	SDL_WaitThread( thread->sdlThread, NULL );
+	if( SDL_AtomicGet( (SDL_atomic_t*)&thread->isRunning ) )
+	{
+		SDL_WaitThread( thread->sdlThread, NULL );
+	}
 
 	ImUiMemoryFree( thread->platform->allocator, thread );
 }

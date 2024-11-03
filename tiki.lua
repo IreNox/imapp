@@ -78,4 +78,6 @@ elseif tiki.target_platform == Platforms.Android then
 		
 		solution:add_project( package_project )
 	end 
+elseif tiki.target_platform == Platforms.Linux then
+	module:add_library_file( "GL" )
 end
