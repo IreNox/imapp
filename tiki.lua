@@ -12,6 +12,8 @@ newoption {
 
 local imapp_path = module.config.base_path
 
+module.module_type = ModuleTypes.FilesModule
+
 tiki.use_sdl = _OPTIONS[ "use_sdl" ] == "on" and (tiki.target_platform == Platforms.Windows or tiki.target_platform == Platforms.Linux)
 --tiki.use_lib = false
 
