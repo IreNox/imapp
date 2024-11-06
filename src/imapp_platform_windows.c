@@ -44,10 +44,10 @@ struct ImAppPlatform
 
 	uint8				inputKeyMapping[ 223u ];
 
-	wchar_t				resourcePath[ MAX_PATH ];
+	wchar_t				resourceBasePath[ MAX_PATH ];
 	uintsize			resourceBasePathLength;
 
-	wchar_t				fontPath[ MAX_PATH ];
+	wchar_t				fontBasePath[ MAX_PATH ];
 	uintsize			fontBasePathLength;
 
 	HCURSOR				cursors[ ImUiInputMouseCursor_MAX ];
@@ -309,10 +309,10 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 		LocalFree( ppWideArgs );
 	}
 
-	platform.fontBasePathLength = GetWindowsDirectoryW( platform.fontPath, IMAPP_ARRAY_COUNT( platform.fontPath ) );
+	platform.fontBasePathLength = GetWindowsDirectoryW( platform.fontBasePath, IMAPP_ARRAY_COUNT( platform.fontBasePath ) );
 	{
 		const wchar_t fontsPath[] = L"\\Fonts\\";
-		wcscpy_s( platform.fontPath + platform.fontBasePathLength, IMAPP_ARRAY_COUNT( platform.fontPath ) - platform.fontBasePathLength, fontsPath );
+		wcscpy_s( platform.fontBasePath + platform.fontBasePathLength, IMAPP_ARRAY_COUNT( platform.fontBasePath ) - platform.fontBasePathLength, fontsPath );
 		platform.fontBasePathLength += IMAPP_ARRAY_COUNT( fontsPath ) - 1u;
 	}
 
@@ -346,22 +346,22 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	const char* sourcePath = resourcePath;
 	if( sourcePath && strstr( sourcePath, "./" ) == sourcePath )
 	{
-		GetModuleFileNameW( NULL, platform->resourcePath, IMAPP_ARRAY_COUNT( platform->resourcePath ) );
+		GetModuleFileNameW( NULL, platform->resourceBasePath, IMAPP_ARRAY_COUNT( platform->resourceBasePath ) );
 		sourcePath += 2u;
 	}
 	{
-		wchar_t* pTargetPath = wcsrchr( platform->resourcePath, L'\\' );
+		wchar_t* pTargetPath = wcsrchr( platform->resourceBasePath, L'\\' );
 		if( pTargetPath == NULL )
 		{
-			pTargetPath = platform->resourcePath;
+			pTargetPath = platform->resourceBasePath;
 		}
 		else
 		{
 			pTargetPath++;
 		}
-		platform->resourceBasePathLength = (pTargetPath - platform->resourcePath);
+		platform->resourceBasePathLength = (pTargetPath - platform->resourceBasePath);
 
-		const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourcePath ) - (int)platform->resourceBasePathLength;
+		const int targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->resourceBasePath ) - (int)platform->resourceBasePathLength;
 		const int convertResult = MultiByteToWideChar( CP_UTF8, 0u, sourcePath, -1, pTargetPath, targetLengthInCharacters );
 		if( !convertResult )
 		{
@@ -379,15 +379,15 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 
 		platform->resourceBasePathLength += (uintsize)convertResult - 1;
 
-		if( platform->resourcePath[ platform->resourceBasePathLength - 1u ] != L'/' )
+		if( platform->resourceBasePath[ platform->resourceBasePathLength - 1u ] != L'/' )
 		{
-			if( platform->resourceBasePathLength == IMAPP_ARRAY_COUNT( platform->resourcePath ) )
+			if( platform->resourceBasePathLength == IMAPP_ARRAY_COUNT( platform->resourceBasePath ) )
 			{
 				ImAppTrace( "Error: Resource path exceeds limit!\n" );
 				return false;
 			}
 
-			platform->resourcePath[ platform->resourceBasePathLength ] = L'\\';
+			platform->resourceBasePath[ platform->resourceBasePathLength ] = L'\\';
 			platform->resourceBasePathLength++;
 		}
 	}
@@ -1206,7 +1206,7 @@ void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uints
 {
 	const uintsize nameLength = strlen( resourceName );
 
-	const int length = WideCharToMultiByte( CP_UTF8, 0, platform->resourcePath, (int)platform->resourceBasePathLength, outPath, (int)pathCapacity, NULL, NULL );
+	const int length = WideCharToMultiByte( CP_UTF8, 0, platform->resourceBasePath, (int)platform->resourceBasePathLength, outPath, (int)pathCapacity, NULL, NULL );
 	pathCapacity -= length;
 	const uintsize nameCapacity = IMUI_MIN( nameLength, pathCapacity - 1u );
 	memcpy( outPath + length, resourceName, nameCapacity );
@@ -1269,7 +1269,7 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
 {
 	wchar_t pathBuffer[ MAX_PATH ];
-	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourcePath, platform->resourceBasePathLength );
+	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourceBasePath, platform->resourceBasePathLength );
 	{
 		wchar_t* pathNamePart = pathBuffer + platform->resourceBasePathLength;
 		const uintsize remainingLengthInCharacters = IMAPP_ARRAY_COUNT( pathBuffer ) - platform->resourceBasePathLength;
@@ -1320,8 +1320,8 @@ void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 
 ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
 {
-	wchar_t* pTargetBuffer = platform->fontPath + platform->fontBasePathLength;
-	const uintsize targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontPath ) - platform->fontBasePathLength;
+	wchar_t* pTargetBuffer = platform->fontBasePath + platform->fontBasePathLength;
+	const uintsize targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontBasePath ) - platform->fontBasePathLength;
 	MultiByteToWideChar( CP_UTF8, 0, fontName, -1, pTargetBuffer, (int)targetLengthInCharacters );
 
 	while( *pTargetBuffer != L'\0' )
@@ -1333,7 +1333,7 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 		pTargetBuffer++;
 	}
 
-	const HANDLE fileHandle = CreateFileW( platform->fontPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	const HANDLE fileHandle = CreateFileW( platform->fontBasePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
 	if( fileHandle == INVALID_HANDLE_VALUE )
 	{
 		const ImAppBlob result = { NULL, 0u };
