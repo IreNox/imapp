@@ -46,11 +46,39 @@ sdl_module:add_files( version_name .. "/include/*.h" )
 sdl_module:add_files( version_name .. "/src/*.h" )
 sdl_module:add_files( version_name .. "/src/*.c" )
 
-if tiki.target_platform == Platforms.Android then
+if tiki.target_platform == Platforms.Windows then
+	sdl_module:add_library_file( "imm32" )
+	sdl_module:add_library_file( "winmm" )
+	sdl_module:add_library_file( "setupapi" )
+	sdl_module:add_library_file( "version" )
+elseif tiki.target_platform == Platforms.Android then
 	sdl_module:set_define( "GL_GLEXT_PROTOTYPES" )
+
+	sdl_module:add_library_file( "GLESv1_CM" )
+	sdl_module:add_library_file( "GLESv3" )
+	sdl_module:add_library_file( "OpenSLES" )
 elseif tiki.target_platform == Platforms.Linux then
+	sdl_module:set_define( "HAVE_STDIO_H" )
 	sdl_module:set_define( "HAVE_DBUS_DBUS_H" )
-	sdl_module:add_include_dir( "/usr/include/dbus-1.0" )
+	sdl_module:set_define( "HAVE_LINUX_INPUT_H" )
+
+	--sdl_module:add_include_dir( "dbus-1.0" )
+	--sdl_module:add_include_dir( "/usr/include/dbus-1.0" )
+	--sdl_module:add_include_dir( "/nix/store/rj6yyr7yw2vm39plgsw5qpjx68lsg8vd-dbus-1.14.10-dev/include/dbus-1.0" )
+
+	sdl_module:set_define( "SDL_TIMER_UNIX", "1" )
+	sdl_module:set_define( "SDL_HAPTIC_LINUX", "1" )	
+	sdl_module:set_define( "SDL_FILESYSTEM_UNIX", "1" )
+	sdl_module:set_define( "SDL_LOADSO_DLOPEN", "1" )
+	sdl_module:set_define( "SDL_VIDEO_OPENGL", "1" )
+	sdl_module:set_define( "SDL_VIDEO_OPENGL_GLX", "1" )
+	sdl_module:set_define( "SDL_VIDEO_RENDER_OGL", "1" )
+	--sdl_module:set_define( "SDL_VIDEO_DRIVER_WAYLAND", "1" )
+
+	sdl_module:set_define( "SDL_VIDEO_DRIVER_X11", "1" )
+	sdl_module:set_define( "SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS" )
+
+	--sdl_module:add_files( version_name .. "/src/core/linux/SDL_fcitx.*", { exclude = true } )
 end
 
 sdl_modules = {
@@ -110,16 +138,18 @@ sdl_modules[ "timer" ].platforms[ Platforms.Android ]		= { unix	= { header = fal
 sdl_modules[ "video" ].platforms[ Platforms.Android ]		= { android	= { header = true,	source = true }, dummy = { header = true, source = true }, yuv2rgb = { header = true, source = true } }
 
 sdl_modules[ "audio" ].platforms[ Platforms.Linux ]			= { pulseaudio = { header = true, source = true }, dummy = { header = true, source = true }, openslES = { header = true, source = true } }
-sdl_modules[ "core" ].platforms[ Platforms.Linux ]			= { linux	= { header = true,	source = true } }
+sdl_modules[ "core" ].platforms[ Platforms.Linux ]			= { linux	= { header = true,	source = true }, unix = { header = true, source = true } }
 sdl_modules[ "filesystem" ].platforms[ Platforms.Linux ]	= { unix	= { header = false,	source = true } }
 sdl_modules[ "haptic" ].platforms[ Platforms.Linux ]		= { linux	= { header = false,	source = true } }
-sdl_modules[ "joystick" ].platforms[ Platforms.Linux ]		= { linux	= { header = true,	source = true }, hidapi = { header = true, source = true }, virtual = { header = true, source = true } }
+sdl_modules[ "joystick" ].platforms[ Platforms.Linux ]		= { linux	= { header = true,	source = true }, dummy = { header = false, source = true }, hidapi = { header = true, source = true }, virtual = { header = true, source = true } }
 sdl_modules[ "loadso" ].platforms[ Platforms.Linux ]		= { dlopen	= { header = false,	source = true } }
+sdl_modules[ "locale" ].platforms[ Platforms.Linux ]		= { unix	= { header = false,	source = true } }
 --sdl_modules[ "main" ].platforms[ Platforms.Linux ]			= { android	= { header = false,	source = true } }
+sdl_modules[ "misc" ].platforms[ Platforms.Linux ]			= { unix	= { header = false,	source = true } }
 sdl_modules[ "power" ].platforms[ Platforms.Linux ]			= { linux	= { header = false,	source = true } }
-sdl_modules[ "render" ].platforms[ Platforms.Linux ]		= { opengl = { header = true, source = true }, software = { header = true, source = true } }
---sdl_modules[ "sensor" ].platforms[ Platforms.Linux ]		= { android	= { header = true,	source = true } }
-sdl_modules[ "thread" ].platforms[ Platforms.Linux ]		= { pthread	= { header = true,	source = true }, generic = { header = true, source = true } }
+sdl_modules[ "render" ].platforms[ Platforms.Linux ]		= { opengl	= { header = true, source = true }, software = { header = true, source = true } }
+sdl_modules[ "sensor" ].platforms[ Platforms.Linux ]		= { dummy	= { header = true,	source = true } }
+sdl_modules[ "thread" ].platforms[ Platforms.Linux ]		= { pthread	= { header = true,	source = true } }
 sdl_modules[ "timer" ].platforms[ Platforms.Linux ]			= { unix	= { header = false,	source = true } }
 sdl_modules[ "video" ].platforms[ Platforms.Linux ]			= { wayland	= { header = true,	source = true }, x11 = { header = true, source = true }, dummy = { header = true, source = true }, yuv2rgb = { header = true, source = true } }
 
@@ -165,15 +195,9 @@ module.import_func = function( project, solution )
 		project:add_project_dependency( sdl_project )
 	end
 	
-	if tiki.target_platform == Platforms.Windows then
-		project:add_library_file( "imm32" )
-		project:add_library_file( "winmm" )
-		project:add_library_file( "setupapi" )
-		project:add_library_file( "version" )
-	elseif tiki.target_platform == Platforms.Android then
-		project:add_library_file( "GLESv1_CM" )
-		project:add_library_file( "GLESv3" )
-		project:add_library_file( "OpenSLES" )
+	if tiki.target_platform == Platforms.Linux then
+		table.insert( project.buildoptions, "`pkg-config --cflags dbus-1 --cflags x11 --cflags xext --cflags gl`" )
+		table.insert( project.linkoptions, "`pkg-config --libs dbus-1 --libs x11 --libs xext --libs gl`" )
 	end
 	
 	if tiki.use_lib then

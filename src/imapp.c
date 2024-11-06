@@ -162,6 +162,8 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
     parameters->defaultFontName		= "Roboto-Regular.ttf";
+#elif IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
+    parameters->defaultFontName		= "NotoSans[wdth,wght].ttf";
 #else
     parameters->defaultFontName		= "Arial.ttf";
 #endif

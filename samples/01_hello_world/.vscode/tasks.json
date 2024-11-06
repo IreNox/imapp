@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build debug/x64",
+            "type": "shell",
+            "command": "nix-shell",
+            "args": [
+                "../..",
+                "--run",
+                "make config=debug_x64"
+            ],
+            "problemMatcher": {
+                "base": "$gcc",
+                "applyTo": "allDocuments",
+                "fileLocation": [ "relative", "${workspaceFolder}/build/gmake_linux_sdl" ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/gmake_linux_sdl"
+            }
+            
+        }
+    ]
+}

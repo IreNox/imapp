@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "sample",
+			"path": "."
+		},
+		{
+			"name": "imapp",
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"sdl_sysjoystick_c.h": "c",
+			"imapp_platform.h": "c",
+			"sdl_dbus.h": "c",
+			"sdl_stdinc.h": "c",
+			"sdl_config.h": "c",
+			"sdl_config_minimal.h": "c",
+			"sdl_shaders_gl.h": "c",
+			"sdl_sysvideo.h": "c"
+		},
+		"makefile.makefilePath": "${workspaceDir}/build/gmake_linux_sdl/Makefile"
+	}
+}

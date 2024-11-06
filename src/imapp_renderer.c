@@ -15,8 +15,8 @@
 #	include <GL/glew.h>
 #	include <GLES/gl.h>
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
+#	include <GL/glew.h>
 #	include <GL/gl.h>
-#	include <GL/glext.h>
 #else
 #	error "Platform not supported"
 #endif
@@ -167,7 +167,7 @@ ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 		return NULL;
 	}
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB ) || IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
 	{
 		ImAppPlatformShowError( platform, "Failed to initialize GLEW.\n" );

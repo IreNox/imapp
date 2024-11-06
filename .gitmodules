@@ -1,4 +1,4 @@
-[submodule "third_party/imui"]
+[submodule "submodules/imui"]
 	path = submodules/imui
 	url = https://github.com/IreNox/imui.git
 	branch = master
