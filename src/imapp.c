@@ -277,10 +277,14 @@ static bool ImAppInitialize( ImAppInternal* imapp, const ImAppParameters* parame
 		ImUiToolboxSetConfig( &toolboxConfig );
 	}
 
-	if( parameters->defaultResPak )
+	if( parameters->defaultResPakData.data && parameters->defaultResPakData.size )
+	{
+		imapp->defaultResPak = ImAppResSysAdd( imapp->ressys, parameters->defaultResPakData.data, parameters->defaultResPakData.size );
+	}
+	else if( parameters->defaultResPakName )
 	{
 		char buffer[ 256u ];
-		snprintf( buffer, IMAPP_ARRAY_COUNT( buffer ), "%s.iarespak", parameters->defaultResPak );
+		snprintf( buffer, IMAPP_ARRAY_COUNT( buffer ), "%s.iarespak", parameters->defaultResPakName );
 
 		imapp->defaultResPak = ImAppResSysOpen( imapp->ressys, buffer );
 	}
@@ -415,6 +419,12 @@ ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )
 {
 	ImAppInternal* imappInt = (ImAppInternal*)imapp;
 	return imappInt->defaultResPak;
+}
+
+ImAppResPak* ImAppResourceAddMemoryPak( ImAppContext* imapp, const void* pakData, size_t dataLength )
+{
+	ImAppInternal* imappInt = (ImAppInternal*)imapp;
+	return ImAppResSysAdd( imappInt->ressys, pakData, dataLength );
 }
 
 ImAppResPak* ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath )

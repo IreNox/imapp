@@ -263,7 +263,10 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 			res->data.texture.width		= header->width;
 			res->data.texture.height	= header->height;
 
-			ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+			if( res->key.pak->memoryData == NULL )
+			{
+				ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+			}
 
 			if( !res->data.texture.texture )
 			{
@@ -296,7 +299,10 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 
 			res->data.font.font				= ImUiFontCreate( ressys->imui, &parameters );
 
-			ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+			if( res->key.pak->memoryData == NULL )
+			{
+				ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+			}
 		}
 		break;
 
@@ -614,6 +620,34 @@ bool ImAppResSysRecreateEverything( ImAppResSys* ressys )
 	return false;
 }
 
+ImAppResPak* ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength )
+{
+	ImAppResPak* pak = (ImAppResPak*)ImUiMemoryAllocZero( ressys->allocator, sizeof( ImAppResPak ) );
+	pak->ressys			= ressys;
+	pak->memoryData		= (const byte*)pakData;
+	pak->memoryDataSize	= dataLength;
+
+	ImAppResEvent resEvent;
+	resEvent.type				= ImAppResEventType_OpenResPak;
+	resEvent.data.pak.pak		= pak;
+	resEvent.data.pak.reloadPak	= NULL;
+
+	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &resEvent ) )
+	{
+		ImUiMemoryFree( ressys->allocator, pak );
+		return NULL;
+	}
+
+	pak->nextResPak = ressys->firstResPak;
+	if( pak->nextResPak )
+	{
+		pak->nextResPak->prevResPak = pak;
+	}
+	ressys->firstResPak = pak;
+
+	return pak;
+}
+
 ImAppResPak* ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName )
 {
 	const uintsize nameLength = strlen( resourceName );
@@ -652,8 +686,11 @@ static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 		ImUiHashMapRemove( &ressys->nameMap, &res );
 	}
 
-	ImAppBlob metadataBlob ={ pak->metadata, pak->metadataSize };
-	ImAppPlatformResourceFree( ressys->platform, metadataBlob );
+	if( pak->memoryData == NULL )
+	{
+		ImAppBlob metadataBlob = { pak->metadata, pak->metadataSize };
+		ImAppPlatformResourceFree( ressys->platform, metadataBlob );
+	}
 
 	ImUiMemoryFree( ressys->allocator, pak->resources );
 	ImUiMemoryFree( ressys->allocator, pak );
@@ -1147,7 +1184,10 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 
 	case ImAppResPakType_Blob:
 		{
-			ImAppPlatformResourceFree( ressys->platform, res->data.blob.blob );
+			if( pak->memoryData == NULL )
+			{
+				ImAppPlatformResourceFree( ressys->platform, res->data.blob.blob );
+			}
 			res->data.blob.blob.data	= NULL;
 			res->data.blob.blob.size	= 0u;
 		}
@@ -1168,44 +1208,62 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 {
 	ImAppResPak* pak = resEvent->data.pak.pak;
 
-	ImAppFile* file = ImAppPlatformResourceOpen( ressys->platform, pak->resourceName );
-	if( !file )
-	{
-		IMAPP_DEBUG_LOGE( "Failed to open '%s' ResPak.", pak->resourceName );
-		return;
-	}
-
 	ImAppResPakHeader header;
-	if( ImAppPlatformResourceRead( file, &header, sizeof( header ), 0u ) != sizeof( header ) )
+	if( pak->memoryData == NULL )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to read ResPak header." );
+		ImAppFile* file = ImAppPlatformResourceOpen( ressys->platform, pak->resourceName );
+		if( !file )
+		{
+			IMAPP_DEBUG_LOGE( "Failed to open '%s' ResPak.", pak->resourceName );
+			return;
+		}
+
+		if( ImAppPlatformResourceRead( file, &header, sizeof( header ), 0u ) != sizeof( header ) )
+		{
+			IMAPP_DEBUG_LOGE( "Failed to read ResPak header." );
+			ImAppPlatformResourceClose( ressys->platform, file );
+			return;
+		}
+
+		if( memcmp( header.magic, IMAPP_RES_PAK_MAGIC, sizeof( header.magic ) ) != 0 )
+		{
+			const char magicBuffer[] = { header.magic[ 0u ], header.magic[ 1u ], header.magic[ 2u ], header.magic[ 3u ], '\0' };
+			IMAPP_DEBUG_LOGE( "Invalid ResPak file. Magic doesn't match. Got: '%s', Expected: '%s'", magicBuffer, IMAPP_RES_PAK_MAGIC );
+			return;
+		}
+
+		pak->metadataSize	= header.resourcesOffset;
+		void* metadata		= (byte*)ImUiMemoryAlloc( ressys->allocator, pak->metadataSize );
+		pak->metadata		= metadata;
+
+		if( !metadata )
+		{
+			IMAPP_DEBUG_LOGE( "Failed to allocate ResPak metadata." );
+			return;
+		}
+
+		const uintsize metadataReadResult = ImAppPlatformResourceRead( file, metadata, pak->metadataSize, 0u );
 		ImAppPlatformResourceClose( ressys->platform, file );
-		return;
+
+		if( metadataReadResult != pak->metadataSize )
+		{
+			IMAPP_DEBUG_LOGE( "Failed to read ResPak metadata." );
+			return;
+		}
 	}
-
-	if( memcmp( header.magic, IMAPP_RES_PAK_MAGIC, sizeof( header.magic ) ) != 0 )
+	else
 	{
-		char magicBuffer[] = { header.magic[ 0u ], header.magic[ 1u ],header.magic[ 2u ],header.magic[ 3u ], '\0' };
-		IMAPP_DEBUG_LOGE( "Invalid ResPak file. Magic doesn't match. Got: '%s', Expected: '%s'", magicBuffer, IMAPP_RES_PAK_MAGIC );
-		return;
-	}
+		header = *(const ImAppResPakHeader*)pak->memoryData;
 
-	pak->metadata		= (byte*)ImUiMemoryAlloc( ressys->allocator, header.resourcesOffset );
-	pak->metadataSize	= header.resourcesOffset;
+		if( memcmp( header.magic, IMAPP_RES_PAK_MAGIC, sizeof( header.magic ) ) != 0 )
+		{
+			const char magicBuffer[] = { header.magic[ 0u ], header.magic[ 1u ], header.magic[ 2u ], header.magic[ 3u ], '\0' };
+			IMAPP_DEBUG_LOGE( "Invalid ResPak file. Magic doesn't match. Got: '%s', Expected: '%s'", magicBuffer, IMAPP_RES_PAK_MAGIC );
+			return;
+		}
 
-	if( !pak->metadata )
-	{
-		IMAPP_DEBUG_LOGE( "Failed to allocate ResPak metadata." );
-		return;
-	}
-
-	const uintsize metadataReadResult = ImAppPlatformResourceRead( file, pak->metadata, pak->metadataSize, 0u );
-	ImAppPlatformResourceClose( ressys->platform, file );
-
-	if( metadataReadResult != pak->metadataSize )
-	{
-		IMAPP_DEBUG_LOGE( "Failed to read ResPak metadata." );
-		return;
+		pak->metadataSize	= header.resourcesOffset;
+		pak->metadata		= pak->memoryData;
 	}
 
 	pak->resources		= IMUI_MEMORY_ARRAY_NEW_ZERO( ressys->allocator, ImAppRes, header.resourceCount );
@@ -1244,14 +1302,36 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 		return;
 	}
 
-	const ImAppBlob resData = ImAppPlatformResourceLoadRange( ressys->platform, pak->resourceName, sourceRes->dataOffset, sourceRes->dataSize );
-	if( !resData.data )
+	ImAppBlob resData;
+	if( pak->memoryData == NULL )
 	{
+		resData = ImAppPlatformResourceLoadRange( ressys->platform, pak->resourceName, sourceRes->dataOffset, sourceRes->dataSize );
+		if( !resData.data )
+		{
 #if IMAPP_ENABLED( IMAPP_DEBUG )
-		const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
+			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
+#else
+			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
-		IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
-		return;
+			IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
+			return;
+		}
+	}
+	else
+	{
+		if( sourceRes->dataOffset + sourceRes->dataSize > pak->memoryDataSize )
+		{
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
+#else
+			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+#endif
+			IMAPP_DEBUG_LOGE( "Failed to get data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
+			return;
+		}
+
+		resData.data	= pak->memoryData + sourceRes->dataOffset;
+		resData.size	= sourceRes->dataSize;
 	}
 
 	resEvent->result.loadRes.data = resData;

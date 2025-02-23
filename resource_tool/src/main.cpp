@@ -2,15 +2,20 @@
 
 #include "resource_tool.h"
 
+#include "./../assets/resource_tool_pak.h"
+
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
 	parameters->tickIntervalMs		= 15;
 	parameters->resPath				= "./../../../../assets";
-	parameters->defaultResPak		= "resource_tool";
 	parameters->windowTitle			= "I'm App Resource Tool";
 	parameters->windowWidth			= 1280;
 	parameters->windowHeight		= 720;
 	parameters->windowClearColor	= ImUiColorCreate( 0xf7, 0xf7, 0xf7, 0xff );
+
+	parameters->defaultResPakName		= "resource_tool_pak";
+	parameters->defaultResPakData.data	= ImAppResPakResource_Tool;
+	parameters->defaultResPakData.size	= sizeof( ImAppResPakResource_Tool );
 
 	imapp::ResourceTool* context = new imapp::ResourceTool();
 

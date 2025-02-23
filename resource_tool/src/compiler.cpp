@@ -46,7 +46,9 @@ namespace imapp
 			return false;
 		}
 
+		m_packageName = package.getName();
 		m_outputPath = package.getPath().getParent().push( package.getOutputPath() );
+		m_outputCode = package.getExportCode();
 
 		ResourceMap oldResources;
 		oldResources.swap( m_resources );
@@ -171,15 +173,14 @@ namespace imapp
 
 		writeResourceData( resourcesOffset, compiledResources, resourceIndexMapping );
 
-		FILE* file = fopen( m_outputPath.getNativePath().getData(), "wb" );
-		if( !file )
+		if( m_outputCode )
 		{
-			m_output.pushMessage( CompilerErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getGenericPath().getData() );
-			return;
+			writeCodeFile();
 		}
-
-		fwrite( m_buffer.getData(), m_buffer.getLength(), 1u, file );
-		fclose( file );
+		else
+		{
+			writeBinaryFile();
+		}
 	}
 
 	bool Compiler::updateImageAtlas()
@@ -714,7 +715,77 @@ namespace imapp
 		return (uint32)alignedLength;
 	}
 
-	bool Compiler::findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName )
+	void Compiler::writeBinaryFile()
+	{
+		const Path binaryPath = m_outputPath.addExtension( ".iarespak" );
+
+		FILE* file = fopen( binaryPath.getNativePath().getData(), "wb" );
+		if( !file )
+		{
+			m_output.pushMessage( CompilerErrorLevel::Error, "package", "Failed to open '%s'.", m_outputPath.getGenericPath().getData() );
+			return;
+		}
+
+		fwrite( m_buffer.getData(), m_buffer.getLength(), 1u, file );
+		fclose( file );
+	}
+
+	void Compiler::writeCodeFile()
+	{
+		const Path hPath = m_outputPath.addExtension( ".h" );
+		//const Path cPath = m_outputPath.addExtension( ".c" );
+
+		//const DynamicString cPath = codePath.getNativePath();
+		FILE* file = fopen( hPath.getNativePath().toConstCharPointer(), "w" );
+		if( !file )
+		{
+			m_output.pushMessage( CompilerErrorLevel::Error, "Package", "Failed to open '%s'\n", hPath.getGenericPath().toConstCharPointer() );
+			return;
+		}
+
+		DynamicString varName = m_packageName;
+		varName = varName.replace( ' ', '_' );
+		varName = varName.replace( '.', '_' );
+		varName = "ImAppResPak" + varName;
+
+		DynamicString content = DynamicString::format( "#pragma once\n\nstatic const unsigned char %s[] =\n{\n\t", varName.toConstCharPointer() );
+		content.reserve( 256u + (m_buffer.getLength() * 6) );
+		content.terminate( content.getLength() );
+
+		static const char s_hexChars[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+		char buffer[ 5u ] = "0x00";
+		uintsize lineLength = 0u;
+		for( uintsize i = 0u; i < m_buffer.getLength(); ++i )
+		{
+			const uint8 b = m_buffer[ i ];
+			if( lineLength == 16u )
+			{
+				content += ",\n\t";
+				lineLength = 0u;
+			}
+			else if( lineLength != 0u )
+			{
+				content += ", ";
+			}
+
+			const uint8 highNibble = (b >> 4u) & 0xf;
+			const uint8 lowNibble = b & 0xf;
+			buffer[ 2u ] = s_hexChars[ highNibble ];
+			buffer[ 3u ] = s_hexChars[ lowNibble ];
+
+			content += buffer;
+
+			lineLength++;
+		}
+
+		content += "\n};\n";
+
+		fwrite( content.getData(), content.getLength(), 1u, file );
+		fclose( file );
+	}
+
+	bool Compiler::findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName ) const
 	{
 		if( name.isEmpty() )
 		{

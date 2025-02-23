@@ -166,8 +166,11 @@ struct ImAppResPak
 	ImAppRes*				resources;
 	uintsize				resourceCount;
 
-	byte*					metadata;
+	const byte*				metadata;
 	uintsize				metadataSize;
+
+	const byte*				memoryData;
+	uintsize				memoryDataSize;
 
 	char					resourceName[ 1u ];
 };

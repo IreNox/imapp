@@ -784,12 +784,15 @@ ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 	memcpy( resourcePath, platform->resourceBasePath, platform->resourceBasePathLength );
 	memcpy( resourcePath + platform->resourceBasePathLength, resourceName, resourceNameLength + 1 );
 
-	SDL_RWops* file = SDL_RWFromFile( platform->resourceBasePath, "rb" );
+	SDL_RWops* file = SDL_RWFromFile( resourcePath, "rb" );
 	if( !file )
 	{
-		ImAppTrace( "Error: Failed to open '%s'\n", platform->resourceBasePath );
+		ImAppTrace( "Error: Failed to open '%s'\n", resourcePath );
+		free( resourcePath );
 		return NULL;
 	}
+
+	free( resourcePath );
 
 	return (ImAppFile*)file;
 }

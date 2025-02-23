@@ -33,7 +33,6 @@ namespace imapp
 		void					waitForCompile();
 		bool					isRunning();
 
-		const ByteArray&		getData() const { return m_buffer; }
 		const CompilerOutput&	getOutput() const { return m_output; }
 
 	private:
@@ -62,7 +61,9 @@ namespace imapp
 		using ResourceTypeIndexArray = StaticArray< DynamicArray< uint16 >, ImAppResPakType_MAX >;
 		using ResourceTypeIndexMap = StaticArray< HashMap< DynamicString, uint16 >, ImAppResPakType_MAX >;
 
+		DynamicString			m_packageName;
 		Path					m_outputPath;
+		bool					m_outputCode;
 		ResourceMap				m_resources;
 		ByteArray				m_buffer;
 
@@ -95,6 +96,9 @@ namespace imapp
 		template< typename T >
 		uint32					writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment = 1u );
 
-		bool					findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName );
+		void					writeBinaryFile();
+		void					writeCodeFile();
+
+		bool					findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName ) const;
 	};
 }

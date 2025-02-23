@@ -37,10 +37,11 @@ namespace imapp
 		const Path&				getPath() const { return m_path; }
 
 		DynamicString&			getName() { return m_name; }
+		const DynamicString&	getName() const { return m_name; }
 		DynamicString&			getOutputPath() { return m_outputPath; }
 		const DynamicString&	getOutputPath() const { return m_outputPath; }
-
 		bool&					getExportCode() { return m_exportCode; }
+		const bool&				getExportCode() const { return m_exportCode; }
 
 		Resource&				addResource( const StringView& name, ResourceType type );
 		Resource&				getResource( uintsize index );

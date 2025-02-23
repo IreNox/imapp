@@ -14,9 +14,12 @@ extern "C"
 #endif
 
 typedef struct ImAppContext ImAppContext;
-typedef struct ImAppImage ImAppImage;
-typedef struct ImAppWindow ImAppWindow;
-typedef struct ImAppResPak ImAppResPak;
+
+typedef struct ImAppBlob
+{
+	const void*			data;
+	size_t				size;
+} ImAppBlob;
 
 typedef enum ImAppDefaultWindow
 {
@@ -32,7 +35,8 @@ typedef struct ImAppParameters
 	int						tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
 
 	const char*				resPath;			// Path where resources loaded from. Use ./ for relative to executable. default: {exe_dir}/assets
-	const char*				defaultResPak;
+	const char*				defaultResPakName;
+	ImAppBlob				defaultResPakData;
 
 	const char*				defaultFontName;	// Default: arial.ttf;
 	float					defaultFontSize;	// Default: 16
@@ -69,6 +73,8 @@ void						ImAppProgramShutdown( ImAppContext* imapp, void* programContext );
 //////////////////////////////////////////////////////////////////////////
 // Control
 
+typedef struct ImAppWindow ImAppWindow;
+
 typedef enum ImAppDropType
 {
 	ImAppDropType_Text,
@@ -95,6 +101,8 @@ void						ImAppQuit( ImAppContext* imapp, int exitCode );
 // Resources
 
 // Resource Package
+typedef struct ImAppResPak ImAppResPak;
+
 #define IMAPP_RES_PAK_INVALID_INDEX	0xffffu
 
 typedef enum ImAppResPakType
@@ -116,13 +124,8 @@ typedef enum ImAppResState
 	ImAppResState_Error
 } ImAppResState;
 
-typedef struct ImAppBlob
-{
-	const void*			data;
-	size_t				size;
-} ImAppBlob;
-
 ImAppResPak*				ImAppResourceGetDefaultPak( ImAppContext* imapp );
+ImAppResPak*				ImAppResourceAddMemoryPak( ImAppContext* imapp, const void* pakData, size_t dataLength );
 ImAppResPak*				ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath );
 void						ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak );
 
@@ -145,6 +148,8 @@ ImAppBlob					ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex );
 void						ImAppResPakActivateTheme( ImAppResPak* pak, const char* name );
 
 // Image
+typedef struct ImAppImage ImAppImage;
+
 ImAppImage*					ImAppImageLoadResource( ImAppContext* imapp, const char* resourcePath );
 ImAppImage*					ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height );
 ImAppImage*					ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize );

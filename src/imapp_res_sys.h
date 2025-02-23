@@ -27,6 +27,7 @@ void			ImAppResSysDestroy( ImAppResSys* ressys );
 void			ImAppResSysUpdate( ImAppResSys* ressys );
 bool			ImAppResSysRecreateEverything( ImAppResSys* ressys );
 
+ImAppResPak*	ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
 ImAppResPak*	ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName );
 void			ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
 

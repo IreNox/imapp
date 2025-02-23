@@ -48,8 +48,6 @@ namespace imapp
 	{
 		int argi = 1;
 		bool compile = false;
-		bool writeCode = false;
-		Path codePath;
 		for( ; argi < argc - 1; ++argi )
 		{
 			const char* arg = argv[ argi ];
@@ -58,20 +56,6 @@ namespace imapp
 				isStringEquals( arg, "--compile" ) )
 			{
 				compile = true;
-			}
-			else if( isStringEquals( arg, "-e" ) ||
-					 isStringEquals( arg, "--export-c" ) )
-			{
-				if( argi == argc - 1u )
-				{
-					ImAppTrace( "Error: Export C needs output path.\n" );
-					return false;
-				}
-
-				compile = true;
-				writeCode = true;
-				codePath = argv[ argi + 1u ];
-				argi++;
 			}
 			else if( isStringEquals( arg, "--help" ) )
 			{
@@ -98,8 +82,7 @@ Options:
 			loaded = load( filename );
 		}
 
-		if( (compile || writeCode) &&
-			!loaded )
+		if( compile && !loaded )
 		{
 			ImAppTrace( "Error: Failed to load '%s'\n", filename ? filename : "no file" );
 			return false;
@@ -129,53 +112,10 @@ Options:
 			{
 				return false;
 			}
+
+			shutdown = true;
 		}
 
-		if( writeCode )
-		{
-			const DynamicString cPath = codePath.getNativePath();
-			FILE* file = fopen( cPath.toConstCharPointer(), "w" );
-			if( !file )
-			{
-				ImAppTrace( "Error: Failed to open '%s'\n", cPath.toConstCharPointer() );
-				return false;
-			}
-
-			DynamicString varName = m_package.getName();
-			varName = varName.replace( ' ', '_' );
-			varName = varName.replace( '.', '_' );
-			varName = "ImAppResPak" + varName;
-
-			DynamicString content = DynamicString::format( "#pragma once\n\nstatic const unsigned char %s[] =\n{\n\t", varName.toConstCharPointer() );
-
-			char buffer[ 32u ];
-			uintsize lineLength = 0u;
-			for( byte b : m_compiler.getData() )
-			{
-				if( lineLength == 16u )
-				{
-					content += ",\n\t";
-					lineLength = 0u;
-				}
-				else if( lineLength != 0u )
-				{
-					content += ", ";
-				}
-
-				snprintf( buffer, sizeof( buffer ), "0x%02x", b );
-				content += buffer;
-
-				lineLength++;
-			}
-
-			content += "\n};\n";
-
-			fputs( content.toConstCharPointer(), file );
-			fclose( file );
-		}
-
-
-		shutdown = (compile || writeCode);
 		return true;
 	}
 
@@ -648,7 +588,7 @@ Options:
 			name.endWrite();
 		}
 
-		window.label( "Output Path:" );
+		window.label( "Output Name(extension added automatically):" );
 		{
 			DynamicString& outputPath = m_package.getOutputPath();
 			char* buffer = outputPath.beginWrite( 32u );
@@ -659,7 +599,7 @@ Options:
 			outputPath.endWrite();
 		}
 
-
+		window.checkBox( m_package.getExportCode(), "Output Code" );
 	}
 
 	void ResourceTool::doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
