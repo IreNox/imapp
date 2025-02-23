@@ -1,0 +1,6 @@
+- Custom Window styles
+- CMake build
+- tiki_build resource build action
+- different themes for dpi scales
+- compress resource data zstd?
+- resource locking to prevent unload
