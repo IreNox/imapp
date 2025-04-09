@@ -119,24 +119,22 @@ Options:
 		return true;
 	}
 
-	void ResourceTool::doUi( ImAppContext* imapp, UiSurface& surface )
+	void ResourceTool::doUi( ImAppContext* imapp, ImAppWindow* appWindow, UiToolboxWindow& uiWindow )
 	{
-		update( imapp, surface.getTime() );
+		update( appWindow, uiWindow.getTime() );
 
-		doPopups( surface );
-		doNotifications( surface );
+		doPopups( uiWindow.getSurface() );
+		doNotifications( uiWindow.getSurface() );
 
-		UiToolboxWindow window( surface, "main", surface.getRect(), 1 );
-
-		UiWidgetLayoutVertical mainLayout( window, 8.0f );
+		UiWidgetLayoutVertical mainLayout( uiWindow, 8.0f );
 		mainLayout.setStretchOne();
 		mainLayout.setMargin( UiBorder( 8.0f ) );
 
 		{
-			UiWidgetLayoutHorizontal titleLayout( window, 8.0f );
+			UiWidgetLayoutHorizontal titleLayout( uiWindow, 8.0f );
 			titleLayout.setHStretch( 1.0f );
 
-			if( window.buttonLabel( "Open" ) )
+			if( uiWindow.buttonLabel( "Open" ) )
 			{
 				const StringView filters[] = { "I'm App Resource Package(*.iaresx)", "*.iaresx" };
 				const DynamicString filePath = openFileDialog( "Open package...", "", ConstArrayView< StringView >( filters, TIKI_ARRAY_COUNT( filters ) ) );
@@ -146,7 +144,7 @@ Options:
 				}
 			}
 
-			if( window.buttonLabel( "Save" ) )
+			if( uiWindow.buttonLabel( "Save" ) )
 			{
 				if( m_package.hasPath() )
 				{
@@ -168,24 +166,24 @@ Options:
 				m_notifications.set( Notifications::Saved );
 			}
 
-			window.label( m_package.getName() );
+			uiWindow.label( m_package.getName() );
 
-			window.strecher( 1.0f, 0.0f );
+			uiWindow.strecher( 1.0f, 0.0f );
 
 			//window.progressBar( -1.0f );
 
 			if( m_package.getOutputPath().hasElements() )
 			{
-				window.checkBox( m_autoCompile, "Auto Compile" );
+				uiWindow.checkBox( m_autoCompile, "Auto Compile" );
 
 				const bool isCompiling = m_compiler.isRunning();
 				if( isCompiling )
 				{
-					window.progressBar( -1.0f );
-					window.label( "Compiling..." );
+					uiWindow.progressBar( -1.0f );
+					uiWindow.label( "Compiling..." );
 					m_wasCompiling = true;
 				}
-				else if( window.buttonLabel( "Compile" ) )
+				else if( uiWindow.buttonLabel( "Compile" ) )
 				{
 					m_compiler.startCompile( m_package );
 					m_wasCompiling = true;
@@ -200,16 +198,16 @@ Options:
 		}
 
 		{
-			UiWidgetLayoutHorizontal workLayout( window, 8.0f );
+			UiWidgetLayoutHorizontal workLayout( uiWindow, 8.0f );
 			workLayout.setStretchOne();
 
 			{
-				UiWidget leftLayout( window, "left" );
+				UiWidget leftLayout( uiWindow, "left" );
 				leftLayout.setLayoutVertical( 4.0f );
 				leftLayout.setVStretch( 1.0f );
 
 				{
-					UiToolboxList list( window, 22.0f, m_package.getResourceCount() + 1u );
+					UiToolboxList list( uiWindow, 22.0f, m_package.getResourceCount() + 1u );
 					list.setStretchOne();
 					list.setMinWidth( 150.0f );
 
@@ -221,7 +219,7 @@ Options:
 						ImUiWidget* item = list.nextItem();
 						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
-						window.label( "Package" );
+						uiWindow.label( "Package" );
 
 						startIndex++;
 					}
@@ -233,24 +231,24 @@ Options:
 						ImUiWidget* item = list.nextItem();
 						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
-						window.label( resource.getName() );
+						uiWindow.label( resource.getName() );
 					}
 
 					m_selecedEntry = list.getSelectedIndex();
 				}
 
 				{
-					UiWidgetLayoutHorizontal buttonsLayout( window, 8.0f );
+					UiWidgetLayoutHorizontal buttonsLayout( uiWindow, 8.0f );
 					buttonsLayout.setHStretch( 1.0f );
 
-					UiToolboxButtonLabel plusButton( window, "+" );
+					UiToolboxButtonLabel plusButton( uiWindow, "+" );
 					plusButton.setHStretch( 1.0f );
 					if( plusButton.end() )
 					{
 						m_popupState = PopupState::New;
 					}
 
-					UiToolboxButtonLabel minusButton( window, "-" );
+					UiToolboxButtonLabel minusButton( uiWindow, "-" );
 					minusButton.setHStretch( 1.0f );
 					if( minusButton.end() )
 					{
@@ -259,12 +257,12 @@ Options:
 				}
 			}
 
-			doView( imapp, window );
+			doView( imapp, uiWindow );
 		}
 
 		if( m_compiler.getOutput().getMessages().hasElements() )
 		{
-			UiToolboxList outputList( window, 25.0f, m_compiler.getOutput().getMessages().getLength() );
+			UiToolboxList outputList( uiWindow, 25.0f, m_compiler.getOutput().getMessages().getLength() );
 			outputList.setHStretch( 1.0f );
 			outputList.setFixedHeight( 150.0f );
 
@@ -272,7 +270,7 @@ Options:
 			{
 				outputList.nextItem();
 
-				window.label( message.text );
+				uiWindow.label( message.text );
 			}
 		}
 	}
@@ -292,7 +290,7 @@ Options:
 		return loaded;
 	}
 
-	void ResourceTool::update( ImAppContext* imapp, double time )
+	void ResourceTool::update( ImAppWindow* appWindow, double time )
 	{
 		m_package.updateFileData( time );
 
@@ -310,7 +308,7 @@ Options:
 
 		{
 			ImAppDropData dropData;
-			while( ImAppWindowPopDropData( imapp->defaultWindow, &dropData ) )
+			while( ImAppWindowPopDropData( appWindow, &dropData ) )
 			{
 				if( dropData.type == ImAppDropType_Text )
 				{
@@ -460,10 +458,10 @@ Options:
 		const float count = (float)m_notifications.getCount();
 
 		UiRect notificationsRect;
-		notificationsRect.pos.x			= surface.getSize().width - 208.0f;
-		notificationsRect.pos.y			= 8.0f;
 		notificationsRect.size.width	= 200.0f;
 		notificationsRect.size.height	= (50.0f * count) + (10.0f * (count - 1.0f));
+		notificationsRect.pos.x			= surface.getSize().width - 208.0f;
+		notificationsRect.pos.y			= surface.getSize().height - notificationsRect.size.height - 8.0f;
 
 		UiToolboxWindow window( surface, "notifications", notificationsRect, 5u );
 
@@ -482,10 +480,10 @@ Options:
 			notificationWidget.setStretchOne();
 			notificationWidget.setPadding( UiBorder( 10.0f ) );
 
-			UiColor bgColor = UiToolboxConfig::getColor( ImUiToolboxColor_Button );
+			UiColor bgColor = UiToolboxTheme::getColor( ImUiToolboxColor_Button );
 			bgColor.alpha = 196u;
 
-			notificationWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_Popup ), bgColor );
+			notificationWidget.drawSkin( UiToolboxTheme::getSkin( ImUiToolboxSkin_Popup ), bgColor );
 
 			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
 			switch( notification )
@@ -513,7 +511,7 @@ Options:
 			barWidget.setFixedHeight( 2.0f );
 			barWidget.setHStretch( animation.getValue() );
 
-			barWidget.drawColor( UiToolboxConfig::getColor( ImUiToolboxColor_Text ) );
+			barWidget.drawColor( UiToolboxTheme::getColor( ImUiToolboxColor_Text ) );
 
 			if( animation.getValue() == 0.0f )
 			{
@@ -803,10 +801,15 @@ Options:
 
 					window.label( border.title );
 
-					if( window.slider( border.value, 0.0f, (float)image.height ) )
+					float newValue = border.value;
+					if( window.slider( newValue, 0.0f, (float)image.height ) )
 					{
-						border.value = floorf( border.value );
-						resource.increaseRevision();
+						newValue = floorf( newValue );
+						if( newValue != border.value )
+						{
+							border.value = newValue;
+							resource.increaseRevision();
+						}
 					}
 
 					if( doFloatTextEdit( window, border.value, 0 ) )
@@ -873,10 +876,20 @@ Options:
 
 		UiWidget groupWidget;
 
-		bool skipGroup = false;
-		for( ResourceThemeField& field : resource.getTheme().getFields() )
+		uintsize skipLevel = 0u;
+		ResourceTheme& theme = resource.getTheme();
+		for( ResourceThemeField& field : theme.getFields() )
 		{
-			if( field.type == ResourceThemeFieldType::Group )
+			if( skipLevel > 0u && field.level >= skipLevel )
+			{
+				continue;
+			}
+			else
+			{
+				skipLevel = 0u;
+			}
+
+			if( !field.uiField )
 			{
 				groupWidget.endWidget();
 
@@ -884,14 +897,17 @@ Options:
 				groupWidget.setHStretch( 1.0f );
 				groupWidget.setLayoutGrid( 2u, 4.0f, 4.0f );
 				groupWidget.setPadding( UiBorder( 4.0f ) );
+				groupWidget.setMargin( UiBorder( 0.0f, 20.0f * field.level, 0.0f, 0.0f ) );
 
-				groupWidget.drawSkin( UiToolboxConfig::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxConfig::getColor( ImUiToolboxColor_Button ) );
+				groupWidget.drawSkin( UiToolboxTheme::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxTheme::getColor( ImUiToolboxColor_Button ) );
 
-				skipGroup = !window.checkBoxState( field.name, true );
+				if( !window.checkBoxState( field.name, true ) )
+				{
+					skipLevel = field.level + 1u;
+				}
+
 				window.spacer( 0.0f, 0.0f );
-			}
-			else if( skipGroup )
-			{
+
 				continue;
 			}
 			else
@@ -902,29 +918,26 @@ Options:
 				label.setFixedWidth( state->maxWidth );
 			}
 
-			switch( field.type )
+			switch( field.uiField->type )
 			{
-			case ResourceThemeFieldType::Group:
-				break;
-
-			case ResourceThemeFieldType::Font:
+			case ImUiToolboxThemeReflectionType_Font:
 				{
-					const StringView fontName = doResourceSelect( window, ResourceType::Font, *field.data.fontNamePtr );
-					if( *field.data.fontNamePtr != fontName )
+					DynamicString& value = theme.getFieldString( field );
+					const StringView fontName = doResourceSelect( window, ResourceType::Font, value );
+					if( value != fontName )
 					{
-						*field.data.fontNamePtr = fontName;
+						value = fontName;
 						resource.increaseRevision();
 					}
 				}
 				break;
 
-			case ResourceThemeFieldType::Color:
+			case ImUiToolboxThemeReflectionType_Color:
 				{
 					UiWidgetLayoutHorizontal colorLayout( window, 4.0f );
 					colorLayout.setHStretch( 1.0f );
 
-					ImUiColor& value = *field.data.colorPtr;
-
+					ImUiColor& value = theme.getFieldColor( field );
 					{
 						UiWidget previewWidget( window );
 						previewWidget.setVStretch( 1.0f );
@@ -959,17 +972,18 @@ Options:
 				}
 				break;
 
-			case ResourceThemeFieldType::Skin:
+			case ImUiToolboxThemeReflectionType_Skin:
 				{
 					UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
 					skinLayout.setHStretch( 1.0f );
 
+					DynamicString& value = theme.getFieldString( field );
 					{
 						UiWidget previewWidget( window );
 						previewWidget.setVStretch( 1.0f );
 						previewWidget.setFixedWidth( 50.0f );
 
-						Resource* skinResource = m_package.findResource( *field.data.skinNamePtr );
+						Resource* skinResource = m_package.findResource( value );
 						Resource* imageResource = nullptr;
 						if( skinResource )
 						{
@@ -995,23 +1009,37 @@ Options:
 						}
 					}
 
-					const StringView skinName = doResourceSelect( window, ResourceType::Skin, *field.data.skinNamePtr );
-					if( *field.data.skinNamePtr != skinName )
+					const StringView skinName = doResourceSelect( window, ResourceType::Skin, value );
+					if( value != skinName )
 					{
-						*field.data.skinNamePtr = skinName;
+						value = skinName;
 						resource.increaseRevision();
 					}
 				}
 				break;
 
-			case ResourceThemeFieldType::Float:
-				if( doFloatTextEdit( window, *field.data.floatPtr, 1 ) )
+			case ImUiToolboxThemeReflectionType_Float:
 				{
-					resource.increaseRevision();
+					float& value = theme.getFieldFloat( field );
+					if( doFloatTextEdit( window, value, 1 ) )
+					{
+						resource.increaseRevision();
+					}
 				}
 				break;
 
-			case ResourceThemeFieldType::Border:
+			case ImUiToolboxThemeReflectionType_Double:
+				{
+					double& value = theme.getFieldDouble( field );
+					float floatValue = (float)value;
+					if( doFloatTextEdit( window, floatValue, 3 ) )
+					{
+						value = (double)floatValue;
+					}
+				}
+				break;
+
+			case ImUiToolboxThemeReflectionType_Border:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 4u, 4.0f, 4.0f );
 					skinLayout.setHStretch( 1.0f );
@@ -1021,17 +1049,18 @@ Options:
 					window.label( "Right" );
 					window.label( "Bottom" );
 
-					if( doFloatTextEdit( window, field.data.borderPtr->top, 0 ) ||
-						doFloatTextEdit( window, field.data.borderPtr->left, 0 ) ||
-						doFloatTextEdit( window, field.data.borderPtr->right, 0 ) ||
-						doFloatTextEdit( window, field.data.borderPtr->bottom, 0 ) )
+					ImUiBorder& value = theme.getFieldBorder( field );
+					if( doFloatTextEdit( window, value.top, 0 ) ||
+						doFloatTextEdit( window, value.left, 0 ) ||
+						doFloatTextEdit( window, value.right, 0 ) ||
+						doFloatTextEdit( window, value.bottom, 0 ) )
 					{
 						resource.increaseRevision();
 					}
 				}
 				break;
 
-			case ResourceThemeFieldType::Size:
+			case ImUiToolboxThemeReflectionType_Size:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 2u, 4.0f, 4.0f );
 					skinLayout.setHStretch( 1.0f );
@@ -1039,25 +1068,27 @@ Options:
 					window.label( "Width" );
 					window.label( "Height" );
 
-					if( doFloatTextEdit( window, field.data.sizePtr->width, 0 ) ||
-						doFloatTextEdit( window, field.data.sizePtr->height, 0 ) )
+					ImUiSize& value = theme.getFieldSize( field );
+					if( doFloatTextEdit( window, value.width, 0 ) ||
+						doFloatTextEdit( window, value.height, 0 ) )
 					{
 						resource.increaseRevision();
 					}
 				}
 				break;
 
-			case ResourceThemeFieldType::Image:
+			case ImUiToolboxThemeReflectionType_Image:
 				{
 					UiWidgetLayoutHorizontal imageLayout( window, 4.0f );
 					imageLayout.setHStretch( 1.0f );
 
+					DynamicString& value = theme.getFieldString( field );
 					{
 						UiWidget previewWidget( window );
 						previewWidget.setVStretch( 1.0f );
 						previewWidget.setFixedWidth( 50.0f );
 
-						Resource* imageResource = m_package.findResource( *field.data.imageNamePtr );
+						Resource* imageResource = m_package.findResource( value );
 						if( imageResource )
 						{
 							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
@@ -1073,28 +1104,19 @@ Options:
 						}
 					}
 
-					const StringView imageName = doResourceSelect( window, ResourceType::Image, *field.data.imageNamePtr );
-					if( *field.data.imageNamePtr != imageName )
+					const StringView imageName = doResourceSelect( window, ResourceType::Image, value );
+					if( value != imageName )
 					{
-						*field.data.imageNamePtr = imageName;
+						value = imageName;
 						resource.increaseRevision();
 					}
 				}
 				break;
 
-			case ResourceThemeFieldType::UInt32:
+			case ImUiToolboxThemeReflectionType_UInt32:
 				{
-					doUIntTextEdit( window, *field.data.uintPtr );
-				}
-				break;
-
-			case ResourceThemeFieldType::Time:
-				{
-					float floatValue = (float)*field.data.doublePtr;
-					if( doFloatTextEdit( window, floatValue, 3 ) )
-					{
-						*field.data.doublePtr = (double)floatValue;
-					}
+					uint32& value = theme.getFieldUInt32( field );
+					doUIntTextEdit( window, value );
 				}
 				break;
 			}
@@ -1170,11 +1192,10 @@ Options:
 		uintsize selectedIndex = -1;
 		if( selectedResourceName.isSet() )
 		{
-			const char* selectedResourceNameUi = selectedResourceName;
 			for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
 			{
 				const char* resourceName = resourceNames[ i ];
-				if( strcmp( resourceName, selectedResourceNameUi ) == 0 )
+				if( selectedResourceName == resourceName )
 				{
 					selectedIndex = i;
 					break;

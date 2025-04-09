@@ -18,16 +18,18 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	parameters->windowHeight		= 600;
 	parameters->windowClearColor	= ImUiColorCreate( 0xaau, 0xaau, 0xaau, 0xffu );
 	parameters->windowMode			= ImAppDefaultWindow_Resizable;
-	parameters->defaultResPak		= "02_resources";
+	parameters->defaultResPakName	= "02_resources";
+	parameters->defaultThemeName	= "config";
+	parameters->useWindowStyle		= true;
 	parameters->resPath				= "./../../../../assets";
 
 	return (void*)1;
 }
 
-void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface )
+void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
 {
-	ImAppResPakActivateTheme( ImAppResourceGetDefaultPak( imapp ), "config" );
-	ImUiToolboxSampleTick( surface );
+	ImAppResPakActivateTheme( imapp, ImAppResourceGetDefaultPak( imapp ), "config" );
+	ImUiToolboxSampleTick( uiWindow );
 }
 
 void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )

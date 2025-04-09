@@ -8,12 +8,24 @@ namespace imapp
 {
 	using namespace tiki;
 
-	ResourceTheme::ResourceTheme()
-		: m_config( nullptr )
+	struct ResourceThemeTreeField : public LinkedNode< ResourceThemeTreeField >
 	{
-		TIKI_STATIC_ASSERT( sizeof( m_config ) == 1256u );
+		using FieldList = LinkedList< ResourceThemeTreeField >;
+		using UiField = ImUiToolboxThemeReflectionField;
 
-		setFields();
+		StringView					name;
+		const UiField*				uiField	= nullptr;
+		ImAppResPakThemeFieldBase	base;
+
+		FieldList					childFields;
+	};
+
+	ResourceTheme::ResourceTheme()
+	{
+		ImUiToolboxThemeFillDefault( &m_theme.uiTheme, nullptr );
+		ImAppWindowThemeFillDefault( &m_theme.windowTheme );
+
+		buildFields();
 	}
 
 	ResourceTheme::ResourceTheme( const ResourceTheme& theme )
@@ -31,10 +43,11 @@ namespace imapp
 				continue;
 			}
 
+			const StringView nameView = StringView( name );
 			for( ResourceThemeField& field : m_fields )
 			{
-				if( field.type == ResourceThemeFieldType::Group ||
-					field.name != name )
+				if( !field.uiField ||
+					nameView != field.uiField->name )
 				{
 					continue;
 				}
@@ -47,17 +60,15 @@ namespace imapp
 				field.xml = configNode;
 
 				bool ok = true;
-				switch( field.type )
+				const ImUiToolboxThemeReflectionField& uiField = *field.uiField;
+				switch( uiField.type )
 				{
-				case ResourceThemeFieldType::Group:
-					break;
-
-				case ResourceThemeFieldType::Font:
+				case ImUiToolboxThemeReflectionType_Font:
 					{
 						const char* fontName;
 						if( configNode->QueryStringAttribute( "fontName", &fontName ) == XML_SUCCESS )
 						{
-							*field.data.fontNamePtr = fontName;
+							field.value = fontName;
 						}
 						else
 						{
@@ -66,12 +77,12 @@ namespace imapp
 					}
 					break;
 
-				case ResourceThemeFieldType::Color:
+				case ImUiToolboxThemeReflectionType_Color:
 					{
 						const char* colorHex;
 						if( configNode->QueryStringAttribute( "color", &colorHex ) == XML_SUCCESS )
 						{
-							parseUiColor( *field.data.colorPtr, StringView( colorHex ) );
+							parseUiColor( getFieldColor( field ), StringView( colorHex ) );
 						}
 						else
 						{
@@ -80,12 +91,12 @@ namespace imapp
 					}
 					break;
 
-				case ResourceThemeFieldType::Skin:
+				case ImUiToolboxThemeReflectionType_Skin:
 					{
 						const char* skinName;
 						if( configNode->QueryStringAttribute( "skinName", &skinName ) == XML_SUCCESS )
 						{
-							*field.data.skinNamePtr = skinName;
+							field.value = skinName;
 						}
 						else
 						{
@@ -94,36 +105,57 @@ namespace imapp
 					}
 					break;
 
-				case ResourceThemeFieldType::Float:
-					ok &= configNode->QueryFloatAttribute( "value", field.data.floatPtr ) == XML_SUCCESS;
+				case ImUiToolboxThemeReflectionType_Float:
+					{
+						float& target = getFieldFloat( field );
+						ok &= configNode->QueryFloatAttribute( "value", &target ) == XML_SUCCESS;
+					}
 					break;
 
-				case ResourceThemeFieldType::Border:
-					ok &= configNode->QueryFloatAttribute( "top", &field.data.borderPtr->top ) == XML_SUCCESS;
-					ok &= configNode->QueryFloatAttribute( "left", &field.data.borderPtr->left ) == XML_SUCCESS;
-					ok &= configNode->QueryFloatAttribute( "right", &field.data.borderPtr->right ) == XML_SUCCESS;
-					ok &= configNode->QueryFloatAttribute( "bottom", &field.data.borderPtr->bottom ) == XML_SUCCESS;
+				case ImUiToolboxThemeReflectionType_Double:
+					{
+						double& target = getFieldDouble( field );
+						ok &= configNode->QueryDoubleAttribute( "value", &target ) == XML_SUCCESS;
+					}
 					break;
 
-				case ResourceThemeFieldType::Size:
-					ok &= configNode->QueryFloatAttribute( "width", &field.data.sizePtr->width ) == XML_SUCCESS;
-					ok &= configNode->QueryFloatAttribute( "height", &field.data.sizePtr->height ) == XML_SUCCESS;
+				case ImUiToolboxThemeReflectionType_Border:
+					{
+						ImUiBorder& target = getFieldBorder( field );
+						ok &= configNode->QueryFloatAttribute( "top", &target.top ) == XML_SUCCESS;
+						ok &= configNode->QueryFloatAttribute( "left", &target.left ) == XML_SUCCESS;
+						ok &= configNode->QueryFloatAttribute( "right", &target.right ) == XML_SUCCESS;
+						ok &= configNode->QueryFloatAttribute( "bottom", &target.bottom ) == XML_SUCCESS;
+					}
 					break;
 
-				case ResourceThemeFieldType::Image:
+				case ImUiToolboxThemeReflectionType_Size:
+					{
+						ImUiSize& target = getFieldSize( field );
+						ok &= configNode->QueryFloatAttribute( "width", &target.width ) == XML_SUCCESS;
+						ok &= configNode->QueryFloatAttribute( "height", &target.height ) == XML_SUCCESS;
+					}
+					break;
+
+				case ImUiToolboxThemeReflectionType_Image:
 					{
 						const char* imageName;
 						if( configNode->QueryStringAttribute( "imageName", &imageName ) == XML_SUCCESS )
 						{
-							*field.data.imageNamePtr = imageName;
+							field.value = imageName;
 						}
 					}
 					break;
 
-				case ResourceThemeFieldType::UInt32:
-					ok &= configNode->QueryIntAttribute( "value", (int*)field.data.uintPtr ) == XML_SUCCESS;
+				case ImUiToolboxThemeReflectionType_UInt32:
+					{
+						uint32& target = getFieldUInt32( field );
+						ok &= configNode->QueryIntAttribute( "value", (int*)&target ) == XML_SUCCESS;
+					}
 					break;
 				}
+
+				break;
 			}
 		}
 
@@ -134,7 +166,7 @@ namespace imapp
 	{
 		for( ResourceThemeField& field : m_fields )
 		{
-			if( field.type == ResourceThemeFieldType::Group )
+			if( !field.uiField )
 			{
 				continue;
 			}
@@ -145,195 +177,290 @@ namespace imapp
 				resourceNode->InsertEndChild( field.xml );
 			}
 
-			field.xml->SetAttribute( "name", field.name );
+			field.xml->SetAttribute( "name", field.uiField->name );
 
-			switch( field.type )
+			switch( field.uiField->type )
 			{
-			case ResourceThemeFieldType::Group:
+			case ImUiToolboxThemeReflectionType_Font:
+				field.xml->SetAttribute( "fontName", field.value.toConstCharPointer() );
 				break;
 
-			case ResourceThemeFieldType::Font:
-				field.xml->SetAttribute( "fontName", field.data.fontNamePtr->toConstCharPointer() );
-				break;
-
-			case ResourceThemeFieldType::Color:
+			case ImUiToolboxThemeReflectionType_Color:
 				{
+					ImUiColor& data = getFieldColor( field );
+
 					char buffer[ 32u ];
-					formatUiColor( buffer, sizeof( buffer ), *field.data.colorPtr);
+					formatUiColor( buffer, sizeof( buffer ), data );
 
 					field.xml->SetAttribute( "color", buffer );
 				}
 				break;
 
-			case ResourceThemeFieldType::Skin:
-				field.xml->SetAttribute( "skinName", field.data.skinNamePtr->toConstCharPointer() );
+			case ImUiToolboxThemeReflectionType_Skin:
+				field.xml->SetAttribute( "skinName", field.value.toConstCharPointer() );
 				break;
 
-			case ResourceThemeFieldType::Float:
-				field.xml->SetAttribute( "value", *field.data.floatPtr );
+			case ImUiToolboxThemeReflectionType_Float:
+				{
+					float& data = getFieldFloat( field );
+					field.xml->SetAttribute( "value", data );
+				}
 				break;
 
-			case ResourceThemeFieldType::Border:
-				field.xml->SetAttribute( "top", field.data.borderPtr->top );
-				field.xml->SetAttribute( "left", field.data.borderPtr->left );
-				field.xml->SetAttribute( "right", field.data.borderPtr->right );
-				field.xml->SetAttribute( "bottom", field.data.borderPtr->bottom );
+			case ImUiToolboxThemeReflectionType_Double:
+				{
+					double& data = getFieldDouble( field );
+					field.xml->SetAttribute( "value", data );
+				}
 				break;
 
-			case ResourceThemeFieldType::Size:
-				field.xml->SetAttribute( "width", field.data.sizePtr->width );
-				field.xml->SetAttribute( "height", field.data.sizePtr->height );
+			case ImUiToolboxThemeReflectionType_Border:
+				{
+					ImUiBorder& data = getFieldBorder( field );
+					field.xml->SetAttribute( "top", data.top );
+					field.xml->SetAttribute( "left", data.left );
+					field.xml->SetAttribute( "right", data.right );
+					field.xml->SetAttribute( "bottom", data.bottom );
+				}
 				break;
 
-			case ResourceThemeFieldType::Image:
-				field.xml->SetAttribute( "imageName", field.data.imageNamePtr->toConstCharPointer() );
+			case ImUiToolboxThemeReflectionType_Size:
+				{
+					ImUiSize& data = getFieldSize( field );
+					field.xml->SetAttribute( "width", data.width );
+					field.xml->SetAttribute( "height", data.height );
+				}
 				break;
 
-			case ResourceThemeFieldType::UInt32:
-				field.xml->SetAttribute( "value", *field.data.uintPtr );
+			case ImUiToolboxThemeReflectionType_Image:
+				field.xml->SetAttribute( "imageName", field.value.toConstCharPointer() );
+				break;
+
+			case ImUiToolboxThemeReflectionType_UInt32:
+				{
+					uint32& data = getFieldUInt32( field );
+					field.xml->SetAttribute( "value", data );
+				}
 				break;
 			}
 		}
 	}
 
-	ResourceTheme& ResourceTheme::operator=( const ResourceTheme& rhs )
+	ImUiColor& ResourceTheme::getFieldColor( ResourceThemeField& field )
 	{
-		m_config = rhs.m_config;
-		m_fontName = rhs.m_fontName;
-
-		m_skins = rhs.m_skins;
-		m_icons = rhs.m_icons;
-
-		setFields();
-
-		return *this;
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Color );
+		return *(ImUiColor*)getFieldData( field );
 	}
 
-	void ResourceTheme::setFields()
+	const ImUiColor& ResourceTheme::getFieldColor( const ResourceThemeField& field ) const
 	{
-		m_fields =
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Color );
+		return const_cast<ResourceTheme* >( this )->getFieldColor( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	float& ResourceTheme::getFieldFloat( ResourceThemeField& field )
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Float );
+		return *(float*)getFieldData( field );
+	}
+
+	const float& ResourceTheme::getFieldFloat( const ResourceThemeField& field ) const
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Float );
+		return const_cast<ResourceTheme* >( this )->getFieldFloat( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	double& ResourceTheme::getFieldDouble( ResourceThemeField& field )
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Double );
+		return *(double*)getFieldData( field );
+	}
+
+	const double& ResourceTheme::getFieldDouble( const ResourceThemeField& field ) const
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Double );
+		return const_cast<ResourceTheme* >( this )->getFieldDouble( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	ImUiBorder& ResourceTheme::getFieldBorder( ResourceThemeField& field )
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Border );
+		return *(ImUiBorder*)getFieldData( field );
+	}
+
+	const ImUiBorder& ResourceTheme::getFieldBorder( const ResourceThemeField& field ) const
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Border );
+		return const_cast<ResourceTheme* >( this )->getFieldBorder( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	ImUiSize& ResourceTheme::getFieldSize( ResourceThemeField& field )
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Size );
+		return *(ImUiSize*)getFieldData( field );
+	}
+
+	const ImUiSize& ResourceTheme::getFieldSize( const ResourceThemeField& field ) const
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Size );
+		return const_cast<ResourceTheme* >( this )->getFieldSize( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	uint32& ResourceTheme::getFieldUInt32( ResourceThemeField& field )
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_UInt32 );
+		return *(uint32*)getFieldData( field );
+	}
+
+	const uint32& ResourceTheme::getFieldUInt32( const ResourceThemeField& field ) const
+	{
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_UInt32 );
+		return const_cast<ResourceTheme* >( this )->getFieldUInt32( const_cast< ResourceThemeField& >( field ) );
+	}
+
+	DynamicString& ResourceTheme::getFieldString( ResourceThemeField& field )
+	{
+		return field.value;
+	}
+
+	const tiki::DynamicString& ResourceTheme::getFieldString( const ResourceThemeField& field ) const
+	{
+		return field.value;
+	}
+
+	void ResourceTheme::buildFields()
+	{
+		FieldPool pool( 256u );
+		ResourceThemeTreeField rootField;
+
+		const ImUiToolboxThemeReflection uiReflection = ImUiToolboxThemeReflectionGet();
+		buildReflectionFields( uiReflection, rootField, pool, ImAppResPakThemeFieldBase_UiTheme );
+
 		{
-			{ "Font",							ResourceThemeFieldType::Font,		{ &m_fontName } },
-			{ "Text",							ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Text ] } },
+			ResourceThemeTreeField* windowRootField = pool.push();
+			windowRootField->name	= "Window";
+			windowRootField->base	= (ImAppResPakThemeFieldBase)-1;
 
-			// button
-			{ "Button",							ResourceThemeFieldType::Group },
+			rootField.childFields.push( windowRootField );
 
-			{ "Button Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Button ] } },
-			{ "Button Default",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Button ] } },
-			{ "Button Hover",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonHover ] } },
-			{ "Button Clocked",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonClicked ] } },
-			{ "Button Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ButtonText ] } },
-			{ "Button Height",					ResourceThemeFieldType::Float,		{ &m_config.button.height } },
-			{ "Button Padding",					ResourceThemeFieldType::Border,		{ &m_config.button.padding } },
+			const ImUiToolboxThemeReflection appReflection = ImAppWindowThemeReflectionGet();
+			buildReflectionFields( appReflection, *windowRootField, pool, ImAppResPakThemeFieldBase_WindowTheme );
+		}
 
-			// check box
-			{ "Check Box",						ResourceThemeFieldType::Group },
+		DynamicArray< ResourceThemeTreeField* > fields;
+		serializeFields( fields, rootField, 0u );
 
-			{ "Check Box Unchecked Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBox ] } },
-			{ "Check Box Checked Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_CheckBoxChecked ] } },
-			{ "Check Box Default",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBox ] } },
-			{ "Check Box Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxHover ] } },
-			{ "Check Box Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxClicked ] } },
-			{ "Check Box Checked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_CheckBoxChecked ] } },
-			{ "Check Box Check Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_CheckBoxChecked ] } },
-			{ "Check Box Size",					ResourceThemeFieldType::Size,		{ &m_config.checkBox.size } },
-			{ "Check Box Text Spacing",			ResourceThemeFieldType::Float,		{ &m_config.checkBox.textSpacing } },
+		for( ResourceThemeTreeField* field : fields )
+		{
+			pool.eraseUnsortedByValue( field );
+		}
+	}
 
-			// slider
-			{ "Slider",							ResourceThemeFieldType::Group },
+	void ResourceTheme::buildReflectionFields( const ImUiToolboxThemeReflection& reflection, ResourceThemeTreeField& rootField, FieldPool& fieldPool, ImAppResPakThemeFieldBase base )
+	{
+		for( uintsize i = 0u; i < reflection.count; ++i )
+		{
+			const ImUiToolboxThemeReflectionField& field = reflection.fields[ i ];
 
-			{ "Slider Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderBackground ] } },
-			{ "Slider Pivot Skin",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_SliderPivot ] } },
-			{ "Slider Background",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderBackground ] } },
-			{ "Slider Pivot",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivot ] } },
-			{ "Slider Pivot Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotHover ] } },
-			{ "Slider Pivot Clicked",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_SliderPivotClicked ] } },
-			{ "Slider Height",					ResourceThemeFieldType::Float,		{ &m_config.slider.height } },
-			{ "Slider Padding",					ResourceThemeFieldType::Border,		{ &m_config.slider.padding } },
-			{ "Slider Pivot Size",				ResourceThemeFieldType::Size,		{ &m_config.slider.pivotSize } },
+			ResourceThemeTreeField* parentField = &rootField;
 
-			// text edit
-			{ "Text Edit",						ResourceThemeFieldType::Group },
+			StringView name = StringView( field.name );
+			while( name.contains( "/" ) )
+			{
+				const StringView namePart = name.subString( 0u, name.indexOf( "/" ) );
 
-			{ "Text Edit Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_TextEditBackground ] } },
-			{ "Text Edit Background",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditBackground ] } },
-			{ "Text Edit Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditText ] } },
-			{ "Text Edit Cursor",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditCursor ] } },
-			{ "Text Edit Selection",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_TextEditSelection ] } },
-			{ "Text Edit Height",				ResourceThemeFieldType::Float,		{ &m_config.textEdit.height } },
-			{ "Text Edit Padding",				ResourceThemeFieldType::Border,		{ &m_config.textEdit.padding } },
-			{ "Text Edit Cursor Size",			ResourceThemeFieldType::Size,		{ &m_config.textEdit.cursorSize } },
-			{ "Text Edit Blink time",			ResourceThemeFieldType::Time,		{ &m_config.textEdit.blinkTime } },
+				ResourceThemeTreeField* partField = nullptr;
+				for( ResourceThemeTreeField& childField : parentField->childFields )
+				{
+					if( childField.name != namePart )
+					{
+						continue;
+					}
 
-			// progress bar
-			{ "Progress Bar",					ResourceThemeFieldType::Group },
+					partField = &childField;
+					break;
+				}
 
-			{ "Progress Bar Skin",				ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarBackground ] } },
-			{ "Progress Bar Progress Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ProgressBarProgress ] } },
-			{ "Progress Bar Background",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ProgressBarBackground ] } },
-			{ "Progress Bar Progress",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ProgressBarProgress ] } },
-			{ "Progress Bar Height",			ResourceThemeFieldType::Float,		{ &m_config.progressBar.height } },
-			{ "Progress Bar Padding",			ResourceThemeFieldType::Border,		{ &m_config.progressBar.padding } },
+				if( !partField )
+				{
+					partField = fieldPool.push();
+					partField->name	= namePart;
+					partField->base	= (ImAppResPakThemeFieldBase)-1;
 
-			// scroll area
-			{ "Scroll Area",					ResourceThemeFieldType::Group },
+					parentField->childFields.push( partField );
+				}
 
-			{ "Scroll Area Bar Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarBackground ] } },
-			{ "Scroll Area Bar Pivot Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ScrollAreaBarPivot ] } },
-			{ "Scroll Area Bar Background",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarBackground ] } },
-			{ "Scroll Area Bar Pivot",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ScrollAreaBarPivot ] } },
-			{ "Scroll Area Bar Size",			ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSize } },
-			{ "Scroll Area Bar Spacing",		ResourceThemeFieldType::Float,		{ &m_config.scrollArea.barSpacing } },
-			{ "Scroll Area Bar Min Size",		ResourceThemeFieldType::Size,		{ &m_config.scrollArea.barMinSize } },
+				parentField = partField;
+				name = StringView( namePart.getEnd() + 1u, name.getEnd() );
+			}
 
-			// list
-			{ "List",							ResourceThemeFieldType::Group },
+			ResourceThemeTreeField* targetField = fieldPool.push();
+			targetField->name		= name;
+			targetField->uiField	= &field;
+			targetField->base		= base;
 
-			{ "List Item",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ListItem ] } },
-			{ "List Item Selected Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_ListItemSelected ] } },
-			{ "List Item Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemHover ] } },
-			{ "List Item Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemClicked ] } },
-			{ "List Item Selected",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_ListItemSelected ] } },
-			{ "List Item Spacing",				ResourceThemeFieldType::Float,		{ &m_config.list.itemSpacing } },
+			parentField->childFields.push( targetField );
+		}
+	}
 
-			// drop down
-			{ "Drop Down",						ResourceThemeFieldType::Group },
+	void ResourceTheme::serializeFields( DynamicArray< ResourceThemeTreeField* >& fields, ResourceThemeTreeField& field, uintsize level )
+	{
+		// value fields first
+		for( ResourceThemeTreeField& childField : field.childFields )
+		{
+			if( !childField.uiField )
+			{
+				continue;
+			}
+			TIKI_ASSERT( childField.childFields.isEmpty() );
 
-			{ "Drop Down Skin",					ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDown ] } },
-			{ "Drop Down List Skin",			ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownList ] } },
-			{ "Drop Down List Item Skin",		ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_DropDownListItem ] } },
-			{ "Drop Down Background",			ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDown ] } },
-			{ "Drop Down Text",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownText ] } },
-			{ "Drop Down Icon",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownIcon ] } },
-			{ "Drop Down Hover",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownHover ] } },
-			{ "Drop Down Clicked",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownClicked ] } },
-			{ "Drop Down Open",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownOpen ] } },
-			{ "Drop Down List",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownList ] } },
-			{ "Drop Down List Item Text",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemText ] } },
-			{ "Drop Down List Item Hover",		ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemHover ] } },
-			{ "Drop Down List Item Clicked",	ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemClicked ] } },
-			{ "Drop Down List Item Selected",	ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_DropDownListItemSelected ] } },
-			{ "Drop Down Open Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_DropDownOpenIcon ] } },
-			{ "Drop Down Close Icon",			ResourceThemeFieldType::Image,		{ &m_icons[ ImUiToolboxIcon_DropDownCloseIcon ] } },
-			{ "Drop Down Height",				ResourceThemeFieldType::Float,		{ &m_config.dropDown.height } },
-			{ "Drop Down Padding",				ResourceThemeFieldType::Border,		{ &m_config.dropDown.padding } },
-			{ "Drop Down List Z Order",			ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.listZOrder } },
-			{ "Drop Down List Margin",			ResourceThemeFieldType::Border,		{ &m_config.dropDown.listMargin } },
-			{ "Drop Down List Max Length",		ResourceThemeFieldType::UInt32,		{ &m_config.dropDown.listMaxLength } },
-			{ "Drop Down Item Padding",			ResourceThemeFieldType::Border,		{ &m_config.dropDown.itemPadding } },
-			{ "Drop Down Item Size",			ResourceThemeFieldType::Float,		{ &m_config.dropDown.itemSize } },
-			{ "Drop Down Item Spacing",			ResourceThemeFieldType::Float,		{ &m_config.dropDown.itemSpacing } },
+			ResourceThemeField& serialChildField = m_fields.pushBack();
+			serialChildField.name		= childField.name;
+			serialChildField.uiField	= childField.uiField;
+			serialChildField.base		= childField.base;
+			serialChildField.level		= level;
 
-			// pop-up
-			{ "Pop-Up",							ResourceThemeFieldType::Group },
+			serializeFields( fields, childField, level + 1u );
+			fields.pushBack( &childField );
+		}
 
-			{ "Popup Skin",						ResourceThemeFieldType::Skin,		{ &m_skins[ ImUiToolboxSkin_Popup ] } },
-			{ "Popup Background",				ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_PopupBackground ] } },
-			{ "Popup Window",					ResourceThemeFieldType::Color,		{ &m_config.colors[ ImUiToolboxColor_Popup ] } },
-			{ "Pop-Up Z Order",					ResourceThemeFieldType::UInt32,		{ &m_config.popup.zOrder } },
-			{ "Pop-Up Padding",					ResourceThemeFieldType::Border,		{ &m_config.popup.padding } },
-			{ "Pop-Up Button Spacing",			ResourceThemeFieldType::Float,		{ &m_config.popup.buttonSpacing } },
-		};
+		for( ResourceThemeTreeField& childField : field.childFields )
+		{
+			if( childField.uiField )
+			{
+				continue;
+			}
+
+			ResourceThemeField& serialChildField = m_fields.pushBack();
+			serialChildField.name		= childField.name;
+			serialChildField.uiField	= childField.uiField;
+			serialChildField.base		= childField.base;
+			serialChildField.level		= level;
+
+			serializeFields( fields, childField, level + 1u );
+			fields.pushBack( &childField );
+		}
+
+
+		field.childFields.clear();
+	}
+
+	void* ResourceTheme::getFieldData( ResourceThemeField& field )
+	{
+		byte* base = nullptr;
+		if( field.base == ImAppResPakThemeFieldBase_UiTheme )
+		{
+			base = (byte*)&m_theme.uiTheme;
+		}
+		else if( field.base == ImAppResPakThemeFieldBase_WindowTheme )
+		{
+			base = (byte*)&m_theme.windowTheme;
+		}
+		else
+		{
+			return nullptr;
+		}
+
+		return base + field.uiField->offset;
 	}
 }

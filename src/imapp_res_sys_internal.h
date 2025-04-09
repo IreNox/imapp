@@ -113,7 +113,7 @@ typedef struct ImAppResFontData
 
 typedef struct ImAppResThemeData
 {
-	ImUiToolboxConfig*		config;
+	ImAppTheme*				theme;
 } ImAppResThemeData;
 
 typedef struct ImAppResBlobData

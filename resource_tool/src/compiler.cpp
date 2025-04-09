@@ -139,9 +139,9 @@ namespace imapp
 
 		prepareCompiledResources( compiledResources, resourceIndexMapping, resourcesByType );
 
-		const uint32 headerOffset = preallocateToBuffer< ImAppResPakHeader >();
+		const uint32 headerOffset = m_buffer.preallocateToBuffer< ImAppResPakHeader >();
 		{
-			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
+			ImAppResPakHeader& bufferHeader = m_buffer.getBufferData< ImAppResPakHeader >( headerOffset );
 
 			const char* magic = IMAPP_RES_PAK_MAGIC;
 			memcpy( bufferHeader.magic, magic, sizeof( bufferHeader.magic ) );
@@ -149,16 +149,16 @@ namespace imapp
 			bufferHeader.resourceCount	= (uint16)compiledResources.getLength();
 		}
 
-		const uint32 resourcesOffset = preallocateArrayToBuffer< ImAppResPakResource >( compiledResources.getLength() );
+		const uint32 resourcesOffset = m_buffer.preallocateArrayToBuffer< ImAppResPakResource >( compiledResources.getLength() );
 
 		{
-			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
+			ImAppResPakHeader& bufferHeader = m_buffer.getBufferData< ImAppResPakHeader >( headerOffset );
 
 			for( uintsize i = 0u; i < resourcesByType.getLength(); ++i )
 			{
 				const DynamicArray< uint16 >& indices = resourcesByType[ i ];
 
-				bufferHeader.resourcesByTypeIndexOffset[ i ]	= writeArrayToBuffer< uint16 >( indices );
+				bufferHeader.resourcesByTypeIndexOffset[ i ]	= m_buffer.writeArrayToBuffer< uint16 >( indices );
 				bufferHeader.resourcesbyTypeCount[ i ]			= (uint16)indices.getLength();
 			}
 		}
@@ -167,7 +167,7 @@ namespace imapp
 		writeResourceHeaders( resourcesOffset, compiledResources, resourceIndexMapping );
 
 		{
-			ImAppResPakHeader& bufferHeader = getBufferData< ImAppResPakHeader >( headerOffset );
+			ImAppResPakHeader& bufferHeader = m_buffer.getBufferData< ImAppResPakHeader >( headerOffset );
 			bufferHeader.resourcesOffset = (uint32)m_buffer.getLength();
 		}
 
@@ -362,10 +362,10 @@ namespace imapp
 				m_output.pushMessage( CompilerErrorLevel::Warning, name, "Resource name too long." );
 			}
 
-			compiledResource.nameOffset	= writeArrayToBuffer< char >( name.getRange( 0u, 255u ) );
+			compiledResource.nameOffset	= m_buffer.writeArrayToBuffer< char >( name.getRange( 0u, 255u ) );
 			compiledResource.nameLength	= (uint8)min< uintsize >( name.getLength(), 255u );
 
-			writeToBuffer< char >( '\0' ); // string null terminator
+			m_buffer.writeToBuffer< char >( '\0' ); // string null terminator
 		}
 	}
 
@@ -377,7 +377,7 @@ namespace imapp
 			const CompilerResourceData::ResourceData& data = compiledResource.data->getData();
 
 			{
-				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
+				ImAppResPakResource& targetResource = m_buffer.getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
 
 				targetResource.type			= compiledResource.type;
 				targetResource.nameOffset	= compiledResource.nameOffset;
@@ -413,7 +413,7 @@ namespace imapp
 						textureHeader.height	= fontData.height;
 					}
 
-					headerOffset = writeToBuffer( textureHeader );
+					headerOffset = m_buffer.writeToBuffer( textureHeader );
 					headerSize = sizeof( textureHeader );
 				}
 				break;
@@ -445,7 +445,7 @@ namespace imapp
 						imageHeader.height	= (uint16)data.image.height;
 					}
 
-					headerOffset = writeToBuffer( imageHeader );
+					headerOffset = m_buffer.writeToBuffer( imageHeader );
 					headerSize = sizeof( imageHeader );
 				}
 				break;
@@ -497,7 +497,7 @@ namespace imapp
 						skinHeader.height	= (uint16)imageResource.data->getData().image.height;
 					}
 
-					headerOffset = writeToBuffer( skinHeader );
+					headerOffset = m_buffer.writeToBuffer( skinHeader );
 					headerSize = sizeof( skinHeader );
 				}
 				break;
@@ -516,49 +516,132 @@ namespace imapp
 						continue;
 					}
 
-					headerOffset = writeToBuffer( fontHeader );
+					headerOffset = m_buffer.writeToBuffer( fontHeader );
 					headerSize = sizeof( fontHeader );
 				}
 				break;
 
 			case ImAppResPakType_Theme:
 				{
-					ImAppResPakThemeHeader themeHeader;
-
 					const ResourceTheme& theme = *data.theme.theme;
-					const UiToolboxConfig& config = theme.getConfig();
+					const ResourceTheme::ConstFieldView fields = theme.getFields();
 
+					const ImUiToolboxThemeReflection themeReflection = ImUiToolboxThemeReflectionGet();
+
+					uintsize fieldCount = 0u;
+					for( const ResourceThemeField& field : fields )
+					{
+						if( !field.uiField )
+						{
+							continue;
+						}
+
+						fieldCount++;
+					}
+
+					BinaryBuffer dataBuffer;
+					const uint32 fieldsOffset = dataBuffer.preallocateArrayToBuffer< ImAppResPakThemeField >( fieldCount );
+
+					uintsize fieldIndex = 0u;
 					HashSet< uint16 > referencesSet;
-					if( !findResourceIndex( themeHeader.fontIndex, resourceIndexMapping, ImAppResPakType_Font, theme.getFontName(), data.name ) )
+					for( const ResourceThemeField& field : fields )
 					{
-						m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find font '%s' in theme '%s'.", theme.getFontName().getData(), data.name.getData() );
-					}
-					referencesSet.insert( themeHeader.fontIndex );
-
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.colors ); ++i )
-					{
-						themeHeader.colors[ i ] = config.colors[ i ];
-					}
-
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.skinIndices ); ++i )
-					{
-						const StringView skinName = theme.getSkinName( (ImUiToolboxSkin)i );
-						if( !findResourceIndex( themeHeader.skinIndices[ i ], resourceIndexMapping, ImAppResPakType_Skin, skinName, data.name ) )
+						if( !field.uiField )
 						{
-							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find skin '%s' for slot %d in theme '%s'.", skinName.getData(), i, data.name.getData() );
+							continue;
 						}
-						referencesSet.insert( themeHeader.skinIndices[ i ] );
+
+						ImAppResPakThemeField& fieldData = dataBuffer.getBufferArrayElement< ImAppResPakThemeField >( fieldsOffset, fieldIndex );
+						fieldData.nameHash	= ImUiHashCreate( field.uiField->name, strlen( field.uiField->name ) );
+						fieldData.type		= field.uiField->type;
+						fieldData.base		= field.base;
+
+						switch( field.uiField->type )
+						{
+						case ImUiToolboxThemeReflectionType_Color:
+							{
+								const ImUiColor& data = theme.getFieldColor( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_Skin:
+						case ImUiToolboxThemeReflectionType_Image:
+						case ImUiToolboxThemeReflectionType_Font:
+							{
+								ImAppResPakType fieldResType = ImAppResPakType_MAX;
+								const char* fieldResTypeName = "resource";
+								switch( field.uiField->type )
+								{
+								case ImUiToolboxThemeReflectionType_Skin:
+									fieldResType = ImAppResPakType_Skin;
+									fieldResTypeName = "skin";
+									break;
+
+								case ImUiToolboxThemeReflectionType_Image:
+									fieldResType = ImAppResPakType_Image;
+									fieldResTypeName = "image";
+									break;
+
+								case ImUiToolboxThemeReflectionType_Font:
+									fieldResType = ImAppResPakType_Font;
+									fieldResTypeName = "font";
+									break;
+								}
+
+								uint16 resIndex;
+								const DynamicString& resName = theme.getFieldString( field );
+								if( !findResourceIndex( resIndex, resourceIndexMapping, fieldResType, resName, data.name ) )
+								{
+									m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find %s '%s' in theme '%s'.", fieldResTypeName, resName, data.name.getData() );
+								}
+								referencesSet.insert( resIndex );
+								dataBuffer.writeToBuffer( resIndex );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_Size:
+							{
+								const ImUiSize& data = theme.getFieldSize( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_Border:
+							{
+								const ImUiBorder& data = theme.getFieldBorder( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_Float:
+							{
+								const float& data = theme.getFieldFloat( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_Double:
+							{
+								const double& data = theme.getFieldDouble( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+
+						case ImUiToolboxThemeReflectionType_UInt32:
+							{
+								const uint32& data = theme.getFieldUInt32( field );
+								dataBuffer.writeToBuffer( data );
+							}
+							break;
+						}
+
+						fieldIndex++;
 					}
 
-					for( uintsize i = 0u; i < TIKI_ARRAY_COUNT( themeHeader.iconIndices ); ++i )
-					{
-						const StringView iconName = theme.getIconName( (ImUiToolboxIcon)i );
-						if( !findResourceIndex( themeHeader.iconIndices[ i ], resourceIndexMapping, ImAppResPakType_Image, iconName, data.name ) )
-						{
-							m_output.pushMessage( CompilerErrorLevel::Error, data.name, "Could not find image '%s' for slot %d in theme '%s'.", iconName.getData(), i, data.name.getData() );
-						}
-						referencesSet.insert( themeHeader.iconIndices[ i ] );
-					}
+					BinaryBuffer headerBuffer;
+
+					const uint32 themeHeaderOffset = headerBuffer.preallocateToBuffer< ImAppResPakThemeHeader >();
 
 					DynamicArray< uint16 > references;
 					for( uint16 resIndex : referencesSet )
@@ -570,22 +653,18 @@ namespace imapp
 
 						references.pushBack( resIndex );
 					}
-					themeHeader.referencedCount	= (uint16_t)references.getLength();
 
-					themeHeader.button			= config.button;
-					themeHeader.checkBox		= config.checkBox;
-					themeHeader.slider			= config.slider;
-					themeHeader.textEdit		= config.textEdit;
-					themeHeader.progressBar		= config.progressBar;
-					themeHeader.scrollArea		= config.scrollArea;
-					themeHeader.list			= config.list;
-					themeHeader.dropDown		= config.dropDown;
-					themeHeader.popup			= config.popup;
+					{
+						ImAppResPakThemeHeader& themeHeader = headerBuffer.getBufferData< ImAppResPakThemeHeader >( themeHeaderOffset );
+						themeHeader.referencedCount		= (uint16)references.getLength();
+						themeHeader.themeFieldCount		= (uint16)fieldCount;
+					}
 
-					headerOffset = writeToBuffer( themeHeader );
-					headerSize = sizeof( themeHeader ) + (uint32)references.getSizeInBytes();
+					headerBuffer.writeArrayToBuffer< uint16 >( references );
+					headerBuffer.writeArrayToBuffer( dataBuffer.getData() );
 
-					writeArrayToBuffer< uint16 >( references );
+					headerOffset = m_buffer.writeArrayToBuffer( headerBuffer.getData() );
+					headerSize = (uint32)headerBuffer.getLength();
 				}
 				break;
 
@@ -594,7 +673,7 @@ namespace imapp
 			}
 
 			{
-				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
+				ImAppResPakResource& targetResource = m_buffer.getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
 
 				targetResource.textureIndex	= textureIndex;
 				targetResource.headerOffset	= headerOffset;
@@ -617,14 +696,14 @@ namespace imapp
 			case ImAppResPakType_Texture:
 				if( !compiledResource.fontData )
 				{
-					dataOffset	= writeArrayToBuffer< byte >( data.image.imageData );
+					dataOffset	= m_buffer.writeArrayToBuffer< byte >( data.image.imageData );
 					dataSize	= (uint32)data.image.imageData.getSizeInBytes();
 				}
 				else
 				{
 					const CompilerFontData& fontData = *compiledResource.fontData;
 
-					dataOffset	= writeArrayToBuffer< byte >( fontData.pixelData );
+					dataOffset	= m_buffer.writeArrayToBuffer< byte >( fontData.pixelData );
 					dataSize	= (uint32)fontData.pixelData.getSizeInBytes();
 				}
 				break;
@@ -640,10 +719,10 @@ namespace imapp
 				{
 					const CompilerFontData& fontData = *compiledResource.fontData;
 
-					dataOffset	= writeArrayToBuffer( fontData.codepoints );
+					dataOffset	= m_buffer.writeArrayToBuffer( fontData.codepoints );
 					dataSize	= (uint32)fontData.codepoints.getSizeInBytes();
 
-					writeArrayToBuffer( data.fileData );
+					m_buffer.writeArrayToBuffer( data.fileData );
 					dataSize += (uint32)data.fileData.getSizeInBytes();
 				}
 				break;
@@ -652,7 +731,7 @@ namespace imapp
 				break;
 
 			case ImAppResPakType_Blob:
-				dataOffset	= writeArrayToBuffer< byte >( data.fileData );
+				dataOffset	= m_buffer.writeArrayToBuffer< byte >( data.fileData );
 				dataSize	= (uint32)data.fileData.getSizeInBytes();
 				break;
 
@@ -661,58 +740,12 @@ namespace imapp
 			}
 
 			{
-				ImAppResPakResource& targetResource = getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
+				ImAppResPakResource& targetResource = m_buffer.getBufferArrayElement< ImAppResPakResource >( resourcesOffset, compiledResourceIndex );
 
 				targetResource.dataOffset	= dataOffset;
 				targetResource.dataSize		= dataSize;
 			}
 		}
-	}
-
-	template< typename T >
-	T& Compiler::getBufferData( uint32 offset )
-	{
-		return *(T*)&m_buffer[ offset ];
-	}
-
-	template< typename T >
-	T& Compiler::getBufferArrayElement( uint32 offset, uintsize index )
-	{
-		return *(T*)&m_buffer[ offset + (sizeof( T ) * index) ];
-	}
-
-	template< typename T >
-	uint32 Compiler::preallocateToBuffer( uintsize alignment /*= 1u */ )
-	{
-		return preallocateArrayToBuffer< T >( alignment );
-	}
-
-	template< typename T >
-	uint32 Compiler::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
-	{
-		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
-		m_buffer.setLengthZero( alignedLength );
-
-		m_buffer.pushRange( sizeof( T ) * length );
-		return (uint32)alignedLength;
-	}
-
-	template< typename T >
-	uint32 Compiler::writeToBuffer( const T& value, uintsize alignment /* = 1u */ )
-	{
-		const uint32 offset = preallocateToBuffer< T >( alignment );
-		getBufferData< T >( offset ) = value;
-		return offset;
-	}
-
-	template< typename T >
-	uint32 Compiler::writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment /* = 1u */ )
-	{
-		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
-		m_buffer.setLengthZero( alignedLength );
-
-		m_buffer.pushRange( (const byte*)array.getData(), array.getSizeInBytes() );
-		return (uint32)alignedLength;
 	}
 
 	void Compiler::writeBinaryFile()
@@ -726,7 +759,7 @@ namespace imapp
 			return;
 		}
 
-		fwrite( m_buffer.getData(), m_buffer.getLength(), 1u, file );
+		fwrite( m_buffer.getData().getData(), m_buffer.getLength(), 1u, file );
 		fclose( file );
 	}
 
@@ -756,9 +789,10 @@ namespace imapp
 
 		char buffer[ 5u ] = "0x00";
 		uintsize lineLength = 0u;
-		for( uintsize i = 0u; i < m_buffer.getLength(); ++i )
+		const BinaryBuffer::ByteView bytes = m_buffer.getData();
+		for( uintsize i = 0u; i < bytes.getLength(); ++i )
 		{
-			const uint8 b = m_buffer[ i ];
+			const uint8 b = bytes[ i ];
 			if( lineLength == 16u )
 			{
 				content += ",\n\t";
@@ -803,4 +837,57 @@ namespace imapp
 		target = *resourceIndex;
 		return true;
 	}
+
+	void Compiler::BinaryBuffer::clear()
+	{
+		m_buffer.clear();
+	}
+
+	template< typename T >
+	T& Compiler::BinaryBuffer::getBufferData( uint32 offset )
+	{
+		return *(T*)&m_buffer[ offset ];
+	}
+
+	template< typename T >
+	T& Compiler::BinaryBuffer::getBufferArrayElement( uint32 offset, uintsize index )
+	{
+		return *(T*)&m_buffer[ offset + (sizeof( T ) * index) ];
+	}
+
+	template< typename T >
+	uint32 Compiler::BinaryBuffer::preallocateToBuffer( uintsize alignment /*= 1u */ )
+	{
+		return preallocateArrayToBuffer< T >( alignment );
+	}
+
+	template< typename T >
+	uint32 Compiler::BinaryBuffer::preallocateArrayToBuffer( uintsize length, uintsize alignment /* = 1u */ )
+	{
+		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
+		m_buffer.setLengthZero( alignedLength );
+
+		m_buffer.pushRange( sizeof( T ) * length );
+		return (uint32)alignedLength;
+	}
+
+	template< typename T >
+	uint32 Compiler::BinaryBuffer::writeToBuffer( const T& value, uintsize alignment /* = 1u */ )
+	{
+		const uint32 offset = preallocateToBuffer< T >( alignment );
+		getBufferData< T >( offset ) = value;
+		return offset;
+	}
+
+	template< typename T >
+	uint32 Compiler::BinaryBuffer::writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment /* = 1u */ )
+	{
+		const uintsize alignedLength = alignValue( m_buffer.getLength(), alignment );
+		m_buffer.setLengthZero( alignedLength );
+
+		m_buffer.pushRange( (const byte*)array.getData(), array.getSizeInBytes() );
+		return (uint32)alignedLength;
+	}
+
+
 }

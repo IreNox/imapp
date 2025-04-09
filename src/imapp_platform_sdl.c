@@ -56,9 +56,10 @@ typedef struct ImAppWindowDrop
 
 struct ImAppWindow
 {
-	ImUiAllocator*		allocator;
 	ImAppPlatform*		platform;
 	ImAppEventQueue		eventQueue;
+
+	ImAppWindowDoUiFunc uiFunc;
 
 	SDL_Window*			sdlWindow;
 	SDL_GLContext		glContext;
@@ -373,8 +374,6 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 	SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
-
-
 void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 {
 	SDL_SetClipboardText( text );
@@ -386,7 +385,7 @@ void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 	ImUiInputSetPasteText( imui, clipboardText );
 }
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -394,22 +393,26 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
-	window->allocator		= platform->allocator;
-	window->platform		= platform;
+	window->platform	= platform;
+	window->uiFunc		= uiFunc;
 
 	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 	switch( style )
 	{
-	case ImAppWindowState_Resizable:
+	case ImAppWindowStyle_Resizable:
 		flags |= SDL_WINDOW_RESIZABLE;
 		break;
 
-	case ImAppWindowState_Borderless:
+	case ImAppWindowStyle_Borderless:
 		flags |= SDL_WINDOW_BORDERLESS;
 		if( state == ImAppWindowState_Maximized )
 		{
 			flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		}
+		break;
+
+	case ImAppWindowStyle_Custom:
+		flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE;
 		break;
 	}
 
@@ -470,7 +473,7 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 		window->sdlWindow = NULL;
 	}
 
-	ImUiMemoryFree( window->allocator, window );
+	ImUiMemoryFree( window->platform->allocator, window );
 }
 
 bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
@@ -657,6 +660,12 @@ ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 	return &window->eventQueue;
 }
 
+ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+{
+	return window->uiFunc;
+}
+
+
 bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
 	if( !window->firstNewDrop )
@@ -684,6 +693,11 @@ void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
+bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
+{
+	return (SDL_GetWindowFlags( window->sdlWindow ) & SDL_WINDOW_INPUT_FOCUS) != 0;
+}
+
 void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
 {
 	SDL_GetWindowSize( window->sdlWindow, outWidth, outHeight );
@@ -692,6 +706,11 @@ void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* 
 void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
 {
 	SDL_GetWindowPosition( window->sdlWindow, outX, outY );
+}
+
+void ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+{
+	SDL_SetWindowPosition( window->sdlWindow, x, y );
 }
 
 ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* pWindow )
@@ -709,6 +728,38 @@ ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* pWindow )
 	return ImAppWindowState_Default;
 }
 
+void ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+{
+	switch( state )
+	{
+	case ImAppWindowState_Default:
+		SDL_RestoreWindow( window->sdlWindow );
+		break;
+
+	case ImAppWindowState_Minimized:
+		SDL_MinimizeWindow( window->sdlWindow );
+		break;
+
+	case ImAppWindowState_Maximized:
+		SDL_MaximizeWindow( window->sdlWindow );
+		break;
+	}
+}
+
+const char* ImAppPlatformWindowGetTitle( const ImAppWindow* window )
+{
+	return SDL_GetWindowTitle( window->sdlWindow );
+}
+
+void ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+{
+	SDL_SetWindowTitle( window->sdlWindow, title );
+}
+
+void ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+{
+}
+
 float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
 	float dpi;
@@ -718,6 +769,11 @@ float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 	}
 
 	return dpi / 96.0f;
+}
+
+void ImAppPlatformWindowClose( ImAppWindow* window )
+{
+	SDL_DestroyWindow( window->sdlWindow );
 }
 
 void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )

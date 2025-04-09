@@ -91,24 +91,23 @@ typedef struct ImAppResPakFontHeader
 	bool		isScalable;
 } ImAppResPakFontHeader;
 
+typedef enum ImAppResPakThemeFieldBase
+{
+	ImAppResPakThemeFieldBase_UiTheme,
+	ImAppResPakThemeFieldBase_WindowTheme
+} ImAppResPakThemeFieldBase;
+
+typedef struct ImAppResPakThemeField
+{
+	uint32_t						nameHash;
+	uint16_t						type;		// ImUiToolboxThemeReflectionType
+	uint16_t						base;		// ImAppResPakThemeFieldBase
+} ImAppResPakThemeField;
+
 typedef struct ImAppResPakThemeHeader
 {
 	uint16_t						referencedCount;
-
-	ImUiColor						colors[ ImUiToolboxColor_MAX ];
-	uint16_t						skinIndices[ ImUiToolboxSkin_MAX ];
-	uint16_t						iconIndices[ ImUiToolboxIcon_MAX ];
-	uint16_t						fontIndex;
-
-	ImUiToolboxButtonConfig			button;
-	ImUiToolboxCheckBoxConfig		checkBox;
-	ImUiToolboxSliderConfig			slider;
-	ImUiToolboxTextEditConfig		textEdit;
-	ImUiToolboxProgressBarConfig	progressBar;
-	ImUiToolboxScrollAreaConfig		scrollArea;
-	ImUiToolboxListConfig			list;
-	ImUiToolboxDropDownConfig		dropDown;
-	ImUiToolboxPopupConfig			popup;
+	uint16_t						themeFieldCount;
 } ImAppResPakThemeHeader;
 
 #ifdef __cplusplus

@@ -25,7 +25,7 @@ namespace imapp
 
 	ArrayView< const char* >	getResourceTypeStrings();
 	bool						parseResourceType( ResourceType& type, const StringView& string );
-	StringView					getResourceTypeString( ResourceType type );
+	const char*					getResourceTypeString( ResourceType type );
 
 	class Resource
 	{

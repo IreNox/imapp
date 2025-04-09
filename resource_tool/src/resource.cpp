@@ -39,9 +39,9 @@ namespace imapp
 		return false;
 	}
 
-	StringView getResourceTypeString( ResourceType type )
+	const char* getResourceTypeString( ResourceType type )
 	{
-		return (StringView)s_resourceTypeStrings[ (size_t)type ];
+		return s_resourceTypeStrings[ (size_t)type ];
 	}
 
 	Resource::Resource()
@@ -186,7 +186,7 @@ namespace imapp
 			return;
 		}
 
-		const ImUiHash newFileHash = ImUiHashCreate( m_fileData.getData(), m_fileData.getLength(), 0u );
+		const ImUiHash newFileHash = ImUiHashCreate( m_fileData.getData(), m_fileData.getLength() );
 		if( newFileHash == m_fileHash )
 		{
 			return;

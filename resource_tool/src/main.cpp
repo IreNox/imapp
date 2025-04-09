@@ -14,8 +14,10 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	parameters->windowClearColor	= ImUiColorCreate( 0xf7, 0xf7, 0xf7, 0xff );
 
 	parameters->defaultResPakName		= "resource_tool_pak";
-	parameters->defaultResPakData.data	= ImAppResPakResource_Tool;
-	parameters->defaultResPakData.size	= sizeof( ImAppResPakResource_Tool );
+	//parameters->defaultResPakData.data	= ImAppResPakResource_Tool;
+	//parameters->defaultResPakData.size	= sizeof( ImAppResPakResource_Tool );
+	parameters->defaultThemeName		= "config";
+	parameters->useWindowStyle			= false;
 
 	imapp::ResourceTool* context = new imapp::ResourceTool();
 
@@ -34,15 +36,15 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	return context;
 }
 
-void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface )
+void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
 {
 	imapp::ResourceTool* context = (imapp::ResourceTool*)programContext;
 
-	ImAppResPak* respak = ImAppResourceGetDefaultPak( imapp );
-	ImAppResPakActivateTheme( respak, "config" );
+	//ImAppResPak* respak = ImAppResourceGetDefaultPak( imapp );
+	//ImAppResPakActivateTheme( imapp, respak, "config", false );
 
-	imui::UiSurface surfaceClass( surface );
-	context->doUi( imapp, surfaceClass );
+	imui::toolbox::UiToolboxWindow uiWindowClass( uiWindow );
+	context->doUi( imapp, appWindow, uiWindowClass );
 }
 
 void ImAppProgramShutdown( ImAppContext* imapp, void* programContext )

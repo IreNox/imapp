@@ -24,7 +24,7 @@ struct ImAppImage
 ImAppResSys*	ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
 void			ImAppResSysDestroy( ImAppResSys* ressys );
 
-void			ImAppResSysUpdate( ImAppResSys* ressys );
+void			ImAppResSysUpdate( ImAppResSys* ressys, bool wait );
 bool			ImAppResSysRecreateEverything( ImAppResSys* ressys );
 
 ImAppResPak*	ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
