@@ -175,7 +175,7 @@ static void ImAppTickWindow( ImAppWindow* appWindow, void* arg )
 
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)width, (float)height );
-		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, "default", size, ImAppPlatformWindowGetDpiScale( appWindow ) );
+		ImUiSurface* surface	= ImUiSurfaceBeginReuse( imapp->frame, "default", size, ImAppPlatformWindowGetDpiScale( appWindow ), true );
 
 		ImUiRect windowRect;
 		if( !imapp->isFullscrene && imapp->useWindowStyle )

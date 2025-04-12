@@ -94,6 +94,7 @@ struct ImAppWindow
 
 	int					titleHeight;
 	int					titleButtonsX;
+	LRESULT				windowHitResult;
 
 	ImAppEventQueue		eventQueue;
 
@@ -965,6 +966,15 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			}
 			return 0;
 
+		case WM_ENTERSIZEMOVE:
+			window->isResize = true;
+			return 0;
+
+		case WM_EXITSIZEMOVE:
+			window->isResize = false;
+			window->updateCallback( window, window->updateCallbackArg );
+			return 0;
+
 		case WM_SIZE:
 			{
 				switch( wParam )
@@ -993,15 +1003,6 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					window->updateCallback( window, window->updateCallbackArg );
 				}
 			}
-			return 0;
-
-		case WM_ENTERSIZEMOVE:
-			window->isResize = true;
-			return 0;
-
-		case WM_EXITSIZEMOVE:
-			window->isResize = false;
-			window->updateCallback( window, window->updateCallbackArg );
 			return 0;
 
 		case WM_SETCURSOR:
@@ -1275,8 +1276,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		case WM_NCHITTEST:
 			if( window->style == ImAppWindowStyle_Custom )
 			{
-				LRESULT hit = DefWindowProc( window->hwnd, message, wParam, lParam );
-				switch( hit )
+				window->windowHitResult = DefWindowProc( window->hwnd, message, wParam, lParam );
+				switch( window->windowHitResult )
 				{
 				case HTNOWHERE:
 				case HTRIGHT:
@@ -1287,7 +1288,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				case HTBOTTOMRIGHT:
 				case HTBOTTOM:
 				case HTBOTTOMLEFT:
-					return hit;
+					return window->windowHitResult;
 				}
 
 				const UINT dpi = GetDpiForWindow( window->hwnd );
@@ -1301,15 +1302,18 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 				if( mousePos.y > 0 && mousePos.y < frame_y + padding )
 				{
+					window->windowHitResult = HTTOP;
 					return HTTOP;
 				}
 
 				if( mousePos.y < window->titleHeight &&
 					mousePos.x < window->titleButtonsX )
 				{
+					window->windowHitResult = HTCAPTION;
 					return HTCAPTION;
 				}
 
+				window->windowHitResult = HTCLIENT;
 				return HTCLIENT;
 			}
 			break;
@@ -1337,7 +1341,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				mousePos.y = GET_Y_LPARAM( lParam );
 				ScreenToClient( window->hwnd, &mousePos );
 
-				if( mousePos.x > window->titleButtonsX )
+				if( window->windowHitResult == HTCLIENT )
 				{
 					const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = mousePos.x, .y = mousePos.y } };
 					ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
@@ -1355,7 +1359,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				mousePos.y = GET_Y_LPARAM( lParam );
 				ScreenToClient( window->hwnd, &mousePos );
 
-				if( mousePos.x > window->titleButtonsX )
+				if( window->windowHitResult == HTCLIENT )
 				{
 					const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = mousePos.x, .y = mousePos.y } };
 					ImAppEventQueuePush( &window->eventQueue, &buttonEvent );

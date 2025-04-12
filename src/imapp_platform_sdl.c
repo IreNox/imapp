@@ -80,7 +80,7 @@ struct ImAppThread
 	SDL_atomic_t	isRunning;
 };
 
-static int SDLCALL	ImAppPlatformThreadEntry( void* voidThread );
+static int SDLCALL ImAppPlatformThreadEntry( void* voidThread );
 
 static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
 {
@@ -96,7 +96,7 @@ static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
 	SDL_SYSTEM_CURSOR_SIZENS,
 	SDL_SYSTEM_CURSOR_SIZEALL
 };
-static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
+static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors");
 
 int main( int argc, char* argv[] )
 {
@@ -665,7 +665,6 @@ ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
 	return window->uiFunc;
 }
 
-
 bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
 	if( !window->firstNewDrop )
@@ -807,7 +806,7 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	if( length == (uintsize)-1 )
 	{
 		SDL_RWops* rwops = (SDL_RWops*)file;
-		length = rwops->size( rwops ) - offset;
+		length = (uintsize)rwops->size( rwops ) - offset;
 	}
 
 	void* memory = ImUiMemoryAlloc( platform->allocator, length );
