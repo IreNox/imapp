@@ -104,7 +104,7 @@ void ImAppWindowThemeSet( const ImAppWindowTheme* windowTheme )
 
 void ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme )
 {
-	const ImUiSkin skin = { NULL };
+	const ImUiSkin skin = { IMUI_TEXTURE_HANDLE_INVALID };
 
 	const ImUiColor brightColor					= ImUiColorCreateGray( 192u );
 	const ImUiColor mediumColor					= ImUiColorCreateGray( 128u );
@@ -117,7 +117,7 @@ void ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme )
 	windowTheme->titleInactive.textColor		= ImUiColorCreateBlack();
 	windowTheme->titleInactive.backgroundColor	= mediumColor;
 
-	const ImUiImage image = { NULL };
+	const ImUiImage image = { IMUI_TEXTURE_HANDLE_INVALID };
 
 	ImAppWindowThemeTitleButton* buttons[] = {
 		&windowTheme->titleMinimizeButton,
@@ -178,7 +178,7 @@ bool ImAppWindowThemeTitleButtonUi( ImUiWindow* window, const ImAppWindowThemeTi
 
 	ImUiWidgetDrawSkin( button, &buttonTheme->skin, backgroundColor );
 
-	if( buttonTheme->icon.textureData )
+	if( buttonTheme->icon.textureHandle )
 	{
 		ImUiWidget* buttonIcon = ImUiWidgetBegin( window );
 		ImUiWidgetSetAlign( buttonIcon, 0.5f, 0.5f );

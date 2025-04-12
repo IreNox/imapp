@@ -288,7 +288,7 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 			parameters.codepoints			= (const ImUiFontCodepoint*)resEvent->result.loadRes.data.data;
 			parameters.codepointCount		= header->codepointCount;
 			parameters.fontSize				= header->fontSize;
-			parameters.image.textureData	= fontData->textureRes->data.texture.texture;
+			parameters.image.textureHandle	= (uint64_t)fontData->textureRes->data.texture.texture;
 			parameters.image.width			= fontData->textureRes->data.texture.width;
 			parameters.image.height			= fontData->textureRes->data.texture.height;
 			parameters.image.uv.u0			= 0.0f;
@@ -333,13 +333,13 @@ static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent
 	}
 
 	const ImAppResEventResultImageData* result = &resEvent->result.image;
-	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
-	image->data.width		= result->width;
-	image->data.height		= result->height;
-	image->data.uv.u0		= 0.0f;
-	image->data.uv.v0		= 0.0f;
-	image->data.uv.u1		= 1.0f;
-	image->data.uv.v1		= 1.0f;
+	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
+	image->data.width			= result->width;
+	image->data.height			= result->height;
+	image->data.uv.u0			= 0.0f;
+	image->data.uv.v0			= 0.0f;
+	image->data.uv.u1			= 1.0f;
+	image->data.uv.v1			= 1.0f;
 
 	ImUiMemoryFree( ressys->allocator, result->data.data );
 
@@ -422,7 +422,7 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 			const ImAppResPakImageHeader* header = (const ImAppResPakImageHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
 
-			imageData->image.textureData	= imageData->textureRes->data.texture.texture;
+			imageData->image.textureHandle	= (uint64_t)imageData->textureRes->data.texture.texture;
 			imageData->image.width			= header->width;
 			imageData->image.height			= header->height;
 			imageData->image.uv.u0			= (float)header->x / imageData->textureRes->data.texture.width;
@@ -461,14 +461,14 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 				const ImAppResPakSkinHeader* header = (const ImAppResPakSkinHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
 
-				skinData->skin.textureData	= skinData->textureRes->data.texture.texture;
-				skinData->skin.width		= header->width;
-				skinData->skin.height		= header->height;
-				skinData->skin.uv.u0		= (float)header->x / skinData->textureRes->data.texture.width;
-				skinData->skin.uv.v0		= (float)header->y / skinData->textureRes->data.texture.height;
-				skinData->skin.uv.u1		= (float)(header->x + header->width) / skinData->textureRes->data.texture.width;
-				skinData->skin.uv.v1		= (float)(header->y + header->height) / skinData->textureRes->data.texture.height;
-				skinData->skin.border		= ImUiBorderCreate( header->top, header->left, header->bottom, header->right );
+				skinData->skin.textureHandle	= (uint64_t)skinData->textureRes->data.texture.texture;
+				skinData->skin.width			= header->width;
+				skinData->skin.height			= header->height;
+				skinData->skin.uv.u0			= (float)header->x / skinData->textureRes->data.texture.width;
+				skinData->skin.uv.v0			= (float)header->y / skinData->textureRes->data.texture.height;
+				skinData->skin.uv.u1			= (float)(header->x + header->width) / skinData->textureRes->data.texture.width;
+				skinData->skin.uv.v1			= (float)(header->y + header->height) / skinData->textureRes->data.texture.height;
+				skinData->skin.border			= ImUiBorderCreate( header->top, header->left, header->bottom, header->right );
 			}
 		}
 		break;
@@ -1036,17 +1036,17 @@ ImAppBlob ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex )
 ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW( ressys->allocator, ImAppImage );
-	image->resourceName		= ImUiStringViewCreateEmpty();
-	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
-	image->data.width		= width;
-	image->data.height		= height;
-	image->data.uv.u0		= 0.0f;
-	image->data.uv.v0		= 0.0f;
-	image->data.uv.u1		= 1.0f;
-	image->data.uv.v1		= 1.0f;
-	image->state			= ImAppResState_Ready;
+	image->resourceName			= ImUiStringViewCreateEmpty();
+	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
+	image->data.width			= width;
+	image->data.height			= height;
+	image->data.uv.u0			= 0.0f;
+	image->data.uv.v0			= 0.0f;
+	image->data.uv.u1			= 1.0f;
+	image->data.uv.v1			= 1.0f;
+	image->state				= ImAppResState_Ready;
 
-	if( !image->data.textureData )
+	if( image->data.textureHandle == IMUI_TEXTURE_HANDLE_INVALID )
 	{
 		ImUiMemoryFree( ressys->allocator, image );
 		return NULL;
@@ -1131,9 +1131,9 @@ ImAppResState ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
 
 void ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image )
 {
-	if( image->data.textureData )
+	if( image->data.textureHandle != IMUI_TEXTURE_HANDLE_INVALID )
 	{
-		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->data.textureData );
+		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->data.textureHandle );
 	}
 
 	ImUiMemoryFree( ressys->allocator, image );
@@ -1192,13 +1192,13 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	}
 
 	ImUiImage uiImage;
-	uiImage.textureData	= *texture;
-	uiImage.width		= width;
-	uiImage.height		= height;
-	uiImage.uv.u0		= 0.0f;
-	uiImage.uv.v0		= 0.0f;
-	uiImage.uv.u1		= 1.0f;
-	uiImage.uv.v1		= 1.0f;
+	uiImage.textureHandle	= (uint64_t)*texture;
+	uiImage.width			= width;
+	uiImage.height			= height;
+	uiImage.uv.u0			= 0.0f;
+	uiImage.uv.v0			= 0.0f;
+	uiImage.uv.u1			= 1.0f;
+	uiImage.uv.v1			= 1.0f;
 
 	ImUiFont* font = ImUiFontCreateTrueType( ressys->imui, ttfImage, uiImage );
 
