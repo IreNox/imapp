@@ -5,8 +5,8 @@
             <value name="Text/Color" color="000"/>
             <value name="Text/Font" fontName="font_dos"/>
             <value name="Button/Color" color="fff"/>
-            <value name="Button/Hover Color" color="ccc"/>
-            <value name="Button/Clicked Color" color="aaa"/>
+            <value name="Button/Hover Color" color="eee"/>
+            <value name="Button/Clicked Color" color="eee"/>
             <value name="Button/Text Color" color="000"/>
             <value name="Button/Skin" skinName="skin_skin_gray_up"/>
             <value name="Button/Height" value="25"/>
@@ -150,6 +150,21 @@
             <value name="Body/Inactive/Color" color="fff"/>
             <value name="Slider/Pivot Hover Color" color="00a"/>
             <value name="Slider/Pivot Clicked Color" color="00f"/>
+            <value name="Tab View/Head Background Color" color="fff"/>
+            <value name="Tab View/Header Active Color" color="fff"/>
+            <value name="Tab View/Header Inactive Color" color="fff"/>
+            <value name="Tab View/Body Background Color" color="fff"/>
+            <value name="Tab View/Head Skin" skinName="skin_skin_tab_header"/>
+            <value name="Tab View/Header Active Skin" skinName="skin_skin_tab_header"/>
+            <value name="Tab View/Header Inactive Skin" skinName="skin_skin_tab_header_inactive"/>
+            <value name="Tab View/Body Skin" skinName="skin_skin_gray_up"/>
+            <value name="Tab View/Header Spacing" value="6"/>
+            <value name="Tab View/Header Padding" top="6" left="10" right="10" bottom="6"/>
+            <value name="Tab View/Body Padding" top="8" left="8" right="8" bottom="8"/>
+            <value name="Tab View/Header Cut Extend Left" value="2"/>
+            <value name="Tab View/Header Cut Extend Right" value="2"/>
+            <value name="Button/Hover Skin" skinName="skin_skin_gray_up"/>
+            <value name="Button/Clicked Skin" skinName="skin_skin_gray_down"/>
         </resource>
         <resource name="font_dos" type="Font" path="font/perfect_dos_vga_437.ttf" size="15.978845" scalable="false">
             <block name="Basic Latin" first="0" last="127"/>
@@ -173,5 +188,11 @@
         <resource name="skin_skin_window_body" type="Skin" image_name="skin_window_body" top="0" left="6" bottom="4" right="4"/>
         <resource name="skin_window_title_inactive" type="Image" path="skins/skin_window_title_inactive.png" allow_atlas="true" repeat="false"/>
         <resource name="skin_skin_window_title_inactive" type="Skin" image_name="skin_window_title_inactive" top="4" left="4" bottom="0" right="6"/>
+        <resource name="skin_tab_header" type="Image" path="skins/skin_tab_header.png" allow_atlas="true" repeat="false"/>
+        <resource name="skin_skin_tab_header" type="Skin" image_name="skin_tab_header" top="4" left="6" bottom="0" right="6"/>
+        <resource name="skin_tab_body" type="Image" path="skins/skin_tab_body.png" allow_atlas="true" repeat="false"/>
+        <resource name="skin_skin_tab_body" type="Skin" image_name="skin_tab_body" top="0" left="5" bottom="4" right="6"/>
+        <resource name="skin_tab_header_inactive" type="Image" path="skins/skin_tab_header_inactive.png" allow_atlas="true" repeat="false"/>
+        <resource name="skin_skin_tab_header_inactive" type="Skin" image_name="skin_tab_header_inactive" top="4" left="5" bottom="0" right="6"/>
     </resources>
 </res_pak>
