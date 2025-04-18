@@ -72,6 +72,7 @@ static const ImUiToolboxThemeReflectionField s_windowThemeReflectionFields[] =
 
 	{ "Title/Padding",										ImUiToolboxThemeReflectionType_Border,	offsetof( ImAppWindowTheme, titlePadding ) },
 	{ "Title/Height",										ImUiToolboxThemeReflectionType_Float,	offsetof( ImAppWindowTheme, titleHeight ) },
+	{ "Title/Spacing",										ImUiToolboxThemeReflectionType_Float,	offsetof( ImAppWindowTheme, titleSpacing ) },
 
 	{ "Body/Active/Skin",									ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, bodyActive.skin ) },
 	{ "Body/Active/Color",									ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, bodyActive.color ) },
@@ -81,7 +82,7 @@ static const ImUiToolboxThemeReflectionField s_windowThemeReflectionFields[] =
 
 	{ "Body/Padding",										ImUiToolboxThemeReflectionType_Border,	offsetof( ImAppWindowTheme, bodyPadding ) },
 };
-static_assert(sizeof( ImAppWindowTheme ) == 776u, "window theme changed");
+static_assert( sizeof( ImAppWindowTheme ) == 776u, "window theme changed" );
 
 ImUiToolboxThemeReflection ImAppWindowThemeReflectionGet()
 {
@@ -146,6 +147,7 @@ void ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme )
 
 	windowTheme->titlePadding									= ImUiBorderCreate( 0.0f, 5.0f, 0.0f, 0.0f );
 	windowTheme->titleHeight									= 30.0f;
+	windowTheme->titleSpacing									= 4.0f;
 
 	windowTheme->bodyActive.skin								= skin;
 	windowTheme->bodyActive.color								= ImUiColorCreateWhite();
@@ -217,14 +219,14 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 	{
 		ImUiWidget* title = ImUiWidgetBegin( window );
 		ImUiWidgetSetHStretch( title, 1.0f );
-		ImUiWidgetSetLayoutHorizontal( title );
+		ImUiWidgetSetLayoutHorizontalSpacing( title, s_windowTheme.titleSpacing );
 		ImUiWidgetSetFixedHeight( title, s_windowTheme.titleHeight );
 		ImUiWidgetSetPadding( title, s_windowTheme.titlePadding );
 
 		const ImAppWindowThemeTitle* titleTheme = hasFocus ? &s_windowTheme.titleActive : &s_windowTheme.titleInactive;
 		ImUiWidgetDrawSkin( title, &titleTheme->skin, titleTheme->backgroundColor );
 
-		ImAppWindowThemeState* state = (ImAppWindowThemeState*)ImUiWidgetAllocState( title, sizeof( ImAppWindowThemeState ), 0u );
+		//ImAppWindowThemeState* state = (ImAppWindowThemeState*)ImUiWidgetAllocState( title, sizeof( ImAppWindowThemeState ), 0u );
 
 		ImUiWidgetInputState inputState;
 		ImUiWidgetGetInputState( title, &inputState );
