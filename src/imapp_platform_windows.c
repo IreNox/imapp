@@ -147,7 +147,7 @@ static const LPTSTR s_windowsSystemCursorMapping[] =
 	IDC_APPSTARTING,
 	IDC_IBEAM,
 	IDC_CROSS,
-	IDC_UPARROW,
+	IDC_HAND,
 	IDC_SIZENWSE,
 	IDC_SIZENESW,
 	IDC_SIZEWE,
