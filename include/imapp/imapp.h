@@ -146,6 +146,7 @@ typedef struct ImAppWindowTheme
 	ImAppWindowThemeTitleButton	titleCloseButton;
 	ImUiBorder					titlePadding;
 	float						titleHeight;
+	float						titleSpacing;
 
 	ImAppWindowThemeBody		bodyActive;
 	ImAppWindowThemeBody		bodyInactive;
