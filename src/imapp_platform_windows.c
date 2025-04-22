@@ -963,6 +963,11 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				window->x = (int)LOWORD( lParam );
 				window->y = (int)HIWORD( lParam );
+
+				if( window->updateCallback )
+				{
+					window->updateCallback( window, window->updateCallbackArg );
+				}
 			}
 			return 0;
 

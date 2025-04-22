@@ -207,7 +207,7 @@ Options:
 				leftLayout.setVStretch( 1.0f );
 
 				{
-					UiToolboxList list( uiWindow, 22.0f, m_package.getResourceCount() + 1u );
+					UiToolboxList list( uiWindow, 22.0f, m_package.getResourceCount() + 1u, true );
 					list.setStretchOne();
 					list.setMinWidth( 150.0f );
 
@@ -262,7 +262,7 @@ Options:
 
 		if( m_compiler.getOutput().getMessages().hasElements() )
 		{
-			UiToolboxList outputList( uiWindow, 25.0f, m_compiler.getOutput().getMessages().getLength() );
+			UiToolboxList outputList( uiWindow, 25.0f, m_compiler.getOutput().getMessages().getLength(), false );
 			outputList.setHStretch( 1.0f );
 			outputList.setFixedHeight( 150.0f );
 

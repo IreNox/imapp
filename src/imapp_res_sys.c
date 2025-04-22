@@ -1428,7 +1428,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
@@ -1441,7 +1441,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to get data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
