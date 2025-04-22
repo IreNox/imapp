@@ -151,7 +151,7 @@
             <value name="Slider/Pivot Hover Color" color="00a"/>
             <value name="Slider/Pivot Clicked Color" color="00f"/>
         </resource>
-        <resource name="font_dos" type="Font" path="font/perfect_dos_vga_437.ttf" size="15.978845" scalable="false">
+        <resource name="font_dos" type="Font" path="font/perfect_dos_vga_437.ttf" size="15.978845" scalable="true">
             <block name="Basic Latin" first="0" last="127"/>
             <block name="Latin-1 Supplement" first="128" last="255"/>
             <block name="Latin Extended-A" first="256" last="383"/>

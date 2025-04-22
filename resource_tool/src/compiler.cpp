@@ -263,7 +263,7 @@ namespace imapp
 
 		atlasData.name				= "atlas";
 		atlasData.type				= ResourceType::Image;
-		atlasData.image.width			= (uint16)width;
+		atlasData.image.width		= (uint16)width;
 		atlasData.image.height		= (uint16)height;
 		atlasData.image.allowAtlas	= false;
 
@@ -407,8 +407,8 @@ namespace imapp
 					{
 						const CompilerFontData& fontData = *compiledResource.fontData;
 
-						textureHeader.format	= data.font.isScalable ? ImAppResPakTextureFormat_RGB8 : ImAppResPakTextureFormat_A8;
-						textureHeader.flags		= ImAppResPakTextureFlags_Font;
+						textureHeader.format	= data.font.isScalable ? ImAppResPakTextureFormat_RGBA8 : ImAppResPakTextureFormat_A8;
+						textureHeader.flags		= data.font.isScalable ? ImAppResPakTextureFlags_FontSdf : ImAppResPakTextureFlags_Font;
 						textureHeader.width		= fontData.width;
 						textureHeader.height	= fontData.height;
 					}
