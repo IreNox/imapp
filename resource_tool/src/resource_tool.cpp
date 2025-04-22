@@ -829,7 +829,7 @@ Options:
 			if( previewSkin )
 			{
 				ImUiSkin skin;
-				skin.textureData	= image.textureData;
+				skin.textureHandle	= image.textureHandle;
 				skin.width			= image.width;
 				skin.height			= image.height;
 				skin.border			= skinBorder;
@@ -995,7 +995,7 @@ Options:
 							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 							ImUiSkin skin;
-							skin.textureData	= image.textureData;
+							skin.textureHandle	= image.textureHandle;
 							skin.width			= image.width;
 							skin.height			= image.height;
 							skin.border			= skinResource->getSkinBorder();

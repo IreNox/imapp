@@ -649,6 +649,7 @@ struct ImAppWindow
 {
 	ImUiAllocator*		allocator;
 	ImAppPlatform*		platform;
+    ImAppWindowDoUiFunc uiFunc;
 
 	ImAppEventQueue		eventQueue;
 
@@ -670,7 +671,7 @@ static void	ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, con
 
 static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent );
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -680,6 +681,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	window->allocator	= platform->allocator;
 	window->platform	= platform;
+    window->uiFunc      = uiFunc;
 	window->isOpen		= true;
 	window->display		= EGL_NO_DISPLAY;
 	window->surface		= EGL_NO_SURFACE;
@@ -1022,6 +1024,12 @@ ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 	return &window->eventQueue;
 }
 
+ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+{
+    return  window->uiFunc;
+}
+
+
 bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
 	return false;
@@ -1035,10 +1043,20 @@ void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* pX, int* pY
 	*pHeight	= window->platform->viewHeight;
 }
 
+bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
+{
+    return true;
+}
+
 void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* pWidth, int* pHeight )
 {
 	*pWidth		= window->width;
 	*pHeight	= window->height;
+}
+
+void ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+{
+    // not supported
 }
 
 void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* pX, int* pY )
@@ -1047,14 +1065,44 @@ void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* pX, int* pY
 	*pY			= window->platform->viewTop;
 }
 
+void ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+{
+    // not supported
+}
+
 ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* window )
 {
 	return ImAppWindowState_Maximized;
 }
 
+void ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+{
+    // not supported
+}
+
+const char* ImAppPlatformWindowGetTitle( const ImAppWindow* window )
+{
+    return NULL;
+}
+
+void ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+{
+    // not supported
+}
+
+void ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+{
+    // not supported
+}
+
 float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
 	return window->platform->dpiScale;
+}
+
+void ImAppPlatformWindowClose( ImAppWindow* window )
+{
+    // not supported
 }
 
 //////////////////////////////////////////////////////////////////////////

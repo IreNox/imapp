@@ -8,12 +8,14 @@ include_directories("${CMAKE_CURRENT_LIST_DIR}/include"
 add_compile_definitions("SPNG_USE_MINIZ")
 add_compile_definitions("SPNG_STATIC")
 
-file(GLOB ImAppSrcFiles "${CMAKE_CURRENT_LIST_DIR}/src/*.h"
+file(GLOB ImAppCFiles	"${CMAKE_CURRENT_LIST_DIR}/include/imapp/*.h"
+						"${CMAKE_CURRENT_LIST_DIR}/src/*.h"
 						"${CMAKE_CURRENT_LIST_DIR}/src/*.c"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/imui/src/*.h"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/imui/src/*.c"
-						"${CMAKE_CURRENT_LIST_DIR}/submodules/imui/src/*.cpp"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/libspng/spng/*.h"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/libspng/spng/*.c"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/miniz/*.h"
 						"${CMAKE_CURRENT_LIST_DIR}/submodules/miniz/*.c")
+
+file(GLOB ImAppCppFiles "${CMAKE_CURRENT_LIST_DIR}/submodules/imui/src/*.cpp")

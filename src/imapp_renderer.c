@@ -515,7 +515,7 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	{
 		const ImUiDrawCommand* command = &drawData->commands[ i ];
 
-		ImAppRendererTexture* texture = (ImAppRendererTexture*)command->texture;
+		ImAppRendererTexture* texture = (ImAppRendererTexture*)command->textureHandle;
 		if( texture == NULL )
 		{
 			alphaBlend		= true;
