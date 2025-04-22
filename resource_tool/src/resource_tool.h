@@ -111,7 +111,8 @@ namespace imapp
 		DynamicString		m_errorMessage;
 		NotificationFlags	m_notifications;
 
-		size_t				m_selecedEntry			= (size_t)-1;
+		size_t				m_selecedEntry			= 0;
+		bool				m_overrideSelectedEntry	= true;
 
 		TypeNameArray		m_resourceNamesByType;
 

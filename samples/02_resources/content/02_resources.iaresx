@@ -165,12 +165,14 @@
             <value name="Tab View/Header Cut Extend Right" value="2"/>
             <value name="Button/Hover Skin" skinName="skin_skin_gray_up"/>
             <value name="Button/Clicked Skin" skinName="skin_skin_gray_down"/>
+            <value name="Title/Spacing" value="4"/>
         </resource>
         <resource name="font_dos" type="Font" path="font/perfect_dos_vga_437.ttf" size="15.978845" scalable="false">
             <block name="Basic Latin" first="0" last="127"/>
             <block name="Latin-1 Supplement" first="128" last="255"/>
             <block name="Latin Extended-A" first="256" last="383"/>
             <block name="Latin Extended-B" first="384" last="591"/>
+            <block name="Specials" first="65520" last="65535"/>
         </resource>
         <resource name="icon_arrow_up" type="Image" path="icons/icon_arrow_up.png" allow_atlas="true" repeat="false"/>
         <resource name="icon_arrow_down" type="Image" path="icons/icon_arrow_down.png" allow_atlas="true" repeat="false"/>

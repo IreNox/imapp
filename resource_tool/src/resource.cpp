@@ -3,6 +3,8 @@
 #include <tiki/tiki_path.h>
 
 #include <spng/spng.h>
+#include <tinyxml2.h>
+
 
 namespace imapp
 {
@@ -61,6 +63,12 @@ namespace imapp
 			ImAppImageFree( m_imapp, m_image );
 			m_image = nullptr;
 		}
+
+		if( m_theme )
+		{
+			delete m_theme;
+			m_theme = nullptr;
+		}
 	}
 
 	bool Resource::load( XMLElement* resourceNode )
@@ -99,7 +107,8 @@ namespace imapp
 			return loadFontXml();
 
 		case ResourceType::Theme:
-			return m_theme.load( m_xml );
+			m_theme = new ResourceTheme();
+			return m_theme->load( m_xml );
 		}
 
 		return false;
@@ -131,7 +140,7 @@ namespace imapp
 			break;
 
 		case ResourceType::Theme:
-			m_theme.serialize( m_xml );
+			m_theme->serialize( m_xml );
 			break;
 		}
 	}

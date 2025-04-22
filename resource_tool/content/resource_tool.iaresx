@@ -150,6 +150,24 @@
             <value name="Body/Active/Color" color="fff"/>
             <value name="Body/Inactive/Skin" skinName=""/>
             <value name="Body/Inactive/Color" color="c0c0c0"/>
+            <value name="Button/Hover Skin" skinName="skin_skin_solid_small"/>
+            <value name="Button/Clicked Skin" skinName="skin_skin_solid_small"/>
+            <value name="Slider/Pivot Hover Color" color="e5e5e5"/>
+            <value name="Slider/Pivot Clicked Color" color="666"/>
+            <value name="Tab View/Head Background Color" color="4c4c4c"/>
+            <value name="Tab View/Header Active Color" color="b2b2b2"/>
+            <value name="Tab View/Header Inactive Color" color="666"/>
+            <value name="Tab View/Body Background Color" color="4c4c4c"/>
+            <value name="Tab View/Head Skin" skinName=""/>
+            <value name="Tab View/Header Active Skin" skinName=""/>
+            <value name="Tab View/Header Inactive Skin" skinName=""/>
+            <value name="Tab View/Body Skin" skinName=""/>
+            <value name="Tab View/Header Spacing" value="4"/>
+            <value name="Tab View/Header Cut Extend Left" value="0"/>
+            <value name="Tab View/Header Cut Extend Right" value="0"/>
+            <value name="Tab View/Header Padding" top="8" left="8" right="8" bottom="8"/>
+            <value name="Tab View/Body Padding" top="8" left="8" right="8" bottom="8"/>
+            <value name="Title/Spacing" value="4"/>
         </resource>
         <resource name="font_arial" type="Font" path="arial.ttf" size="16" scalable="false">
             <block name="Basic Latin" first="0" last="127"/>

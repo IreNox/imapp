@@ -207,11 +207,15 @@ Options:
 				leftLayout.setVStretch( 1.0f );
 
 				{
-					UiToolboxList list( uiWindow, 22.0f, m_package.getResourceCount() + 1u );
+					UiToolboxList list( uiWindow, 22.0f, m_package.getResourceCount() + 1u, true );
 					list.setStretchOne();
-					list.setMinWidth( 150.0f );
+					list.setMinWidth( 200.0f );
 
-					list.setSelectedIndex( m_selecedEntry );
+					if( m_overrideSelectedEntry )
+					{
+						list.setSelectedIndex( m_selecedEntry );
+						m_overrideSelectedEntry = false;
+					}
 
 					uintsize startIndex = list.getBeginIndex();
 					if( startIndex == 0u )
@@ -262,7 +266,7 @@ Options:
 
 		if( m_compiler.getOutput().getMessages().hasElements() )
 		{
-			UiToolboxList outputList( uiWindow, 25.0f, m_compiler.getOutput().getMessages().getLength() );
+			UiToolboxList outputList( uiWindow, 25.0f, m_compiler.getOutput().getMessages().getLength(), false );
 			outputList.setHStretch( 1.0f );
 			outputList.setFixedHeight( 150.0f );
 
@@ -424,6 +428,7 @@ Options:
 			{
 				m_package.removeResource( selectedResource );
 				m_selecedEntry--;
+				m_overrideSelectedEntry = true;
 			}
 			m_popupState = PopupState::Home;
 		}
@@ -647,6 +652,7 @@ Options:
 			skinResource.setSkinImageName( resource.getName() );
 
 			m_selecedEntry = m_package.getResourceCount() - 1u;
+			m_overrideSelectedEntry = true;
 		}
 	}
 
@@ -895,18 +901,58 @@ Options:
 
 				groupWidget.beginWidget( window );
 				groupWidget.setHStretch( 1.0f );
-				groupWidget.setLayoutGrid( 2u, 4.0f, 4.0f );
+				groupWidget.setLayoutGrid( 2u, 0.0f, 4.0f );
 				groupWidget.setPadding( UiBorder( 4.0f ) );
 				groupWidget.setMargin( UiBorder( 0.0f, 20.0f * field.level, 0.0f, 0.0f ) );
 
 				groupWidget.drawSkin( UiToolboxTheme::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxTheme::getColor( ImUiToolboxColor_Button ) );
 
-				if( !window.checkBoxState( field.name, true ) )
+				bool isHover = false;
+				bool wasClicked = false;
+				ImUiWidgetInputState inputState;
+				{
+					UiWidget title( window );
+					title.setLayoutHorizontal( 4.0f );
+					title.setFixedWidth( state->maxWidth );
+
+					{
+						UiWidget icon( window );
+						const ImUiImage iconImage = ImUiToolboxThemeGet()->icons[ field.open ? ImUiToolboxIcon_DropDownClose : ImUiToolboxIcon_DropDownOpen ];
+						icon.setFixedSize( ImUiSizeCreateImage( &iconImage ) );
+						icon.setHAlign( 1.0f );
+						icon.setVAlign( 0.5f );
+
+						icon.drawImage( iconImage, ImUiToolboxThemeGet()->colors[ ImUiToolboxColor_Text ] );
+					}
+
+					window.label( field.name );
+
+					title.getInputState( inputState );
+					isHover = inputState.isMouseOver;
+					wasClicked = inputState.wasPressed && inputState.hasMouseReleased;
+				}
+
+				UiWidget strecher( window );
+				strecher.setStretchOne();
+
+				strecher.getInputState( inputState );
+				isHover |= inputState.isMouseOver;
+				wasClicked |= inputState.wasPressed && inputState.hasMouseReleased;
+
+				if( isHover )
+				{
+					ImUiInputSetMouseCursor( strecher.getContext().getInternal(), ImUiInputMouseCursor_Hand );
+				}
+
+				if( wasClicked )
+				{
+					field.open = !field.open;
+				}
+
+				if( !field.open )
 				{
 					skipLevel = field.level + 1u;
 				}
-
-				window.spacer( 0.0f, 0.0f );
 
 				continue;
 			}
@@ -914,7 +960,7 @@ Options:
 			{
 				UiToolboxLabel label( window, field.name );
 
-				state->maxWidth = max( state->maxWidth, label.getMinSize().width );
+				state->maxWidth = max( state->maxWidth, label.getMinSize().width + 4.0f );
 				label.setFixedWidth( state->maxWidth );
 			}
 
@@ -1261,6 +1307,7 @@ Options:
 		resource.getFileSourcePath().assign( remainingPath );
 
 		m_selecedEntry = m_package.getResourceCount();
+		m_overrideSelectedEntry = true;
 	}
 
 	void ResourceTool::showError( const char* format, ... )

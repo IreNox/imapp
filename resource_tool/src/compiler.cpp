@@ -2,6 +2,7 @@
 
 #include "resource.h"
 #include "resource_package.h"
+#include "resource_theme.h"
 
 #include "thread.h"
 
