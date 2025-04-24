@@ -3,9 +3,11 @@
 #include "compiler_output.h"
 #include "resource.h"
 
-#include <msdfgen.h>
-#include <ext/import-font.h>
-#include <ext/save-png.h>
+#include <msdf-atlas-gen.h>
+#include <glyph-generators.h>
+
+// debug
+#include <spng/spng.h>
 
 #include <cmath>
 
@@ -235,93 +237,148 @@ namespace imapp
 			return nullptr;
 		}
 
-		uintsize codepointCount = 0u;
+		std::vector< msdf_atlas::GlyphGeometry > glyphs;
+		msdf_atlas::FontGeometry fontGeometry( &glyphs );
 		for( const ResourceFontUnicodeBlock& block : m_data.font.blocks )
 		{
-			codepointCount += (block.last - block.first) + 1u;
-		}
-
-		const uintsize columnCount		= (uintsize)ceil( sqrt( (double)codepointCount ) );
-		const uintsize rowCount			= (codepointCount + (columnCount - 1u)) / columnCount;
-		const uintsize borderCharSize	= CharSize + 2u;
-		const uintsize pixelDataWidth	= columnCount * borderCharSize;
-		const uintsize pixelDataHeight	= rowCount * borderCharSize;
-		const uintsize pixelDataSize	= pixelDataWidth * pixelDataHeight * 4u;
-
-		m_fontSdfData.pixelData.setLengthUninitialized( pixelDataSize );
-		m_fontSdfData.codepoints.reserve( codepointCount );
-		m_fontSdfData.width		= (uint32)pixelDataWidth;
-		m_fontSdfData.height	= (uint32)pixelDataHeight;
-
-		ArrayView< uint32 > targetData = m_fontSdfData.pixelData.cast< uint32 >();
-
-		double advance;
-		Shape shape;
-		uintsize codepointIndex = 0u;
-		Bitmap< float, 3 > sdfBitmap( (int)CharSize, (int)CharSize );
-		Projection projection; // (1.0, Vector2( 0.125, 0.125 ));
-		for( const ResourceFontUnicodeBlock& block : m_data.font.blocks )
-		{
+			msdf_atlas::Charset charset;
 			for( uint32 codepointValue = block.first; codepointValue <= block.last; ++codepointValue )
 			{
-				if( !loadGlyph( shape, font, codepointValue, &advance ) )
-				{
-					destroyFont( font );
-					deinitializeFreetype( ft );
-					return nullptr;
-				}
+				charset.add( codepointValue );
+			}
 
-				//shape.normalize();
-				edgeColoringSimple( shape, 3.0 );
-
-				generateMSDF( sdfBitmap, shape, projection, 0.125 );
-
-				DynamicString path = DynamicString::format( "d:\\test\\sdf_%d.bmp", codepointValue );
-				saveBmp( sdfBitmap, path.toConstCharPointer() );
-
-				const uintsize columnIndex			= codepointIndex % columnCount;
-				const uintsize rowIndex				= codepointIndex / columnCount;
-				const uintsize targetBaseOffset		= rowIndex * borderCharSize * pixelDataWidth;
-				const uintsize targetLineBaseOffset	= columnIndex * borderCharSize;
-
-				for( uintsize y = 0u; y < CharSize; ++y )
-				{
-					const uintsize targetLineOffset = targetBaseOffset + ((y + 1u) * pixelDataWidth) + targetLineBaseOffset;
-
-					const float* sourceLineData			= sdfBitmap( 0, int( (CharSize - 1u) - y ) );
-					ArrayView< uint32 > targetLineData	= targetData.getRange( targetLineOffset, borderCharSize );
-
-					convertSdfBitmapLine( targetLineData, sourceLineData, CharSize );
-				}
-
-				const uintsize targetFirstLineOffset = targetBaseOffset + targetLineBaseOffset;
-				convertSdfBitmapLine( targetData.getRange( targetFirstLineOffset, borderCharSize ), sdfBitmap( 0, CharSize - 1 ), CharSize );
-
-				const uintsize targetLastLineOffset = targetBaseOffset + (CharSize * pixelDataWidth) + targetLineBaseOffset;
-				convertSdfBitmapLine( targetData.getRange( targetLastLineOffset, borderCharSize ), sdfBitmap( 0, 0 ), CharSize );
-
-				Scanline scanline;
-				shape.scanline( scanline, 0.0 );
-
-				ImUiFontCodepoint& codepoint = m_fontSdfData.codepoints.pushBack();
-				codepoint.codepoint		= codepointValue;
-				codepoint.advance		= (float)advance;
-				codepoint.width			= CharSize;
-				codepoint.height		= CharSize;
-				codepoint.ascentOffset	= 0.0f;
-				codepoint.uv.u0			= float( targetLineBaseOffset + 1u ) / pixelDataWidth;
-				codepoint.uv.v0			= float( (rowIndex * borderCharSize) + 1u) / pixelDataWidth;
-				codepoint.uv.u1			= codepoint.uv.u0 + (CharSize / pixelDataWidth);
-				codepoint.uv.v1			= codepoint.uv.v0 + (CharSize / pixelDataWidth);
-
-				codepointIndex++;
+			const int glyphsLoaded = fontGeometry.loadCharset( font, 1.0f, charset );
+			if( glyphsLoaded != charset.size() )
+			{
+				output.pushMessage( CompilerErrorLevel::Warning, m_data.name, "Failed to load %d codepoints in block '%s'", charset.size() - glyphsLoaded, block.name.toConstCharPointer());
 			}
 		}
 
-		FILE* f = fopen( "d:\\test\\raw.rgb", "wb" );
+		msdf_atlas::TightAtlasPacker atlasPacker;
+		//if( fixedDimensions )
+		//	atlasPacker.setDimensions( fixedWidth, fixedHeight );
+		//else
+		atlasPacker.setDimensionsConstraint( msdf_atlas::DimensionsConstraint::MULTIPLE_OF_FOUR_SQUARE );
+
+		//if( fixedScale )
+		//	atlasPacker.setScale( config.emSize );
+		//else
+		atlasPacker.setMinimumScale( m_data.font.size ); // 32.0 );
+
+		atlasPacker.setPixelRange( msdfgen::Range( -1.0, 1.0 ) );
+		//atlasPacker.setUnitRange( emRange );
+		atlasPacker.setMiterLimit( 1.0 );
+		atlasPacker.setOriginPixelAlignment( false, true );
+
+		if( int remaining = atlasPacker.pack( glyphs.data(), (int)glyphs.size() ) )
+		{
+			if( remaining < 0 )
+			{
+				output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Failed to pack glyphs into atlas." );
+				destroyFont( font );
+				deinitializeFreetype( ft );
+				return nullptr;
+			}
+			else
+			{
+				output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Could not fit %d out of %d glyphs into the atlas.\n", remaining, (int)glyphs.size() );
+				destroyFont( font );
+				deinitializeFreetype( ft );
+				return nullptr;
+			}
+		}
+
+		int width;
+		int height;
+		atlasPacker.getDimensions( width, height );
+		if( width == 0 || height == 0 )
+		{
+			output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Unable to determine atlas size." );
+			destroyFont( font );
+			deinitializeFreetype( ft );
+			return nullptr;
+		}
+
+		const double emSize = m_data.font.size; // atlasPacker.getScale();
+		const msdfgen::Range pxRange = atlasPacker.getPixelRange();
+		//if( !fixedScale )
+		//	printf( "Glyph size: %.9g pixels/em\n", config.emSize );
+		//if( !fixedDimensions )
+		//	printf( "Atlas dimensions: %d x %d\n", config.width, config.height );
+
+		unsigned long long glyphSeed = 0;
+		for( msdf_atlas::GlyphGeometry& glyph : glyphs )
+		{
+			glyphSeed *= 6364136223846793005ull;
+			glyph.edgeColoring( msdfgen::edgeColoringInkTrap, 3.0, glyphSeed );
+		}
+
+		msdf_atlas::GeneratorAttributes generatorAttributes;
+		generatorAttributes.config.overlapSupport = false;
+
+		msdf_atlas::ImmediateAtlasGenerator< float, 4, msdf_atlas::mtsdfGenerator, msdf_atlas::BitmapAtlasStorage< byte,  4 > > generator( width, height );
+		generator.setAttributes( generatorAttributes );
+		generator.setThreadCount( 31 ); //config.threadCount );
+		generator.generate( glyphs.data(), (int)glyphs.size() );
+
+		const msdfgen::BitmapConstRef< byte,  4 > bitmap = (msdfgen::BitmapConstRef< byte, 4 >) generator.atlasStorage();
+
+		m_fontSdfData.width		= (uint32)width;
+		m_fontSdfData.height	= (uint32)height;
+
+		const uintsize pixelDataWidth	= width * 4u;
+		const uintsize pixelDataSize	= pixelDataWidth * height;
+
+		m_fontSdfData.pixelData.assign( bitmap.pixels, pixelDataSize );
+
+		const msdfgen::FontMetrics& fontMetrics = fontGeometry.getMetrics();
+
+		m_fontSdfData.codepoints.reserve( glyphs.size() );
+		for( const msdf_atlas::GlyphGeometry& glyph : glyphs )
+		{
+			ImUiFontCodepoint& codepoint = m_fontSdfData.codepoints.pushBack();
+
+			double planeLeft;
+			double planeBottom;
+			double planeRight;
+			double planeTop;
+			glyph.getQuadPlaneBounds( planeLeft, planeBottom, planeRight, planeTop );
+
+			double atlasLeft;
+			double atlasBottom;
+			double atlasRight;
+			double atlasTop;
+			glyph.getQuadAtlasBounds( atlasLeft, atlasBottom, atlasRight, atlasTop );
+
+			codepoint.codepoint		= glyph.getCodepoint();
+			codepoint.width			= float( (planeRight - planeLeft) * emSize );
+			codepoint.height		= float( (planeTop - planeBottom) * emSize );
+			codepoint.advance		= float( glyph.getAdvance() * emSize );
+			codepoint.ascentOffset	= float( (fontMetrics.ascenderY - planeTop) * emSize );
+			codepoint.uv.u0			= float( atlasLeft / width );
+			codepoint.uv.v0			= float( atlasTop / height );
+			codepoint.uv.u1			= float( atlasRight / width );
+			codepoint.uv.v1			= float( atlasBottom / height );
+		}
+
+		FILE* f = fopen( "d:\\test.png", "wb" );
 		if( f )
 		{
-			fwrite( m_fontSdfData.pixelData.getData(), 1u, m_fontSdfData.pixelData.getLength(), f );
+			spng_ctx* png = spng_ctx_new( SPNG_CTX_ENCODER );
+			spng_set_png_file( png, f );
+
+			spng_ihdr pngHeader = {};
+			pngHeader.width					= m_fontSdfData.width;
+			pngHeader.height				= m_fontSdfData.height;
+			pngHeader.bit_depth				= 8;
+			pngHeader.color_type			= SPNG_COLOR_TYPE_TRUECOLOR_ALPHA;
+
+			spng_set_ihdr( png, &pngHeader );
+
+			spng_encode_image( png, m_fontSdfData.pixelData.getData(), m_fontSdfData.pixelData.getLength(), SPNG_FMT_RAW, 0 );
+			spng_ctx_free( png );
+
+			//fwrite( m_fontSdfData.pixelData.getData(), 1u, m_fontSdfData.pixelData.getLength(), f );
 			fclose( f );
 		}
 
@@ -334,20 +391,24 @@ namespace imapp
 
 	void CompilerResourceData::convertSdfBitmapLine( ArrayView< uint32 > targetLine, const float* sourceLine, uintsize charSize )
 	{
-		targetLine[ 0u ]			= convertSdfBitmapPixel( &sourceLine[ 0u ] );
-		targetLine[ 1u + charSize ]	= convertSdfBitmapPixel( &sourceLine[ (charSize - 1u) * 3u ] );
+		//targetLine[ 0u ]			= convertSdfBitmapPixel( &sourceLine[ 0u ] );
+		//targetLine[ 1u + charSize ]	= convertSdfBitmapPixel( &sourceLine[ (charSize - 1u) * 3u ] );
 
 		for( uintsize x = 0u; x < charSize; ++x )
 		{
-			targetLine[ x + 1u ] = convertSdfBitmapPixel( &sourceLine[ x * 3u ] );
+			targetLine[ x ] = convertSdfBitmapPixel( &sourceLine[ x * 3u ] );
 		}
+	}
+
+	inline float clampf( float n ) {
+		return n >= 0.0f && n <= 1.0f ? n : float( n > 0.0f );
 	}
 
 	uint32 CompilerResourceData::convertSdfBitmapPixel( const float* source )
 	{
-		const uint32 r = uint32( clamp( (source[ 0u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
-		const uint32 g = uint32( clamp( (source[ 1u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
-		const uint32 b = uint32( clamp( (source[ 2u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
+		const uint32 r = byte( ~int( 255.5f - 255.0f * clampf( source[ 0u ] ) ) ); //uint32( clamp( (source[ 0u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
+		const uint32 g = byte( ~int( 255.5f - 255.0f * clampf( source[ 1u ] ) ) ); //uint32( clamp( (source[ 1u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
+		const uint32 b = byte( ~int( 255.5f - 255.0f * clampf( source[ 2u ] ) ) ); //uint32( clamp( (source[ 2u ] * 1.0f) + 127.0f, 0.0f, 255.0f ) );
 		return (r << 24u) | (g << 16u) | (b << 8u) | 0xffu;
 	}
 }

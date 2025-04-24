@@ -14,6 +14,7 @@ extern "C"
 #endif
 
 typedef struct ImAppContext ImAppContext;
+typedef struct ImAppWindow ImAppWindow;
 
 typedef struct ImAppBlob
 {
@@ -37,6 +38,8 @@ typedef struct ImAppParameters
 	const char*				resPath;			// Path where resources loaded from. Use ./ for relative to executable. default: {exe_dir}/assets
 	const char*				defaultResPakName;
 	ImAppBlob				defaultResPakData;
+	const char*				defaultThemeName;
+	bool					useWindowStyle;
 
 	const char*				defaultFontName;	// Default: arial.ttf;
 	float					defaultFontSize;	// Default: 16
@@ -55,7 +58,7 @@ typedef struct ImAppParameters
 	ImUiColor				windowClearColor;	// Default: #1144AAFF
 } ImAppParameters;
 
-typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImUiSurface* surface );
+typedef void (*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow );
 
 //////////////////////////////////////////////////////////////////////////
 // Program entry points
@@ -65,15 +68,13 @@ typedef void*(*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, 
 void*						ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] );
 
 // Called for every tick to build the UI.
-void						ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface );
+void						ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow );
 
 // Called before shutdown. Free the Program Context here.
 void						ImAppProgramShutdown( ImAppContext* imapp, void* programContext );
 
 //////////////////////////////////////////////////////////////////////////
 // Control
-
-typedef struct ImAppWindow ImAppWindow;
 
 typedef enum ImAppDropType
 {
@@ -92,10 +93,71 @@ typedef struct ImAppDropData
 //ImAppWindow*				ImAppWindowCreate( ImAppContext* imapp, ImUiStringView title, uint32_t x, uint32_t y, uint32_t width, uint32_t height, ImAppWindowDoUiFunc uiFunc );
 //void						ImAppWindowDestroy( ImAppWindow* window );
 
+bool						ImAppWindowHasFocus( const ImAppWindow* window );
+void						ImAppWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
+void						ImAppWindowSetPosition( ImAppWindow* window, int x, int y );
+void						ImAppWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
+
 bool						ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );	// data freed after tick
 
 void						ImAppTrace( const char* format, ... );
 void						ImAppQuit( ImAppContext* imapp, int exitCode );
+
+//////////////////////////////////////////////////////////////////////////
+// Theme
+
+typedef struct ImAppWindowThemeTitle
+{
+	ImUiSkin		skin;
+	ImUiColor		textColor;
+	ImUiColor		backgroundColor;
+} ImAppWindowThemeTitle;
+
+typedef struct ImAppWindowThemeTitleButton
+{
+	ImUiSkin		skin;
+	ImUiSize		size;
+	ImUiColor		backgroundColor;
+	ImUiColor		backgroundColorInactive;
+	ImUiColor		backgroundColorHover;
+	ImUiColor		backgroundColorClicked;
+
+	ImUiImage		icon;
+	ImUiSize		iconSize;
+	ImUiColor		iconColor;
+	ImUiColor		iconColorInactive;
+	ImUiColor		iconColorHover;
+	ImUiColor		iconColorClicked;
+} ImAppWindowThemeTitleButton;
+
+typedef struct ImAppWindowThemeBody
+{
+	ImUiSkin		skin;
+	ImUiColor		color;
+} ImAppWindowThemeBody;
+
+typedef struct ImAppWindowTheme
+{
+	ImAppWindowThemeTitle		titleActive;
+	ImAppWindowThemeTitle		titleInactive;
+	ImAppWindowThemeTitleButton	titleMinimizeButton;
+	ImAppWindowThemeTitleButton	titleRestoreButton;
+	ImAppWindowThemeTitleButton	titleMaximizeButton;
+	ImAppWindowThemeTitleButton	titleCloseButton;
+	ImUiBorder					titlePadding;
+	float						titleHeight;
+	float						titleSpacing;
+
+	ImAppWindowThemeBody		bodyActive;
+	ImAppWindowThemeBody		bodyInactive;
+	ImUiBorder					bodyPadding;
+} ImAppWindowTheme;
+
+ImUiToolboxThemeReflection	ImAppWindowThemeReflectionGet();
+
+ImAppWindowTheme*			ImAppWindowThemeGet();
+void						ImAppWindowThemeSet( const ImAppWindowTheme* windowTheme );
+void						ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme );
 
 //////////////////////////////////////////////////////////////////////////
 // Resources
@@ -124,14 +186,20 @@ typedef enum ImAppResState
 	ImAppResState_Error
 } ImAppResState;
 
+typedef struct ImAppTheme
+{
+	ImUiToolboxTheme		uiTheme;
+	ImAppWindowTheme		windowTheme;
+} ImAppTheme;
+
 ImAppResPak*				ImAppResourceGetDefaultPak( ImAppContext* imapp );
 ImAppResPak*				ImAppResourceAddMemoryPak( ImAppContext* imapp, const void* pakData, size_t dataLength );
 ImAppResPak*				ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath );
 void						ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak );
 
-ImAppResState				ImAppResPakGetState( const ImAppResPak* pak );												// returns true when res pak meta data are loaded
-bool						ImAppResPakPreloadResourceIndex( ImAppResPak* pak, uint16_t resIndex );						// returns true when the resource is loaded
-bool						ImAppResPakPreloadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name );	// returns true when the resource is loaded
+ImAppResState				ImAppResPakGetState( const ImAppResPak* pak );
+ImAppResState				ImAppResPakLoadResourceIndex( ImAppResPak* pak, uint16_t resIndex );
+ImAppResState				ImAppResPakLoadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name );
 uint16_t					ImAppResPakFindResourceIndex( const ImAppResPak* pak, ImAppResPakType type, const char* name );
 
 const ImUiImage*			ImAppResPakGetImage( ImAppResPak* pak, const char* name );
@@ -140,12 +208,12 @@ const ImUiSkin*				ImAppResPakGetSkin( ImAppResPak* pak, const char* name );
 const ImUiSkin*				ImAppResPakGetSkinIndex( ImAppResPak* pak, uint16_t resIndex );
 ImUiFont*					ImAppResPakGetFont( ImAppResPak* pak, const char* name );
 ImUiFont*					ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t resIndex );
-const ImUiToolboxConfig*	ImAppResPakGetTheme( ImAppResPak* pak, const char* name );
-const ImUiToolboxConfig*	ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t resIndex );
+const ImAppTheme*			ImAppResPakGetTheme( ImAppResPak* pak, const char* name );
+const ImAppTheme*			ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t resIndex );
 ImAppBlob					ImAppResPakGetBlob( ImAppResPak* pak, const char* name );
 ImAppBlob					ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex );
 
-void						ImAppResPakActivateTheme( ImAppResPak* pak, const char* name );
+void						ImAppResPakActivateTheme( ImAppContext* imapp, ImAppResPak* pak, const char* name );
 
 // Image
 typedef struct ImAppImage ImAppImage;
@@ -158,20 +226,6 @@ ImAppResState				ImAppImageGetState( ImAppContext* imapp, ImAppImage* image );
 void						ImAppImageFree( ImAppContext* imapp, ImAppImage* image );
 
 ImUiImage					ImAppImageGetImage( const ImAppImage* image );
-
-//////////////////////////////////////////////////////////////////////////
-// Types
-
-struct ImAppContext
-{
-	ImUiContext*				imui;
-
-	ImAppWindow*				defaultWindow;
-	int							x;
-	int							y;
-	int							width;
-	int							height;
-};
 
 #ifdef __cplusplus
 }

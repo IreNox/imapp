@@ -1,282 +1,155 @@
-<res_pak name="Resource Tool" outputPath="../assets/resource_tool_pak">
+<res_pak name="Resource Tool" outputPath="../assets/resource_tool_pak" exportCode="false">
     <resources>
         <resource name="icon_check" type="Image" path="icons/icon_check.png" allow_atlas="true" repeat="false"/>
         <resource name="icon_cross" type="Image" path="icons/icon_cross.png" allow_atlas="true" repeat="false"/>
         <resource name="icon_gear" type="Image" path="icons/icon_gear.png" allow_atlas="true" repeat="false"/>
         <resource name="config" type="Theme">
-            <value name="Button" skinName=""/>
-            <value name="Button" color="b2b2b2"/>
-            <value name="Check Box" skinName=""/>
-            <value name="Check Box" color="b2b2b2"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName=""/>
-            <value name="Drop Down List Item" skinName=""/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName=""/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName=""/>
-            <value name="Button" color="b2b2b2cc" skinName="skin_skin_solid_small"/>
-            <value name="Check Box" skinName=""/>
-            <value name="Check Box" color="b2b2b2cc" skinName="skin_skin_solid_border_small"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName=""/>
-            <value name="Popup" color="4c4c4ccc" skinName="skin_skin_solid_border_small"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_border_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356acc"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2cc"/>
-            <value name="Slider PivotHover" color="e5e5e5cc"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4ccc"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="b2b2b2"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="666"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="d8daee"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="d8daee"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="d8daee"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="d8daee"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="d8daee"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="d8daee"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="d8daee"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="d8daee"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Button" skinName="skin_skin_solid_small"/>
-            <value name="Button" color="2f356a"/>
-            <value name="Check Box" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box" color="d8daee"/>
-            <value name="Slider PivotHover" color="e5e5e5"/>
-            <value name="Slider PivotClicked" color="666"/>
-            <value name="Drop Down" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Item" skinName="skin_skin_border_small"/>
-            <value name="Drop Down " color="d8daee"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup" color="4c4c4c"/>
-            <value name="Font" fontName="font_arial"/>
-            <value name="Text" color="0d0e1c"/>
-            <value name="Button Default" color="2f356a"/>
-            <value name="Button Hover" color="4d57ac"/>
-            <value name="Button Clocked" color="666"/>
-            <value name="Button Text" color="f7f7f7"/>
-            <value name="Button Height" value="25"/>
-            <value name="Button Padding" top="0" left="8" right="8" bottom="0"/>
-            <value name="Check Box Unchecked Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box Checked Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box Default" color="d8daee" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box Hover" color="4d57ac"/>
-            <value name="Check Box Clicked" color="666"/>
-            <value name="Check Box Checked" color="0d0e1c" skinName="skin_skin_solid_border_small"/>
-            <value name="Check Box Check Icon" imageName="icon_check"/>
-            <value name="Check Box Size" width="22" height="22"/>
-            <value name="Check Box Text Spacing" value="8"/>
-            <value name="Slider Skin" skinName="skin_skin_border_small"/>
-            <value name="Slider Pivot Skin" skinName="skin_skin_solid_small"/>
-            <value name="Slider Background" color="d8daee" skinName="skin_skin_slider_bg"/>
-            <value name="Slider Pivot" color="2f356a"/>
-            <value name="Slider Pivot Hover" color="4d57ac"/>
-            <value name="Slider Pivot Clicked" color="666"/>
-            <value name="Slider Height" value="25"/>
-            <value name="Slider Padding" top="0" left="5" right="5" bottom="0"/>
-            <value name="Slider Pivot Size" width="10" height="25"/>
-            <value name="Text Edit Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Text Edit Background" color="d8daee"/>
-            <value name="Text Edit Text" color="0d0e1c"/>
-            <value name="Text Edit Cursor" color="0d0e1c"/>
-            <value name="Text Edit Selection" color="4d57ac99"/>
-            <value name="Text Edit Height" value="25"/>
-            <value name="Text Edit Padding" top="2" left="4" right="2" bottom="2"/>
-            <value name="Text Edit Cursor Size" width="1" height="21"/>
-            <value name="Text Edit Blink time" value="0.52999997"/>
-            <value name="Progress Bar Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Progress Bar Progress Skin" skinName="skin_skin_solid_small"/>
-            <value name="Progress Bar Background" color="4c4c4c"/>
-            <value name="Progress Bar Progress" color="b2b2b2"/>
-            <value name="Progress Bar Height" value="25"/>
-            <value name="Progress Bar Padding" top="2" left="2" right="2" bottom="2"/>
-            <value name="Scroll Area Bar Skin" skinName="skin_skin_solid_small"/>
-            <value name="Scroll Area Bar Pivot Skin" skinName="skin_skin_solid_small"/>
-            <value name="Scroll Area Bar Background" color="d8daee"/>
-            <value name="Scroll Area Bar Pivot" color="2f356a"/>
-            <value name="List Item" skinName="skin_skin_border_small"/>
-            <value name="List Item Hover" color="4d57ac"/>
-            <value name="List Item Clicked" color="666"/>
-            <value name="List Item Selected" color="d8daee" skinName="skin_skin_solid_border_small"/>
-            <value name="List Item Spacing" value="8"/>
-            <value name="Scroll Area Bar Size" value="8"/>
-            <value name="Scroll Area Bar Spacing" value="8"/>
-            <value name="Scroll Area Bar Min Size" width="25" height="8"/>
-            <value name="Drop Down Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Drop Down List Skin" skinName="skin_skin_solid_small"/>
-            <value name="Drop Down List Item Skin" skinName="skin_skin_border_small"/>
-            <value name="Drop Down Background" color="d8daee"/>
-            <value name="Drop Down Text" color="0d0e1c"/>
-            <value name="Drop Down Hover" color="e5e5e5"/>
-            <value name="Drop Down Clicked" color="666"/>
-            <value name="Drop Down Open" color="b2b2b2"/>
-            <value name="Drop Down List" color="4c4c4c" skinName="skin_skin_solid_small"/>
-            <value name="Drop Down List Item Text" color="fff"/>
-            <value name="Drop Down List Item Hover" color="e5e5e5"/>
-            <value name="Drop Down List Item Clicked" color="666"/>
-            <value name="Drop Down List Item Selected" color="b2b2b2"/>
-            <value name="Drop Down Open Icon" imageName="icon_arrow_down"/>
-            <value name="Drop Down Close Icon" imageName="icon_arrow_up"/>
-            <value name="Drop Down Height" value="25"/>
-            <value name="Drop Down Padding" top="0" left="4" right="0" bottom="0"/>
-            <value name="Drop Down List Z Order" value="20"/>
-            <value name="Drop Down List Max Length" value="12"/>
-            <value name="Drop Down Item Padding" top="0" left="4" right="0" bottom="0"/>
-            <value name="Drop Down Item Size" value="25"/>
-            <value name="Drop Down Item Spacing" value="8"/>
-            <value name="Popup" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup Background" color="4d57ac44"/>
-            <value name="Popup Window" color="d8daee" skinName="skin_skin_solid_border_small"/>
-            <value name="Pop-Up Z Order" value="10"/>
-            <value name="Pop-Up Padding" top="8" left="8" right="8" bottom="8"/>
-            <value name="Pop-Up Button Spacing" value="4"/>
-            <value name="Drop Down Icon" color="0d0e1c"/>
-            <value name="List Item Selected Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Popup Skin" skinName="skin_skin_solid_border_small"/>
-            <value name="Button Skin" skinName="skin_skin_solid_small"/>
-            <value name="Drop Down List Margin" top="0" left="0" right="0" bottom="0"/>
+            <value name="Text/Color" color="0d0e1c"/>
+            <value name="Text/Font" fontName="font_arial"/>
+            <value name="Button/Color" color="2f356a"/>
+            <value name="Button/Hover Color" color="4d57ac"/>
+            <value name="Button/Clicked Color" color="666"/>
+            <value name="Button/Text Color" color="f7f7f7"/>
+            <value name="Button/Skin" skinName="skin_skin_solid_small"/>
+            <value name="Button/Height" value="25"/>
+            <value name="Button/Padding" top="0" left="8" right="8" bottom="0"/>
+            <value name="Check Box/Color" color="d8daee"/>
+            <value name="Check Box/Hover Color" color="4d57ac"/>
+            <value name="Check Box/Clicked Color" color="666"/>
+            <value name="Check Box/Checked Color" color="fff"/>
+            <value name="Check Box/Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Check Box/Checked Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Check Box/Checked Icon" imageName="icon_check"/>
+            <value name="Check Box/Size" width="22" height="22"/>
+            <value name="Check Box/Text Spacing" value="8"/>
+            <value name="Slider/Background Color" color="d8daee"/>
+            <value name="Slider/Pivot Color" color="2f356a"/>
+            <value name="Slider/PivotHover Color" color="4d57ac"/>
+            <value name="Slider/PivotClicked Color" color="666"/>
+            <value name="Slider/Background Skin" skinName="skin_skin_slider_bg"/>
+            <value name="Slider/Pivot Skin" skinName="skin_skin_solid_small"/>
+            <value name="Slider/Height" value="25"/>
+            <value name="Slider/Padding" top="0" left="5" right="5" bottom="0"/>
+            <value name="Slider/Pivot Size" width="10" height="25"/>
+            <value name="Text Edit/Background Color" color="d8daee"/>
+            <value name="Text Edit/Text Color" color="0d0e1c"/>
+            <value name="Text Edit/Cursor Color" color="0d0e1c"/>
+            <value name="Text Edit/Selection Color" color="4d57ac99"/>
+            <value name="Text Edit/Background Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Text Edit/height" value="25"/>
+            <value name="Text Edit/padding" top="2" left="4" right="2" bottom="2"/>
+            <value name="Text Edit/cursorSize" width="1" height="21"/>
+            <value name="Text Edit/blinkTime" value="0.52999997138977051"/>
+            <value name="Progress Bar/Background Color" color="2f356a"/>
+            <value name="Progress Bar/Progress Color" color="4d57ac"/>
+            <value name="Progress Bar/Background Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Progress Bar/Progress Skin" skinName="skin_skin_solid_small"/>
+            <value name="Progress Bar/Height" value="25"/>
+            <value name="Progress Bar/Padding" top="2" left="2" right="2" bottom="2"/>
+            <value name="Scroll Area/Bar Background Color" color="d8daee"/>
+            <value name="Scroll Area/Bar Pivot Color" color="2f356a"/>
+            <value name="Scroll Area/Bar Background Skin" skinName="skin_skin_solid_small"/>
+            <value name="Scroll Area/Bar Pivot Skin" skinName="skin_skin_solid_small"/>
+            <value name="Scroll Area/Bar Size" value="8"/>
+            <value name="Scroll Area/Bar Spacing" value="8"/>
+            <value name="Scroll Area/Bar MinSize" value="25"/>
+            <value name="List/Item/Hover Color" color="4d57ac"/>
+            <value name="List/Item/Clicked Color" color="666"/>
+            <value name="List/Item/Selected Color" color="d8daee"/>
+            <value name="List/Item/Skin" skinName="skin_skin_border_small"/>
+            <value name="List/Item/Selected Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="List/Item Spacing" value="8"/>
+            <value name="Drop Down/Background Color" color="d8daee"/>
+            <value name="Drop Down/Text Color" color="0d0e1c"/>
+            <value name="Drop Down/Icon Color" color="fff"/>
+            <value name="Drop Down/Hover Color" color="4d57ac"/>
+            <value name="Drop Down/Clicked Color" color="666"/>
+            <value name="Drop Down/Open Color" color="b2b2b2"/>
+            <value name="Drop Down/List/Color" color="d8daee"/>
+            <value name="Drop Down/List/Skin" skinName="skin_skin_solid_small"/>
+            <value name="Drop Down/List/ZOrder" value="20"/>
+            <value name="Drop Down/List/Margin" top="0" left="0" right="0" bottom="0"/>
+            <value name="Drop Down/List/MaxLength" value="12"/>
+            <value name="Drop Down/Item/Text Color" color="0d0e1c"/>
+            <value name="Drop Down/Item/Hover Color" color="4d57ac"/>
+            <value name="Drop Down/Item/Clicked Color" color="666"/>
+            <value name="Drop Down/Item/Selected Color" color="d8daee"/>
+            <value name="Drop Down/Item/Skin" skinName="skin_skin_border_small"/>
+            <value name="Drop Down/Item/Padding" top="0" left="4" right="0" bottom="0"/>
+            <value name="Drop Down/Item/Size" value="25"/>
+            <value name="Drop Down/Item/Spacing" value="8"/>
+            <value name="Drop Down/Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Drop Down/Open Icon" imageName="icon_arrow_down"/>
+            <value name="Drop Down/Close Icon" imageName="icon_arrow_up"/>
+            <value name="Drop Down/Height" value="25"/>
+            <value name="Drop Down/Padding" top="0" left="4" right="0" bottom="0"/>
+            <value name="Popup/Background Color" color="4d57ac44"/>
+            <value name="Popup/Color" color="d8daee"/>
+            <value name="Popup/Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Popup/Z Order" value="10"/>
+            <value name="Popup/Padding" top="8" left="8" right="8" bottom="8"/>
+            <value name="Popup/Button Spacing" value="4"/>
+            <value name="Title/Padding" top="0" left="8" right="0" bottom="0"/>
+            <value name="Title/Height" value="30"/>
+            <value name="Title/Active/Skin" skinName="skin_skin_solid_border_small"/>
+            <value name="Title/Active/Text Color" color="000"/>
+            <value name="Title/Active/Background Color" color="c0c0f0"/>
+            <value name="Title/Inactive/Skin" skinName="skin_skin_border_small"/>
+            <value name="Title/Inactive/Text Color" color="000"/>
+            <value name="Title/Inactive/Background Color" color="808080"/>
+            <value name="Title/Buttons/Minimize/Skin" skinName=""/>
+            <value name="Title/Buttons/Minimize/Size" width="30" height="30"/>
+            <value name="Title/Buttons/Minimize/Background Color" color="000"/>
+            <value name="Title/Buttons/Minimize/Background Inactive Color" color="808080"/>
+            <value name="Title/Buttons/Minimize/Background Hover Color" color="808080"/>
+            <value name="Title/Buttons/Minimize/Background Clicked Color" color="606060"/>
+            <value name="Title/Buttons/Minimize/Icon/Image" imageName=""/>
+            <value name="Title/Buttons/Minimize/Icon/Size" width="0" height="0"/>
+            <value name="Title/Buttons/Minimize/Icon/Color" color="000"/>
+            <value name="Title/Buttons/Minimize/Icon/Inactive Color" color="000"/>
+            <value name="Title/Buttons/Minimize/Icon/Hover Color" color="000"/>
+            <value name="Title/Buttons/Minimize/Icon/Clicked Color" color="000"/>
+            <value name="Title/Buttons/Restore/Skin" skinName=""/>
+            <value name="Title/Buttons/Restore/Size" width="30" height="30"/>
+            <value name="Title/Buttons/Restore/Background Color" color="000"/>
+            <value name="Title/Buttons/Restore/Background Inactive Color" color="808080"/>
+            <value name="Title/Buttons/Restore/Background Hover Color" color="808080"/>
+            <value name="Title/Buttons/Restore/Background Clicked Color" color="606060"/>
+            <value name="Title/Buttons/Restore/Icon/Image" imageName=""/>
+            <value name="Title/Buttons/Restore/Icon/Size" width="0" height="0"/>
+            <value name="Title/Buttons/Restore/Icon/Color" color="000"/>
+            <value name="Title/Buttons/Restore/Icon/Inactive Color" color="000"/>
+            <value name="Title/Buttons/Restore/Icon/Hover Color" color="000"/>
+            <value name="Title/Buttons/Restore/Icon/Clicked Color" color="000"/>
+            <value name="Title/Buttons/Maximize/Skin" skinName=""/>
+            <value name="Title/Buttons/Maximize/Size" width="30" height="30"/>
+            <value name="Title/Buttons/Maximize/Background Color" color="000"/>
+            <value name="Title/Buttons/Maximize/Background Inactive Color" color="808080"/>
+            <value name="Title/Buttons/Maximize/Background Hover Color" color="808080"/>
+            <value name="Title/Buttons/Maximize/Background Clicked Color" color="606060"/>
+            <value name="Title/Buttons/Maximize/Icon/Image" imageName=""/>
+            <value name="Title/Buttons/Maximize/Icon/Size" width="0" height="0"/>
+            <value name="Title/Buttons/Maximize/Icon/Color" color="000"/>
+            <value name="Title/Buttons/Maximize/Icon/Inactive Color" color="000"/>
+            <value name="Title/Buttons/Maximize/Icon/Hover Color" color="000"/>
+            <value name="Title/Buttons/Maximize/Icon/Clicked Color" color="000"/>
+            <value name="Title/Buttons/Close/Skin" skinName=""/>
+            <value name="Title/Buttons/Close/Size" width="30" height="30"/>
+            <value name="Title/Buttons/Close/Background Color" color="000"/>
+            <value name="Title/Buttons/Close/Background Inactive Color" color="808080"/>
+            <value name="Title/Buttons/Close/Background Hover Color" color="e81123"/>
+            <value name="Title/Buttons/Close/Background Clicked Color" color="606060"/>
+            <value name="Title/Buttons/Close/Icon/Image" imageName="icon_cross"/>
+            <value name="Title/Buttons/Close/Icon/Size" width="22" height="22"/>
+            <value name="Title/Buttons/Close/Icon/Color" color="000"/>
+            <value name="Title/Buttons/Close/Icon/Inactive Color" color="000"/>
+            <value name="Title/Buttons/Close/Icon/Hover Color" color="000"/>
+            <value name="Title/Buttons/Close/Icon/Clicked Color" color="000"/>
+            <value name="Body/Padding" top="8" left="8" right="8" bottom="8"/>
+            <value name="Body/Active/Skin" skinName=""/>
+            <value name="Body/Active/Color" color="fff"/>
+            <value name="Body/Inactive/Skin" skinName=""/>
+            <value name="Body/Inactive/Color" color="c0c0c0"/>
         </resource>
         <resource name="font_arial" type="Font" path="arial.ttf" size="16" scalable="false">
             <block name="Basic Latin" first="0" last="127"/>

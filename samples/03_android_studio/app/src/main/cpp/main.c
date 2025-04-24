@@ -29,38 +29,34 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	return context;
 }
 
-void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImUiSurface* surface )
+void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
 {
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)programContext;
 
-	ImUiWindow* window = ImUiWindowBegin( surface, "main", ImUiRectCreatePosSize( ImUiPosCreateZero(), ImUiSurfaceGetSize( surface ) ), 1u );
-
-	ImUiWidget* vLayout = ImUiWidgetBegin( window );
+	ImUiWidget* vLayout = ImUiWidgetBegin( uiWindow );
 	ImUiWidgetSetPadding( vLayout, ImUiBorderCreateAll( 8.0f ) );
 	ImUiWidgetSetLayoutVerticalSpacing( vLayout, 8.0f );
 	ImUiWidgetSetAlign( vLayout, 0.5f, 0.5f );
 
 	{
-		ImUiWidget* hLayout = ImUiWidgetBegin( window );
+		ImUiWidget* hLayout = ImUiWidgetBegin( uiWindow );
 		ImUiWidgetSetHStretch( hLayout, 1.0f );
 		ImUiWidgetSetLayoutHorizontalSpacing( hLayout, 8.0f );
 
-		ImUiToolboxLabel( window, "Name:" );
-		ImUiToolboxTextEdit( window, context->nameBuffer, sizeof( context->nameBuffer ), NULL );
+		ImUiToolboxLabel( uiWindow, "Name:" );
+		ImUiToolboxTextEdit( uiWindow, context->nameBuffer, sizeof( context->nameBuffer ), NULL );
 
 		ImUiWidgetEnd( hLayout );
 	}
 
-	ImUiToolboxLabelFormat( window, "Hello %s for the %d time.", context->nameBuffer, context->tickIndex );
+	ImUiToolboxLabelFormat( uiWindow, "Hello %s for the %d time.", context->nameBuffer, context->tickIndex );
 
-	if( ImUiToolboxButtonLabel( window, "Exit" ) )
+	if( ImUiToolboxButtonLabel( uiWindow, "Exit" ) )
 	{
 		ImAppQuit( imapp, 0 );
 	}
 
 	ImUiWidgetEnd( vLayout );
-
-	ImUiWindowEnd( window );
 
 	context->tickIndex++;
 }

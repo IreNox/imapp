@@ -118,7 +118,7 @@ void ImAppResSysDestroy( ImAppResSys* ressys )
 	ImUiMemoryFree( ressys->allocator, ressys );
 }
 
-void ImAppResSysUpdate( ImAppResSys* ressys )
+void ImAppResSysUpdate( ImAppResSys* ressys, bool wait )
 {
 	if( ressys->watcher )
 	{
@@ -157,8 +157,9 @@ void ImAppResSysUpdate( ImAppResSys* ressys )
 
 	{
 		ImAppResEvent resEvent;
-		while( ImAppResEventQueuePop( &ressys->receiveQueue, &resEvent, false ) )
+		while( ImAppResEventQueuePop( &ressys->receiveQueue, &resEvent, wait ) )
 		{
+			wait = false;
 			switch( resEvent.type )
 			{
 			case ImAppResEventType_OpenResPak:
@@ -287,7 +288,7 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 			parameters.codepoints			= (const ImUiFontCodepoint*)resEvent->result.loadRes.data.data;
 			parameters.codepointCount		= header->codepointCount;
 			parameters.fontSize				= header->fontSize;
-			parameters.image.textureData	= fontData->textureRes->data.texture.texture;
+			parameters.image.textureHandle	= (uint64_t)fontData->textureRes->data.texture.texture;
 			parameters.image.width			= fontData->textureRes->data.texture.width;
 			parameters.image.height			= fontData->textureRes->data.texture.height;
 			parameters.image.uv.u0			= 0.0f;
@@ -332,13 +333,13 @@ static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent
 	}
 
 	const ImAppResEventResultImageData* result = &resEvent->result.image;
-	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
-	image->data.width		= result->width;
-	image->data.height		= result->height;
-	image->data.uv.u0		= 0.0f;
-	image->data.uv.v0		= 0.0f;
-	image->data.uv.u1		= 1.0f;
-	image->data.uv.v1		= 1.0f;
+	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
+	image->data.width			= result->width;
+	image->data.height			= result->height;
+	image->data.uv.u0			= 0.0f;
+	image->data.uv.v0			= 0.0f;
+	image->data.uv.u1			= 1.0f;
+	image->data.uv.v1			= 1.0f;
 
 	ImUiMemoryFree( ressys->allocator, result->data.data );
 
@@ -421,7 +422,7 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 			const ImAppResPakImageHeader* header = (const ImAppResPakImageHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
 
-			imageData->image.textureData	= imageData->textureRes->data.texture.texture;
+			imageData->image.textureHandle	= (uint64_t)imageData->textureRes->data.texture.texture;
 			imageData->image.width			= header->width;
 			imageData->image.height			= header->height;
 			imageData->image.uv.u0			= (float)header->x / imageData->textureRes->data.texture.width;
@@ -460,14 +461,14 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 				const ImAppResPakSkinHeader* header = (const ImAppResPakSkinHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
 
-				skinData->skin.textureData	= skinData->textureRes->data.texture.texture;
-				skinData->skin.width		= header->width;
-				skinData->skin.height		= header->height;
-				skinData->skin.uv.u0		= (float)header->x / skinData->textureRes->data.texture.width;
-				skinData->skin.uv.v0		= (float)header->y / skinData->textureRes->data.texture.height;
-				skinData->skin.uv.u1		= (float)(header->x + header->width) / skinData->textureRes->data.texture.width;
-				skinData->skin.uv.v1		= (float)(header->y + header->height) / skinData->textureRes->data.texture.height;
-				skinData->skin.border		= ImUiBorderCreate( header->top, header->left, header->bottom, header->right );
+				skinData->skin.textureHandle	= (uint64_t)skinData->textureRes->data.texture.texture;
+				skinData->skin.width			= header->width;
+				skinData->skin.height			= header->height;
+				skinData->skin.uv.u0			= (float)header->x / skinData->textureRes->data.texture.width;
+				skinData->skin.uv.v0			= (float)header->y / skinData->textureRes->data.texture.height;
+				skinData->skin.uv.u1			= (float)(header->x + header->width) / skinData->textureRes->data.texture.width;
+				skinData->skin.uv.v1			= (float)(header->y + header->height) / skinData->textureRes->data.texture.height;
+				skinData->skin.border			= ImUiBorderCreate( header->top, header->left, header->bottom, header->right );
 			}
 		}
 		break;
@@ -528,10 +529,18 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 		{
 			ImAppResThemeData* themeData = &res->data.theme;
 
-			const ImAppResPakThemeHeader* header = (const ImAppResPakThemeHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
+			const ImAppResPakThemeHeader* header	= (const ImAppResPakThemeHeader*)ImAppResPakResourceGetHeader( pak->metadata, sourceRes );
+			const byte* headerEnd					= (const byte*)header + sourceRes->headerSize;
+
+			const uint16* referencedIndices = (const uint16*)&header[ 1u ];
+			if( referencedIndices + header->referencedCount > (const uint16*)headerEnd )
+			{
+				IMAPP_DEBUG_LOGE( "Theme header too small for references." );
+				res->state = ImAppResState_Error;
+				return NULL;
+			}
 
 			bool ready = true;
-			const uint16* referencedIndices = (const uint16*)&header[ 1u ];
 			for( uintsize i = 0; i < header->referencedCount; ++i )
 			{
 				ImAppRes* refRes = ImAppResSysLoad( pak, referencedIndices[ i ] );
@@ -549,55 +558,180 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 				return res;
 			}
 
-			ImUiToolboxConfig* config = IMUI_MEMORY_NEW_ZERO( pak->ressys->allocator, ImUiToolboxConfig );
+			ImAppTheme* theme = IMUI_MEMORY_NEW_ZERO( pak->ressys->allocator, ImAppTheme );
+			ImUiToolboxThemeFillDefault( &theme->uiTheme, NULL );
+			ImAppWindowThemeFillDefault( &theme->windowTheme );
 
-			if( header->fontIndex != IMAPP_RES_PAK_INVALID_INDEX )
+			const ImUiToolboxThemeReflection themeReflection = ImUiToolboxThemeReflectionGet();
+			const ImUiToolboxThemeReflection windowReflection = ImAppWindowThemeReflectionGet();
+
+			const ImAppResPakThemeField* fields = (const ImAppResPakThemeField*)&referencedIndices[ header->referencedCount ];
+			if( fields + header->themeFieldCount > (const ImAppResPakThemeField*)headerEnd )
 			{
-				ImAppRes* fontRes = ImAppResSysLoad( pak, header->fontIndex );
-				IMAPP_ASSERT( fontRes && fontRes->state == ImAppResState_Ready );
-				config->font = fontRes->data.font.font;
+				IMAPP_DEBUG_LOGE( "Theme header too small for fields." );
+				res->state = ImAppResState_Error;
+				return NULL;
 			}
 
-			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->colors ); ++i )
+			const byte* fieldData = (const byte*)&fields[ header->themeFieldCount ];
+			for( uintsize fieldIndex = 0u; fieldIndex < header->themeFieldCount; ++fieldIndex )
 			{
-				config->colors[ i ] = header->colors[ i ];
-			}
+				const ImAppResPakThemeField* field = &fields[ fieldIndex ];
 
-			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->skins ); ++i )
-			{
-				if( header->skinIndices[ i ] == IMAPP_RES_PAK_INVALID_INDEX )
+				uintsize fieldSize = 0u;
+				switch( field->type )
 				{
+				case ImUiToolboxThemeReflectionType_Color:	fieldSize = sizeof( ImUiColor ); break;
+				case ImUiToolboxThemeReflectionType_Skin:	fieldSize = sizeof( uint16 ); break;
+				case ImUiToolboxThemeReflectionType_Image:	fieldSize = sizeof( uint16 ); break;
+				case ImUiToolboxThemeReflectionType_Font:	fieldSize = sizeof( uint16 ); break;
+				case ImUiToolboxThemeReflectionType_Size:	fieldSize = sizeof( ImUiSize ); break;
+				case ImUiToolboxThemeReflectionType_Border:	fieldSize = sizeof( ImUiBorder ); break;
+				case ImUiToolboxThemeReflectionType_Float:	fieldSize = sizeof( float ); break;
+				case ImUiToolboxThemeReflectionType_Double:	fieldSize = sizeof( double ); break;
+				case ImUiToolboxThemeReflectionType_UInt32:	fieldSize = sizeof( uint32 ); break;
+				}
+
+				if( fieldData + fieldSize > headerEnd )
+				{
+					IMAPP_DEBUG_LOGE( "Theme header too small for field data 0x%08x.", field->nameHash );
+					res->state = ImAppResState_Error;
+					return NULL;
+				}
+
+				byte* targetBase = NULL;
+				byte* targetBaseEnd = NULL;
+				const ImUiToolboxThemeReflection* reflection = NULL;
+				if( field->base == ImAppResPakThemeFieldBase_UiTheme )
+				{
+					targetBase		= (byte*)&theme->uiTheme;
+					targetBaseEnd	= targetBase + sizeof( theme->uiTheme );
+					reflection		= &themeReflection;
+				}
+				else if( field->base == ImAppResPakThemeFieldBase_WindowTheme )
+				{
+					targetBase		= (byte*)&theme->windowTheme;
+					targetBaseEnd	= targetBase + sizeof( theme->windowTheme );
+					reflection		= &windowReflection;
+				}
+				else
+				{
+					IMAPP_DEBUG_LOGW( "Theme field base is invalid." );
+					fieldData += fieldSize;
 					continue;
 				}
 
-				ImAppRes* skinRes = ImAppResSysLoad( pak, header->skinIndices[ i ] );
-				IMAPP_ASSERT( skinRes && skinRes->state == ImAppResState_Ready );
-				config->skins[ i ] = skinRes->data.skin.skin;
-			}
-
-			for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( themeData->config->icons ); ++i )
-			{
-				if( header->iconIndices[ i ] == IMAPP_RES_PAK_INVALID_INDEX )
+				const ImUiToolboxThemeReflectionField* reflectionField = NULL;
+				for( uintsize reflectionIndex = 0u; reflectionIndex < reflection->count; ++reflectionIndex )
 				{
+					const ImUiHash nameHash = ImUiHashCreate( reflection->fields[ reflectionIndex ].name, strlen( reflection->fields[ reflectionIndex ].name ) );
+					if( nameHash != field->nameHash )
+					{
+						continue;
+					}
+
+					reflectionField = &reflection->fields[ reflectionIndex ];
+					break;
+				}
+
+				if( !reflectionField )
+				{
+					IMAPP_DEBUG_LOGW( "Could not find theme field with hash 0x%08x", field->nameHash );
+					fieldData += fieldSize;
+					continue;
+				}
+				else if( reflectionField->type != field->type )
+				{
+					IMAPP_DEBUG_LOGW( "Theme field type is invalid." );
+					fieldData += fieldSize;
 					continue;
 				}
 
-				ImAppRes* imageRes = ImAppResSysLoad( pak, header->iconIndices[ i ] );
-				IMAPP_ASSERT( imageRes && imageRes->state == ImAppResState_Ready );
-				config->icons[ i ] = imageRes->data.image.image;
+				byte* targetData = targetBase + reflectionField->offset;
+				if( targetData + fieldSize > targetBaseEnd )
+				{
+					IMAPP_DEBUG_LOGW( "Theme field offset out of range." );
+					fieldData += fieldSize;
+					continue;
+				}
+
+				switch( field->type )
+				{
+				case ImUiToolboxThemeReflectionType_Color:
+					*(ImUiColor*)targetData = *(const ImUiColor*)fieldData;
+					break;
+
+				case ImUiToolboxThemeReflectionType_Skin:
+				case ImUiToolboxThemeReflectionType_Image:
+				case ImUiToolboxThemeReflectionType_Font:
+					{
+						const uint16 fieldResIndex = *(const uint16*)fieldData;
+						if( fieldResIndex == IMAPP_RES_PAK_INVALID_INDEX )
+						{
+							fieldData += fieldSize;
+							continue;
+						}
+
+						ImAppResPakType fieldResType = ImAppResPakType_MAX;
+						switch( field->type )
+						{
+						case ImUiToolboxThemeReflectionType_Skin:	fieldResType = ImAppResPakType_Skin; break;
+						case ImUiToolboxThemeReflectionType_Image:	fieldResType = ImAppResPakType_Image; break;
+						case ImUiToolboxThemeReflectionType_Font:	fieldResType = ImAppResPakType_Font; break;
+						}
+
+						ImAppRes* fieldRes = ImAppResSysLoad( pak, fieldResIndex );
+						if( !fieldRes ||
+							fieldRes->key.type != fieldResType ||
+							fieldRes->state != ImAppResState_Ready )
+						{
+							IMAPP_DEBUG_LOGE( "Theme resource %d for field '%s' is in the wrong state.", fieldResIndex, reflectionField->name );
+							res->state = ImAppResState_Error;
+							return NULL;
+						}
+
+						switch( field->type )
+						{
+						case ImUiToolboxThemeReflectionType_Skin:
+							*(ImUiSkin*)targetData = fieldRes->data.skin.skin;
+							break;
+
+						case ImUiToolboxThemeReflectionType_Image:
+							*(ImUiImage*)targetData = fieldRes->data.image.image;
+							break;
+
+						case ImUiToolboxThemeReflectionType_Font:
+							*(ImUiFont**)targetData = fieldRes->data.font.font;
+							break;
+						}
+					}
+					break;
+
+				case ImUiToolboxThemeReflectionType_Size:
+					*(ImUiSize*)targetData = *(const ImUiSize*)fieldData;
+					break;
+
+				case ImUiToolboxThemeReflectionType_Border:
+					*(ImUiBorder*)targetData = *(const ImUiBorder*)fieldData;
+					break;
+
+				case ImUiToolboxThemeReflectionType_Float:
+					*(float*)targetData = *(const float*)fieldData;
+					break;
+
+				case ImUiToolboxThemeReflectionType_Double:
+					*(double*)targetData = *(const double*)fieldData;
+					break;
+
+				case ImUiToolboxThemeReflectionType_UInt32:
+					*(uint32*)targetData = *(const uint32*)fieldData;
+					break;
+				}
+
+				fieldData += fieldSize;
 			}
 
-			config->button		= header->button;
-			config->checkBox	= header->checkBox;
-			config->slider		= header->slider;
-			config->textEdit	= header->textEdit;
-			config->progressBar	= header->progressBar;
-			config->scrollArea	= header->scrollArea;
-			config->list		= header->list;
-			config->dropDown	= header->dropDown;
-			config->popup		= header->popup;
-
-			themeData->config = config;
+			themeData->theme = theme;
 		}
 		break;
 
@@ -699,9 +833,9 @@ static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 	ImUiMemoryFree( ressys->allocator, pak->resources );
 	ImUiMemoryFree( ressys->allocator, pak );
 
-	ImUiToolboxConfig config;
-	ImUiToolboxFillDefaultConfig( &config, NULL );
-	ImUiToolboxSetConfig( &config );
+	ImUiToolboxTheme config;
+	ImUiToolboxThemeFillDefault( &config, NULL );
+	ImUiToolboxThemeSet( &config );
 }
 
 void ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* pak )
@@ -737,7 +871,7 @@ ImAppResState ImAppResPakGetState( const ImAppResPak* pak )
 	return pak->state;
 }
 
-bool ImAppResPakPreloadResourceIndex( ImAppResPak* pak, uint16_t resIndex )
+ImAppResState ImAppResPakLoadResourceIndex( ImAppResPak* pak, uint16_t resIndex )
 {
 	if( resIndex >= pak->resourceCount )
 	{
@@ -747,21 +881,21 @@ bool ImAppResPakPreloadResourceIndex( ImAppResPak* pak, uint16_t resIndex )
 	const ImAppRes* res = ImAppResSysLoad( pak, resIndex );
 	if( !res )
 	{
-		return false;
+		return ImAppResState_Error;
 	}
 
-	return res->state == ImAppResState_Ready;
+	return res->state;
 }
 
-bool ImAppResPakPreloadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name )
+ImAppResState ImAppResPakLoadResourceName( ImAppResPak* pak, ImAppResPakType type, const char* name )
 {
 	const uint16 resIndex = ImAppResPakFindResourceIndex( pak, type, name );
 	if( resIndex == IMAPP_RES_PAK_INVALID_INDEX )
 	{
-		return false;
+		return ImAppResState_Error;
 	}
 
-	return ImAppResPakPreloadResourceIndex( pak, resIndex );
+	return ImAppResPakLoadResourceIndex( pak, resIndex );
 }
 
 uint16_t ImAppResPakFindResourceIndex( const ImAppResPak* pak, ImAppResPakType type, const char* name )
@@ -855,7 +989,7 @@ ImUiFont* ImAppResPakGetFontIndex( ImAppResPak* pak, uint16_t resIndex )
 	return res->data.font.font;
 }
 
-const ImUiToolboxConfig* ImAppResPakGetTheme( ImAppResPak* pak, const char* name )
+const ImAppTheme* ImAppResPakGetTheme( ImAppResPak* pak, const char* name )
 {
 	const uint16 resIndex = ImAppResPakFindResourceIndex( pak, ImAppResPakType_Theme, name );
 	if( resIndex == IMAPP_RES_PAK_INVALID_INDEX )
@@ -866,7 +1000,7 @@ const ImUiToolboxConfig* ImAppResPakGetTheme( ImAppResPak* pak, const char* name
 	return ImAppResPakGetThemeIndex( pak, resIndex );
 }
 
-const ImUiToolboxConfig* ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t resIndex )
+const ImAppTheme* ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t resIndex )
 {
 	ImAppRes* res = ImAppResSysLoad( pak, resIndex );
 	if( !res || res->state != ImAppResState_Ready )
@@ -875,7 +1009,7 @@ const ImUiToolboxConfig* ImAppResPakGetThemeIndex( ImAppResPak* pak, uint16_t re
 	}
 
 	IMAPP_ASSERT( res->key.type == ImAppResPakType_Theme );
-	return res->data.theme.config;
+	return res->data.theme.theme;
 }
 
 ImAppBlob ImAppResPakGetBlob( ImAppResPak* pak, const char* name )
@@ -903,37 +1037,20 @@ ImAppBlob ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex )
 	return res->data.blob.blob;
 }
 
-void ImAppResPakActivateTheme( ImAppResPak* pak, const char* name )
-{
-	const uint16 resIndex = ImAppResPakFindResourceIndex( pak, ImAppResPakType_Theme, name );
-	if( resIndex == IMAPP_RES_PAK_INVALID_INDEX )
-	{
-		return;
-	}
-
-	ImAppRes* res = ImAppResSysLoad( pak, resIndex );
-	if( !res || res->state != ImAppResState_Ready )
-	{
-		return;
-	}
-
-	ImUiToolboxSetConfig( res->data.theme.config );
-}
-
 ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW( ressys->allocator, ImAppImage );
-	image->resourceName		= ImUiStringViewCreateEmpty();
-	image->data.textureData	= ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
-	image->data.width		= width;
-	image->data.height		= height;
-	image->data.uv.u0		= 0.0f;
-	image->data.uv.v0		= 0.0f;
-	image->data.uv.u1		= 1.0f;
-	image->data.uv.v1		= 1.0f;
-	image->state			= ImAppResState_Ready;
+	image->resourceName			= ImUiStringViewCreateEmpty();
+	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
+	image->data.width			= width;
+	image->data.height			= height;
+	image->data.uv.u0			= 0.0f;
+	image->data.uv.v0			= 0.0f;
+	image->data.uv.u1			= 1.0f;
+	image->data.uv.v1			= 1.0f;
+	image->state				= ImAppResState_Ready;
 
-	if( !image->data.textureData )
+	if( image->data.textureHandle == IMUI_TEXTURE_HANDLE_INVALID )
 	{
 		ImUiMemoryFree( ressys->allocator, image );
 		return NULL;
@@ -1024,9 +1141,9 @@ ImAppResState ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
 
 void ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image )
 {
-	if( image->data.textureData )
+	if( image->data.textureHandle != IMUI_TEXTURE_HANDLE_INVALID )
 	{
-		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->data.textureData );
+		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->data.textureHandle );
 	}
 
 	ImUiMemoryFree( ressys->allocator, image );
@@ -1085,13 +1202,13 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	}
 
 	ImUiImage uiImage;
-	uiImage.textureData	= *texture;
-	uiImage.width		= width;
-	uiImage.height		= height;
-	uiImage.uv.u0		= 0.0f;
-	uiImage.uv.v0		= 0.0f;
-	uiImage.uv.u1		= 1.0f;
-	uiImage.uv.v1		= 1.0f;
+	uiImage.textureHandle	= (uint64_t)*texture;
+	uiImage.width			= width;
+	uiImage.height			= height;
+	uiImage.uv.u0			= 0.0f;
+	uiImage.uv.v0			= 0.0f;
+	uiImage.uv.u1			= 1.0f;
+	uiImage.uv.v1			= 1.0f;
 
 	ImUiFont* font = ImUiFontCreateTrueType( ressys->imui, ttfImage, uiImage );
 
@@ -1184,10 +1301,10 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 
 	case ImAppResPakType_Theme:
 		{
-			if( res->data.theme.config )
+			if( res->data.theme.theme )
 			{
-				ImUiMemoryFree( ressys->allocator, res->data.theme.config );
-				res->data.theme.config = NULL;
+				ImUiMemoryFree( ressys->allocator, res->data.theme.theme );
+				res->data.theme.theme = NULL;
 			}
 		}
 		break;
@@ -1323,7 +1440,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
@@ -1336,7 +1453,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to get data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
@@ -1604,7 +1721,7 @@ static ImUiHash ImAppResSysNameMapHash( const void* key )
 	hash ^= pakInt >> 32u;
 #endif
 
-	return ImUiHashMix( ImUiHashString( res->key.name, 0u ), hash );
+	return ImUiHashMix( ImUiHashString( res->key.name ), hash );
 }
 
 static bool ImAppResSysNameMapIsKeyEquals( const void* lhs, const void* rhs )
@@ -1621,7 +1738,7 @@ static ImUiHash ImAppResSysImageMapHash( const void* key )
 {
 	const ImAppImage* image = *(const ImAppImage**)key;
 
-	return ImUiHashString( image->resourceName, 0u );
+	return ImUiHashString( image->resourceName );
 }
 
 static bool ImAppResSysImageMapIsKeyEquals( const void* lhs, const void* rhs )

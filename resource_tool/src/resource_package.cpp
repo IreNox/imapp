@@ -53,6 +53,11 @@ namespace imapp
 			m_outputPath = outputPath;
 		}
 
+		if( rootNode->QueryBoolAttribute( "exportCode", &m_exportCode ) != XML_SUCCESS )
+		{
+			m_exportCode = false;
+		}
+
 		XMLElement* resourcesNode = rootNode->FirstChildElement( "resources" );
 		if( resourcesNode )
 		{
@@ -97,6 +102,7 @@ namespace imapp
 
 		rootNode->SetAttribute( "name", m_name );
 		rootNode->SetAttribute( "outputPath", m_outputPath );
+		rootNode->SetAttribute( "exportCode", m_exportCode );
 
 		XMLElement* resourcesNode = findOrCreateElement( rootNode, "resources" );
 

@@ -67,6 +67,7 @@ typedef struct ImAppWindowDrop
 
 struct ImAppWindow
 {
+	// must be first for cast
 	IDropTarget			dropTarget;
 	FORMATETC			dropFormat;
 	ImAppWindowDrop*	firstNewDrop;
@@ -78,17 +79,26 @@ struct ImAppWindow
 	HDC					hdc;
 	HGLRC				hglrc;
 
-	bool				isOpen;
+	bool				hasFocus;
+	bool				hasTracking;
 	bool				isResize;
 	int					x;
 	int					y;
 	int					width;
 	int					height;
 	ImAppWindowState	state;
+	ImAppWindowStyle	style;
+	char*				title;
+	uintsize			titleCapacity;
 	float				dpiScale;
+
+	int					titleHeight;
+	int					titleButtonsX;
+	LRESULT				windowHitResult;
 
 	ImAppEventQueue		eventQueue;
 
+	ImAppWindowDoUiFunc					uiFunc;
 	ImAppPlatformWindowUpdateCallback	updateCallback;
 	void*								updateCallbackArg;
 };
@@ -137,7 +147,7 @@ static const LPTSTR s_windowsSystemCursorMapping[] =
 	IDC_APPSTARTING,
 	IDC_IBEAM,
 	IDC_CROSS,
-	IDC_UPARROW,
+	IDC_HAND,
 	IDC_SIZENWSE,
 	IDC_SIZENESW,
 	IDC_SIZEWE,
@@ -538,7 +548,18 @@ void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 	CloseClipboard();
 }
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state )
+static void
+set_menu_item_state(
+	HMENU menu,
+	MENUITEMINFO* menuItemInfo,
+	UINT item,
+	bool enabled
+) {
+	menuItemInfo->fState = enabled ? MF_ENABLED : MF_DISABLED;
+	SetMenuItemInfo( menu, item, false, menuItemInfo );
+}
+
+ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
@@ -546,7 +567,23 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
-	window->platform = platform;
+	window->platform	= platform;
+	window->uiFunc		= uiFunc;
+	window->hasFocus	= true;
+	window->state		= state;
+	window->style		= style;
+
+	window->titleHeight = 32;
+
+	const uintsize windowTitleLength = strlen( windowTitle ) + 1u;
+	if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( platform->allocator, window->title, window->titleCapacity, windowTitleLength ) )
+	{
+		IMAPP_DEBUG_LOGE( "Can't allocate title." );
+		ImAppPlatformWindowDestroy( window );
+		return NULL;
+	}
+
+	strncpy_s( window->title, window->titleCapacity, windowTitle, windowTitleLength );
 
 	wchar_t wideWindowTitle[ 256u ];
 	MultiByteToWideChar( CP_UTF8, 0u, windowTitle, -1, wideWindowTitle, IMAPP_ARRAY_COUNT( wideWindowTitle ) - 1 );
@@ -555,6 +592,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize			= sizeof( WNDCLASSEXW );
+	windowClass.style			= CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 	windowClass.hInstance		= hInstance;
 	windowClass.hIcon			= LoadIcon( hInstance, MAKEINTRESOURCE( IDI_APPICON ) );
 	windowClass.lpfnWndProc		= &ImAppPlatformWindowProc;
@@ -573,14 +611,16 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	DWORD winStyle = WS_OVERLAPPEDWINDOW;
 	switch( style )
 	{
-	case ImAppWindowState_Resizable:	break;
-	case ImAppWindowState_Borderless:	winStyle = WS_POPUP; break;
+	case ImAppWindowStyle_Resizable:	break;
+	case ImAppWindowStyle_Borderless:	winStyle = WS_POPUP; break;
+	case ImAppWindowStyle_Custom:		winStyle = WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
 	}
 
 	IMAPP_USE( x );
 	IMAPP_USE( y );
 
-	window->hwnd = CreateWindowW(
+	window->hwnd = CreateWindowExW(
+		WS_EX_APPWINDOW,
 		s_pWindowClass,
 		wideWindowTitle,
 		winStyle,
@@ -613,6 +653,9 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	{
 		RECT windowRect;
 		GetWindowRect( window->hwnd, &windowRect );
+
+		window->x = windowRect.left;
+		window->y = windowRect.top;
 
 		HANDLE monitorHandle = MonitorFromRect( &windowRect, MONITOR_DEFAULTTONULL );
 		if( monitorHandle == NULL )
@@ -694,6 +737,12 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 		window->hwnd = NULL;
 	}
 
+	if( window->title )
+	{
+		ImUiMemoryFree( window->platform->allocator, window->title );
+		window->title = NULL;
+	}
+
 	ImUiMemoryFree( window->platform->allocator, window );
 }
 
@@ -760,10 +809,11 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 		DispatchMessage( &message );
 	}
 
-	callback( window, arg );
-
+	// prevent recursive calls
 	window->updateCallback		= NULL;
 	window->updateCallbackArg	= NULL;
+
+	callback( window, arg );
 }
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
@@ -774,6 +824,11 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 {
 	return &window->eventQueue;
+}
+
+ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+{
+	return window->uiFunc;
 }
 
 bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
@@ -803,10 +858,20 @@ void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
+bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
+{
+	return window->hasFocus;
+}
+
 void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
 {
 	*outWidth	= window->width;
 	*outHeight	= window->height;
+}
+
+void ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+{
+	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER );
 }
 
 void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
@@ -815,14 +880,76 @@ void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* 
 	*outY = window->y;
 }
 
+void ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+{
+	SetWindowPos( window->hwnd, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER );
+}
+
 ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* window )
 {
 	return window->state;
 }
 
+void ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+{
+	if( window->state == state )
+	{
+		return;
+	}
+
+	int cmdShow = -1;
+	switch( state )
+	{
+	case ImAppWindowState_Default:		cmdShow = SW_RESTORE; break;
+	case ImAppWindowState_Maximized:	cmdShow = SW_MAXIMIZE; break;
+	case ImAppWindowState_Minimized:	cmdShow = SW_MINIMIZE; break;
+	}
+
+	if( cmdShow < 0 )
+	{
+		return;
+	}
+
+	ShowWindow( window->hwnd, cmdShow );
+	window->state = state;
+}
+
+const char* ImAppPlatformWindowGetTitle( const ImAppWindow* window )
+{
+	return window->title;
+}
+
+void ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+{
+	const uintsize windowTitleLength = strlen( title ) + 1u;
+	if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( window->platform->allocator, window->title, window->titleCapacity, windowTitleLength ) )
+	{
+		IMAPP_DEBUG_LOGE( "Can't allocate title." );
+		return;
+	}
+
+	strncpy_s( window->title, window->titleCapacity, title, windowTitleLength );
+
+	wchar_t wideWindowTitle[ 256u ];
+	MultiByteToWideChar( CP_UTF8, 0u, title, -1, wideWindowTitle, IMAPP_ARRAY_COUNT( wideWindowTitle ) - 1 );
+
+	SetWindowTextW( window->hwnd, wideWindowTitle );
+}
+
+void ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+{
+	window->titleHeight		= height;
+	window->titleButtonsX	= buttonsX;
+}
+
 float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
 	return window->dpiScale;
+}
+
+void ImAppPlatformWindowClose( ImAppWindow* window )
+{
+	SendMessage( window->hwnd, WM_CLOSE, 0, 0 );
 }
 
 static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -832,6 +959,13 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	{
 		switch( message )
 		{
+		case WM_CREATE:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				SetWindowPos( window->hwnd, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER );
+			}
+			break;
+
 		case WM_CLOSE:
 			{
 				const ImAppEvent closeEvent = { .window = {.type = ImAppEventType_WindowClose } };
@@ -839,11 +973,33 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			}
 			return 0;
 
+		case WM_SETFOCUS:
+			window->hasFocus = true;
+			break;
+
+		case WM_KILLFOCUS:
+			window->hasFocus = false;
+			break;
+
 		case WM_MOVE:
 			{
 				window->x = (int)LOWORD( lParam );
 				window->y = (int)HIWORD( lParam );
+
+				if( window->updateCallback )
+				{
+					window->updateCallback( window, window->updateCallbackArg );
+				}
 			}
+			return 0;
+
+		case WM_ENTERSIZEMOVE:
+			window->isResize = true;
+			return 0;
+
+		case WM_EXITSIZEMOVE:
+			window->isResize = false;
+			window->updateCallback( window, window->updateCallbackArg );
 			return 0;
 
 		case WM_SIZE:
@@ -876,15 +1032,6 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			}
 			return 0;
 
-		case WM_ENTERSIZEMOVE:
-			window->isResize = true;
-			return 0;
-
-		case WM_EXITSIZEMOVE:
-			window->isResize = false;
-			window->updateCallback( window, window->updateCallbackArg );
-			return 0;
-
 		case WM_SETCURSOR:
 			{
 				if( LOWORD( lParam ) == 1 )
@@ -900,17 +1047,36 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				window->dpiScale = HIWORD( wParam ) / (float)USER_DEFAULT_SCREEN_DPI;
 
 				const RECT* targetRect = (const RECT*)lParam;
-				SetWindowPos( hWnd, HWND_TOP, targetRect->left, targetRect->top, targetRect->right - targetRect->left, targetRect->bottom - targetRect->top, 0u );
+				SetWindowPos( hWnd, HWND_TOP, targetRect->left, targetRect->top, targetRect->right - targetRect->left, targetRect->bottom - targetRect->top, SWP_NOZORDER );
 				window->updateCallback( window, window->updateCallbackArg );
 			}
 			break;
 
 		case WM_MOUSEMOVE:
 			{
+				if( !window->hasTracking )
+				{
+					TRACKMOUSEEVENT tme = { 0 };
+					tme.cbSize    = sizeof( TRACKMOUSEEVENT );
+					tme.dwFlags   = TME_LEAVE;
+					tme.hwndTrack = hWnd;
+
+					window->hasTracking = TrackMouseEvent( &tme );
+				}
+
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
+			}
+			return 0;
+
+		case WM_MOUSELEAVE:
+			{
+				const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = 0xffffffff, .y = 0xffffffff } };
+				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
+
+				window->hasTracking = false;
 			}
 			return 0;
 
@@ -979,7 +1145,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 
-				SetCapture( NULL );
+				ReleaseCapture();
 			}
 			return 0;
 
@@ -989,6 +1155,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				SetCapture( window->hwnd );
 			}
 			return 0;
 
@@ -998,6 +1166,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				ReleaseCapture();
 			}
 			return 0;
 
@@ -1007,6 +1177,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				SetCapture( window->hwnd );
 			}
 			return 0;
 
@@ -1016,6 +1188,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				ReleaseCapture();
 			}
 			return 0;
 
@@ -1025,6 +1199,8 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				SetCapture( window->hwnd );
 			}
 			return 0;
 
@@ -1033,6 +1209,44 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				const int x = GET_X_LPARAM( lParam );
 				const int y = GET_Y_LPARAM( lParam );
 				const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
+				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+				ReleaseCapture();
+			}
+			return 0;
+
+		case WM_LBUTTONDBLCLK:
+			{
+				const int x = GET_X_LPARAM( lParam );
+				const int y = GET_Y_LPARAM( lParam );
+				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Left, .x = x, .y = y } };
+				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+			}
+			return 0;
+
+		case WM_RBUTTONDBLCLK:
+			{
+				const int x = GET_X_LPARAM( lParam );
+				const int y = GET_Y_LPARAM( lParam );
+				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Right, .x = x, .y = y } };
+				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+			}
+			return 0;
+
+		case WM_MBUTTONDBLCLK:
+			{
+				const int x = GET_X_LPARAM( lParam );
+				const int y = GET_Y_LPARAM( lParam );
+				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Middle, .x = x, .y = y } };
+				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+			}
+			return 0;
+
+		case WM_XBUTTONDBLCLK:
+			{
+				const int x = GET_X_LPARAM( lParam );
+				const int y = GET_Y_LPARAM( lParam );
+				const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_X1, .x = x, .y = y } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			return 0;
@@ -1052,6 +1266,161 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			return 0;
+
+
+		case WM_NCCALCSIZE:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				if( !wParam )
+				{
+					break;
+				}
+
+				const UINT dpi		= GetDpiForWindow( window->hwnd );
+				const int frame_x	= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
+				const int frame_y	= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
+				const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
+
+				NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
+				RECT* requestedClientRect = params->rgrc;
+
+				requestedClientRect->right	-= frame_x + padding;
+				requestedClientRect->left	+= frame_x + padding;
+				requestedClientRect->bottom	-= frame_y + padding;
+
+				WINDOWPLACEMENT placement = { 0 };
+				placement.length = sizeof( WINDOWPLACEMENT );
+				if( GetWindowPlacement( window->hwnd, &placement ) &&
+					placement.showCmd == SW_SHOWMAXIMIZED )
+				{
+					requestedClientRect->top += padding;
+				}
+
+				return 0;
+			}
+			break;
+
+		case WM_NCHITTEST:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				window->windowHitResult = DefWindowProc( window->hwnd, message, wParam, lParam );
+				switch( window->windowHitResult )
+				{
+				case HTNOWHERE:
+				case HTRIGHT:
+				case HTLEFT:
+				case HTTOPLEFT:
+				case HTTOP:
+				case HTTOPRIGHT:
+				case HTBOTTOMRIGHT:
+				case HTBOTTOM:
+				case HTBOTTOMLEFT:
+					return window->windowHitResult;
+				}
+
+				const UINT dpi = GetDpiForWindow( window->hwnd );
+				const int frame_y = GetSystemMetricsForDpi( SM_CYFRAME, dpi );
+				const int padding = GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
+
+				POINT mousePos = { 0 };
+				mousePos.x = GET_X_LPARAM( lParam );
+				mousePos.y = GET_Y_LPARAM( lParam );
+				ScreenToClient( window->hwnd, &mousePos );
+
+				if( mousePos.y > 0 && mousePos.y < frame_y + padding )
+				{
+					window->windowHitResult = HTTOP;
+					return HTTOP;
+				}
+
+				if( mousePos.y < window->titleHeight &&
+					mousePos.x < window->titleButtonsX )
+				{
+					window->windowHitResult = HTCAPTION;
+					return HTCAPTION;
+				}
+
+				window->windowHitResult = HTCLIENT;
+				return HTCLIENT;
+			}
+			break;
+
+		case WM_NCMOUSEMOVE:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				POINT mousePos;
+				mousePos.x = GET_X_LPARAM( lParam );
+				mousePos.y = GET_Y_LPARAM( lParam );
+				ScreenToClient( window->hwnd, &mousePos );
+
+				const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = mousePos.x, .y = mousePos.y } };
+				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
+
+				return 0;
+			}
+			break;
+
+		case WM_NCLBUTTONDOWN:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				POINT mousePos;
+				mousePos.x = GET_X_LPARAM( lParam );
+				mousePos.y = GET_Y_LPARAM( lParam );
+				ScreenToClient( window->hwnd, &mousePos );
+
+				if( window->windowHitResult == HTCLIENT )
+				{
+					const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left, .x = mousePos.x, .y = mousePos.y } };
+					ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+					return 0;
+				}
+			}
+			break;
+
+		case WM_NCLBUTTONUP:
+			if( window->style == ImAppWindowStyle_Custom )
+			{
+				POINT mousePos;
+				mousePos.x = GET_X_LPARAM( lParam );
+				mousePos.y = GET_Y_LPARAM( lParam );
+				ScreenToClient( window->hwnd, &mousePos );
+
+				if( window->windowHitResult == HTCLIENT )
+				{
+					const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left, .x = mousePos.x, .y = mousePos.y } };
+					ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+
+					return 0;
+				}
+			}
+			break;
+
+		case WM_NCRBUTTONUP:
+			if( window->style == ImAppWindowStyle_Custom &&
+				wParam == HTCAPTION )
+			{
+				const BOOL isMaximized = window->state == ImAppWindowState_Maximized;
+				MENUITEMINFO menu_item_info = {
+					.cbSize = sizeof( menu_item_info ),
+					.fMask = MIIM_STATE
+				};
+
+				const HMENU sysMenu = GetSystemMenu( window->hwnd, false );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_RESTORE, isMaximized );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_MOVE, !isMaximized );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_SIZE, !isMaximized );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_MINIMIZE, true );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_MAXIMIZE, !isMaximized );
+				set_menu_item_state( sysMenu, &menu_item_info, SC_CLOSE, true );
+
+				const BOOL result = TrackPopupMenu( sysMenu, TPM_RETURNCMD, GET_X_LPARAM( lParam ), GET_Y_LPARAM( lParam ), 0, window->hwnd, NULL );
+				if( result != 0 )
+				{
+					PostMessage( window->hwnd, WM_SYSCOMMAND, result, 0 );
+				}
+			}
+			break;
 
 		default:
 			break;

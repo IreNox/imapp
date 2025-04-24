@@ -65,7 +65,7 @@ namespace imapp
 
 		DynamicString			m_name;
 		DynamicString			m_outputPath;
-		bool					m_exportCode;
+		bool					m_exportCode = false;
 
 		ResourceArray			m_resources;
 	};

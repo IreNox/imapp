@@ -17,26 +17,31 @@ typedef struct ImAppResSys ImAppResSys;
 typedef struct ImAppWindow ImAppWindow;
 typedef struct ImAppRendererTexture ImAppRendererTexture;
 
-typedef struct ImAppInternal
+struct ImAppContext
 {
-	ImAppContext			context;		// must be at offset 0
-
 	ImUiAllocator			allocator;
 
 	bool					running;
+	bool					isFullscrene;
+	bool					useWindowStyle;
 	int						exitCode;
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
 	ImUiInputMouseCursor	lastCursor;
 
 	ImAppPlatform*			platform;
-	ImAppWindow*			window;
+	ImUiContext*			imui;
 	ImAppRenderer*			renderer;
 	ImAppResSys*			ressys;
+
+	ImAppWindow**			windows;
+	uintsize				windowsCount;
+	uintsize				windowsCapacity;
 
 	ImAppResPak*			defaultResPak;
 	ImUiFont*				defaultFont;
 	ImAppRendererTexture*	defaultFontTexture;
 
 	void*					programContext;
-} ImAppInternal;
+	ImUiFrame*				frame;
+};

@@ -22,8 +22,6 @@ namespace imapp
 	{
 	public:
 
-		using ByteArray = DynamicArray< byte >;
-
 								Compiler();
 								~Compiler();
 
@@ -61,11 +59,42 @@ namespace imapp
 		using ResourceTypeIndexArray = StaticArray< DynamicArray< uint16 >, ImAppResPakType_MAX >;
 		using ResourceTypeIndexMap = StaticArray< HashMap< DynamicString, uint16 >, ImAppResPakType_MAX >;
 
+		class BinaryBuffer
+		{
+		public:
+
+			using ByteView = ConstArrayView< byte >;
+
+			void					clear();
+
+			ByteView				getData() const { return m_buffer; }
+			uintsize				getLength() const { return m_buffer.getLength(); }
+
+			template< typename T >
+			T&						getBufferData( uint32 offset );
+			template< typename T >
+			T&		 				getBufferArrayElement( uint32 offset, uintsize index );
+			template< typename T >
+			uint32					preallocateToBuffer( uintsize alignment = 1u );
+			template< typename T >
+			uint32					preallocateArrayToBuffer( uintsize length, uintsize alignment = 1u );
+			template< typename T >
+			uint32					writeToBuffer( const T& value, uintsize alignment = 1u );
+			template< typename T >
+			uint32					writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment = 1u );
+
+		private:
+
+			using ByteArray = DynamicArray< byte >;
+
+			ByteArray			m_buffer;
+		};
+
 		DynamicString			m_packageName;
 		Path					m_outputPath;
 		bool					m_outputCode;
 		ResourceMap				m_resources;
-		ByteArray				m_buffer;
+		BinaryBuffer			m_buffer;
 
 		CompilerResourceData	m_atlasData;
 		AtlasImageMap			m_atlasImages;
@@ -82,19 +111,6 @@ namespace imapp
 		void					writeResourceNames( CompiledResourceArray& compiledResources );
 		void					writeResourceHeaders( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
 		void					writeResourceData( uint32 resourcesOffset, const CompiledResourceArray& compiledResources, const ResourceTypeIndexMap& resourceIndexMapping );
-
-		template< typename T >
-		T&						getBufferData( uint32 offset );
-		template< typename T >
-		T&		 				getBufferArrayElement( uint32 offset, uintsize index );
-		template< typename T >
-		uint32					preallocateToBuffer( uintsize alignment = 1u );
-		template< typename T >
-		uint32					preallocateArrayToBuffer( uintsize length, uintsize alignment = 1u );
-		template< typename T >
-		uint32					writeToBuffer( const T& value, uintsize alignment = 1u );
-		template< typename T >
-		uint32					writeArrayToBuffer( const ArrayView< T >& array, uintsize alignment = 1u );
 
 		void					writeBinaryFile();
 		void					writeCodeFile();

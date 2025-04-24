@@ -30,8 +30,9 @@ typedef struct ImAppWindow ImAppWindow;
 
 typedef enum ImAppWindowStyle
 {
-	ImAppWindowState_Resizable,
-	ImAppWindowState_Borderless
+	ImAppWindowStyle_Resizable,
+	ImAppWindowStyle_Borderless,
+	ImAppWindowStyle_Custom
 } ImAppWindowStyle;
 
 typedef enum ImAppWindowState ImAppWindowState;
@@ -44,7 +45,7 @@ enum ImAppWindowState
 
 typedef void(*ImAppPlatformWindowUpdateCallback)( ImAppWindow* window, void* arg );
 
-ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state );
+ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc );
 void					ImAppPlatformWindowDestroy( ImAppWindow* window );
 
 bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );
@@ -54,14 +55,23 @@ void					ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpda
 bool					ImAppPlatformWindowPresent( ImAppWindow* window );
 
 ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
+ImAppWindowDoUiFunc		ImAppPlatformWindowGetUiFunc( ImAppWindow* window );
 
 bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );
 
 void					ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
+bool					ImAppPlatformWindowHasFocus( const ImAppWindow* window );
 void					ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
+void					ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height );
 void					ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
+void					ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y );
 ImAppWindowState		ImAppPlatformWindowGetState( const ImAppWindow* window );
+void					ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state );
+const char*				ImAppPlatformWindowGetTitle( const ImAppWindow* window );
+void					ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title );
+void					ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX );
 float					ImAppPlatformWindowGetDpiScale( const ImAppWindow* window );
+void					ImAppPlatformWindowClose( ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
 // Files/Resources

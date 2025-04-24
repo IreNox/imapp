@@ -13,6 +13,7 @@ enum ImAppEventType
 	ImAppEventType_Motion,
 	ImAppEventType_ButtonDown,
 	ImAppEventType_ButtonUp,
+	ImAppEventType_DoubleClick,
 	ImAppEventType_Scroll
 };
 

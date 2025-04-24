@@ -34,7 +34,7 @@ namespace imapp
 
 		bool				handleArgs( int argc, char* argv[], bool& shutdown );
 
-		void				doUi( ImAppContext* imapp, UiSurface& surface );
+		void				doUi( ImAppContext* imapp, ImAppWindow* appWindow, UiToolboxWindow& uiWindow );
 
 	private:
 
@@ -117,7 +117,7 @@ namespace imapp
 
 		bool				load( const char* filename );
 
-		void				update( ImAppContext* imapp, double time );
+		void				update( ImAppWindow* appWindow, double time );
 
 		void				doPopups( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );
