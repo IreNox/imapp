@@ -33,6 +33,7 @@ namespace imapp
 		const UiField*				uiField	= nullptr;
 		ImAppResPakThemeFieldBase	base;
 		uintsize					level;
+		bool						open	= false;
 
 		XMLElement*					xml		= nullptr;
 		DynamicString				value;

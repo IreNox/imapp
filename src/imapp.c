@@ -20,7 +20,8 @@ static bool		ImAppInitialize( ImAppContext* imapp, const ImAppParameters* parame
 static void		ImAppCleanup( ImAppContext* imapp );
 static void		ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window );
 static void		ImAppTick( void* arg );
-static void		ImAppTickWindow( ImAppWindow* window, void* arg );
+static void		ImAppTickUi( ImAppWindow* appWindow, void* arg );
+static void		ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow );
 
 int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 {
@@ -147,22 +148,33 @@ static void ImAppTick( void* arg )
 
 	ImAppResSysUpdate( imapp->ressys, false );
 
+	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
+	{
+		ImAppWindow* window = imapp->windows[ i ];
+		ImAppPlatformWindowUpdate( window, ImAppTickUi, imapp );
+	}
+
+	ImAppTickUi( NULL, arg );
+}
+
+static void ImAppTickUi( ImAppWindow* appWindow, void* arg )
+{
+	ImAppContext* imapp = (ImAppContext*)arg;
+
 	imapp->frame = ImUiBegin( imapp->imui, imapp->lastTickValue / 1000.0f );
 
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 	{
 		ImAppWindow* window = imapp->windows[ i ];
-		ImAppPlatformWindowUpdate( window, ImAppTickWindow, imapp );
+		ImAppTickWindowUi( imapp, window );
 	}
 
 	ImUiEnd( imapp->frame );
 	imapp->frame = NULL;
 }
 
-static void ImAppTickWindow( ImAppWindow* appWindow, void* arg )
+static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
 {
-	ImAppContext* imapp = (ImAppContext*)arg;
-
 	ImAppHandleWindowEvents( imapp, appWindow );
 
 	if( ImUiInputGetShortcut( imapp->imui ) == ImUiInputShortcut_Paste )
@@ -176,7 +188,7 @@ static void ImAppTickWindow( ImAppWindow* appWindow, void* arg )
 
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)width, (float)height );
-		ImUiSurface* surface	= ImUiSurfaceBeginReuse( imapp->frame, "default", size, ImAppPlatformWindowGetDpiScale( appWindow ), true );
+		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, "default", size, ImAppPlatformWindowGetDpiScale( appWindow ) );
 
 		ImUiRect windowRect;
 		if( !imapp->isFullscrene && imapp->useWindowStyle )

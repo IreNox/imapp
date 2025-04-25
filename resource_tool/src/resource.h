@@ -1,17 +1,19 @@
 #pragma once
 
 #include "resource_types.h"
-#include "resource_theme.h"
 
 #include <imapp/imapp.h>
-
-#include <tinyxml2.h>
 
 struct ImAppImage;
 
 namespace tiki
 {
 	class Path;
+}
+
+namespace tinyxml2
+{
+	class XMLElement;
 }
 
 namespace imapp
@@ -76,8 +78,8 @@ namespace imapp
 		UiBorder&				getSkinBorder() { return m_skinBorder; }
 		const UiBorder&			getSkinBorder() const { return m_skinBorder; }
 
-		ResourceTheme&			getTheme() { return m_theme; }
-		const ResourceTheme&	getTheme() const { return m_theme; }
+		ResourceTheme&			getTheme() { TIKI_ASSERT( m_theme ); return *m_theme; }
+		const ResourceTheme&	getTheme() const { TIKI_ASSERT( m_theme ); return *m_theme; }
 
 		ImAppImage*				getOrCreateImage( ImAppContext* imapp );
 
@@ -115,7 +117,7 @@ namespace imapp
 		DynamicString			m_skinImageName;
 		UiBorder				m_skinBorder;
 
-		ResourceTheme			m_theme;
+		ResourceTheme*			m_theme				= nullptr;
 
 		bool					loadImageXml();
 		bool					loadSkinXml();

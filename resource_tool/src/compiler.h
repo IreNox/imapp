@@ -7,6 +7,7 @@
 #include <tiki/tiki_dynamic_string.h>
 #include <tiki/tiki_hash_map.h>
 #include <tiki/tiki_path.h>
+#include <tiki/tiki_static_array.h>
 
 #include <imapp/../../src/imapp_res_pak.h>
 
