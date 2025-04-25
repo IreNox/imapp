@@ -6,7 +6,7 @@
 #include "imapp_event_queue.h"
 #include "imapp_internal.h"
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <SDL2/SDL.h>
 #else
 #	include <SDL.h>

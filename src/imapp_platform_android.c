@@ -743,7 +743,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	window->surface = eglCreateWindowSurface( window->display, config, window->pNativeWindow, NULL );
 
 	const EGLint contextAttributes[] = {
-		EGL_CONTEXT_CLIENT_VERSION,	2,
+		EGL_CONTEXT_CLIENT_VERSION,	3,
 		EGL_NONE
 	};
 

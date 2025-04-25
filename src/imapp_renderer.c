@@ -61,14 +61,20 @@ struct ImAppRendererTexture
 	uint8						flags;
 };
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
+#else
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
+#endif
+
 static const char s_vertexShader[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"uniform mat4 ProjectionMatrix;\n"
-	"attribute vec2 Position;\n"
-	"attribute vec2 TexCoord;\n"
-	"attribute vec4 Color;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 Position;\n"
+	"in vec2 TexCoord;\n"
+	"in vec4 Color;\n"
+	"out vec2 vtfUV;\n"
+	"out vec4 vtfColor;\n"
 	"void main() {\n"
 	"	vtfUV		= TexCoord;\n"
 	"	vtfColor	= Color;\n"
@@ -76,56 +82,60 @@ static const char s_vertexShader[] =
 	"}\n";
 
 static const char s_fragmentShaderTexture[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	vec4 texColor = texture2D(Texture, vtfUV.xy);\n"
-	"	gl_FragColor = vtfColor * texColor;\n"
+	"	vec4 texColor = texture(Texture, vtfUV.xy);\n"
+	"	fbColor = vtfColor * texColor;\n"
 	"}\n";
 
 static const char s_fragmentShaderColor[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	gl_FragColor = vtfColor;\n"
+	"	fbColor = vtfColor;\n"
 	"}\n";
 
 static const char s_fragmentShaderFont[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	float charAlpha = texture2D(Texture, vtfUV.xy).a;\n"
-	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
+	"	float charAlpha = texture(Texture, vtfUV.xy).a;\n"
+	"	fbColor = vec4(vtfColor.rgb, vtfColor.a * charAlpha);\n"
 	"}\n";
 
 static const char s_fragmentShaderFontSdf[] =
-	"#version 130\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
-	"float median( vec3 v ) {\n"
-	"	return max( min( v.r, v.g ), min( max( v.r, v.g ), v.b ) );\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
+	"float median(vec3 v) {\n"
+	"	return max(min(v.r, v.g), min(max(v.r, v.g), v.b));\n"
 	"}\n"
 	"float screenPixelRange() {\n"
-	"	vec2 unitRange = vec2( 2.0 ) / vec2( textureSize( Texture, 0 ) );\n"
-	"	vec2 screenTexSize = vec2( 1.0 ) / fwidth( vtfUV );\n"
-	"	return max( 0.5 * dot( unitRange, screenTexSize ), 1.0 );\n"
+	"	vec2 unitRange = vec2(2.0) / vec2(textureSize(Texture, 0));\n"
+	"	vec2 screenTexSize = vec2(1.0) / fwidth(vtfUV);\n"
+	"	return max( 0.5 * dot(unitRange, screenTexSize), 1.0 );\n"
 	"}\n"
 	"void main() {\n"
-	"	vec3 charDistances = texture2D(Texture, vtfUV.xy).rgb;\n"
+	"	vec3 charDistances = texture(Texture, vtfUV.xy).rgb;\n"
 	"	float charDistanceMedian = median( charDistances );\n"
 	"	float charDistance = screenPixelRange() * (charDistanceMedian - 0.5);\n"
-	"	float charAlpha = clamp( charDistance + 0.5, 0.0, 1.0 );\n"
-	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
+	"	float charAlpha = clamp(charDistance + 0.5, 0.0, 1.0);\n"
+	"	fbColor = vec4(vtfColor.rgb, vtfColor.a * charAlpha);\n"
 	"}\n";
 
 static const struct ImUiVertexElement s_vertexLayout[] = {
