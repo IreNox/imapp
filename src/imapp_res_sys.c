@@ -220,7 +220,8 @@ static void ImAppResSysHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* res
 			return;
 		}
 
-		if( ressys->watcher )
+		if( ressys->watcher &&
+			pak->memoryData == NULL )
 		{
 			char pakPath[ 1024u ];
 			ImAppPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );

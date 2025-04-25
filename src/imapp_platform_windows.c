@@ -1276,10 +1276,16 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					break;
 				}
 
+#if WINVER >= 0x0605
 				const UINT dpi		= GetDpiForWindow( window->hwnd );
 				const int frame_x	= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
 				const int frame_y	= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
 				const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
+#else
+				const int frame_x	= GetSystemMetrics( SM_CXFRAME );
+				const int frame_y	= GetSystemMetrics( SM_CYFRAME );
+				const int padding	= GetSystemMetrics( SM_CXPADDEDBORDER );
+#endif
 
 				NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
 				RECT* requestedClientRect = params->rgrc;
@@ -1318,9 +1324,14 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 					return window->windowHitResult;
 				}
 
+#if WINVER >= 0x0605
 				const UINT dpi = GetDpiForWindow( window->hwnd );
 				const int frame_y = GetSystemMetricsForDpi( SM_CYFRAME, dpi );
 				const int padding = GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
+#else
+				const int frame_y = GetSystemMetrics( SM_CYFRAME );
+				const int padding = GetSystemMetrics( SM_CXPADDEDBORDER );
+#endif
 
 				POINT mousePos = { 0 };
 				mousePos.x = GET_X_LPARAM( lParam );
