@@ -81,6 +81,7 @@ struct ImAppWindow
 
 	bool				hasFocus;
 	bool				hasTracking;
+	bool				hasSizeChanged;
 	bool				isResize;
 	int					x;
 	int					y;
@@ -983,10 +984,10 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_MOVE:
 			{
-				window->x = (int)LOWORD( lParam );
-				window->y = (int)HIWORD( lParam );
+				window->x = (int)GET_X_LPARAM( lParam );
+				window->y = (int)GET_Y_LPARAM( lParam );
 
-				if( window->updateCallback )
+				if( window->hasSizeChanged && window->updateCallback )
 				{
 					window->updateCallback( window, window->updateCallbackArg );
 				}
@@ -999,6 +1000,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_EXITSIZEMOVE:
 			window->isResize = false;
+			window->hasSizeChanged = false;
 			window->updateCallback( window, window->updateCallbackArg );
 			return 0;
 
@@ -1022,8 +1024,9 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				RECT clientRect;
 				GetClientRect( hWnd, &clientRect );
 
-				window->width	= (clientRect.right - clientRect.left);
-				window->height	= (clientRect.bottom - clientRect.top);
+				window->width			= (clientRect.right - clientRect.left);
+				window->height			= (clientRect.bottom - clientRect.top);
+				window->hasSizeChanged	= true;
 
 				if( window->updateCallback )
 				{
@@ -1045,12 +1048,17 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		case WM_DPICHANGED:
 			{
 				window->dpiScale = HIWORD( wParam ) / (float)USER_DEFAULT_SCREEN_DPI;
+				window->hasSizeChanged = true;
 
 				const RECT* targetRect = (const RECT*)lParam;
 				SetWindowPos( hWnd, HWND_TOP, targetRect->left, targetRect->top, targetRect->right - targetRect->left, targetRect->bottom - targetRect->top, SWP_NOZORDER );
-				window->updateCallback( window, window->updateCallbackArg );
+
+				if( window->updateCallback )
+				{
+					window->updateCallback( window, window->updateCallbackArg );
+				}
 			}
-			break;
+			return 0;
 
 		case WM_MOUSEMOVE:
 			{
@@ -1261,7 +1269,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		case WM_MOUSEHWHEEL:
 			{
-				const int xDelta = GET_WHEEL_DELTA_WPARAM( wParam );
+				const int xDelta = GET_WHEEL_DELTA_WPARAM( wParam ) / WHEEL_DELTA;
 				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = xDelta, .y = 0 } };
 				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
