@@ -1,5 +1,7 @@
 #include "imapp_window_theme.h"
 
+#include "imapp_platform.h"
+
 static ImAppWindowTheme s_windowTheme;
 
 typedef struct ImAppWindowThemeState
@@ -216,6 +218,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 
 	// title bar
 	int buttonsX;
+	int titleHeight;
 	{
 		ImUiWidget* title = ImUiWidgetBegin( window );
 		ImUiWidgetSetHStretch( title, 1.0f );
@@ -259,9 +262,9 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 
 		// title text
 		{
-			const char* title = ImAppPlatformWindowGetTitle( appWindow );
+			const char* windowTitle = ImAppPlatformWindowGetTitle( appWindow );
 
-			ImUiWidget* titleText = ImUiToolboxLabelBeginColor( window, title, titleTheme->textColor );
+			ImUiWidget* titleText = ImUiToolboxLabelBeginColor( window, windowTitle, titleTheme->textColor );
 			ImUiWidgetSetVAlign( titleText, 0.5f );
 			ImUiToolboxLabelEnd( titleText );
 		}
@@ -302,6 +305,8 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 			}
 		}
 
+		titleHeight = (int)ImUiWidgetGetSizeHeight( title );
+
 		ImUiWidgetEnd( title );
 	}
 
@@ -323,7 +328,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 	ImUiWidgetEnd( root );
 	ImUiWindowEnd( window );
 
-	ImAppPlatformWindowSetTitleBounds( appWindow, (int)ceilf( s_windowTheme.titleHeight ), buttonsX );
+	ImAppPlatformWindowSetTitleBounds( appWindow, titleHeight, buttonsX );
 
 	return result;
 }

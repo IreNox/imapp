@@ -1,5 +1,6 @@
 #include "imapp/imapp.h"
 
+#include "imapp_debug.h"
 #include "imapp_event_queue.h"
 #include "imapp_internal.h"
 #include "imapp_platform.h"
@@ -341,7 +342,7 @@ static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* paramet
 	ImUiParameters uiParameters;
 	memset( &uiParameters, 0, sizeof( uiParameters ) );
 
-	uiParameters.allocator		= imapp->allocator;
+	uiParameters.allocator		= parameters->allocator;
 	uiParameters.vertexType		= ImUiVertexType_IndexedVertexList;
 	uiParameters.vertexFormat	= ImAppRendererGetVertexFormat();
 	uiParameters.shortcuts		= parameters->shortcuts;
@@ -582,6 +583,12 @@ ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceNam
 
 ImAppImage* ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, size_t imageDataSize, int width, int height )
 {
+	if( imageDataSize < (size_t)(width * height * 4) )
+	{
+		IMAPP_DEBUG_LOGW( "Insuficiant data to create image." );
+		return NULL;
+	}
+
 	return ImAppResSysImageCreateRaw( imapp->ressys, imageData, width, height );
 }
 

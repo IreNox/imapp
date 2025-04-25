@@ -751,6 +751,8 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 
 bool ImAppResSysRecreateEverything( ImAppResSys* ressys )
 {
+	// TODO
+	IMAPP_USE( ressys );
 	return false;
 }
 
@@ -822,7 +824,9 @@ static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 
 	if( pak->memoryData == NULL )
 	{
-		ImAppBlob metadataBlob = { pak->metadata, pak->metadataSize };
+		ImAppBlob metadataBlob;
+		metadataBlob.data = pak->metadata;
+		metadataBlob.size = pak->metadataSize;
 		ImAppPlatformResourceFree( ressys->platform, metadataBlob );
 	}
 
@@ -1095,8 +1099,10 @@ ImAppImage* ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageDat
 	ImAppImage* image = IMUI_MEMORY_NEW_ZERO( ressys->allocator, ImAppImage );
 
 	ImAppResEvent decodeEvent;
-	decodeEvent.type				= ImAppResEventType_DecodePng;
-	decodeEvent.data.image.image	= image;
+	decodeEvent.type						= ImAppResEventType_DecodePng;
+	decodeEvent.data.decode.image			= image;
+	decodeEvent.data.decode.sourceData.data	= imageData;
+	decodeEvent.data.decode.sourceData.size	= imageDataSize;
 
 	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &decodeEvent ) )
 	{
@@ -1112,8 +1118,10 @@ ImAppImage* ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageDa
 	ImAppImage* image = IMUI_MEMORY_NEW_ZERO( ressys->allocator, ImAppImage );
 
 	ImAppResEvent decodeEvent;
-	decodeEvent.type				= ImAppResEventType_DecodeJpeg;
-	decodeEvent.data.image.image	= image;
+	decodeEvent.type						= ImAppResEventType_DecodeJpeg;
+	decodeEvent.data.decode.image			= image;
+	decodeEvent.data.decode.sourceData.data	= imageData;
+	decodeEvent.data.decode.sourceData.size	= imageDataSize;
 
 	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &decodeEvent ) )
 	{
@@ -1126,6 +1134,8 @@ ImAppImage* ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageDa
 
 ImAppResState ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
 {
+	IMAPP_USE( ressys );
+
 	return image->state;
 }
 
@@ -1344,7 +1354,8 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 
 		if( memcmp( header.magic, IMAPP_RES_PAK_MAGIC, sizeof( header.magic ) ) != 0 )
 		{
-			const char magicBuffer[] = { header.magic[ 0u ], header.magic[ 1u ], header.magic[ 2u ], header.magic[ 3u ], '\0' };
+			char magicBuffer[ 5u ] = { '\0', '\0', '\0', '\0', '\0' };
+			memcpy( magicBuffer, &header.magic, sizeof( header.magic ) );
 			IMAPP_DEBUG_LOGE( "Invalid ResPak file. Magic doesn't match. Got: '%s', Expected: '%s'", magicBuffer, IMAPP_RES_PAK_MAGIC );
 			return;
 		}
@@ -1374,7 +1385,8 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 
 		if( memcmp( header.magic, IMAPP_RES_PAK_MAGIC, sizeof( header.magic ) ) != 0 )
 		{
-			const char magicBuffer[] = { header.magic[ 0u ], header.magic[ 1u ], header.magic[ 2u ], header.magic[ 3u ], '\0' };
+			char magicBuffer[ 5u ] = { '\0', '\0', '\0', '\0', '\0' };
+			memcpy( magicBuffer, &header.magic, sizeof( header.magic ) );
 			IMAPP_DEBUG_LOGE( "Invalid ResPak file. Magic doesn't match. Got: '%s', Expected: '%s'", magicBuffer, IMAPP_RES_PAK_MAGIC );
 			return;
 		}
@@ -1428,7 +1440,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to load data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
@@ -1441,7 +1453,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 			const ImUiStringView resName = ImAppResPakResourceGetName( pak->metadata, sourceRes );
 #else
-			const ImUiStringView resName = ImUiStringViewCreate( "no name" );
+			//const ImUiStringView resName = ImUiStringViewCreate( "no name" );
 #endif
 			IMAPP_DEBUG_LOGE( "Failed to get data of resource '%s' in pak '%s'.", resName.data, pak->resourceName );
 			return;
@@ -1574,8 +1586,8 @@ static void ImAppResThreadHandleDecodePng( ImAppResSys* ressys, ImAppResEvent* r
 		return;
 	}
 
-	resEvent->result.image.width		= ihdr.width;
-	resEvent->result.image.height		= ihdr.height;
+	resEvent->result.image.width		= (uint16)ihdr.width;
+	resEvent->result.image.height		= (uint16)ihdr.height;
 	resEvent->result.image.data.data	= pixelData;
 	resEvent->result.image.data.size	= pixelDataSize;
 
@@ -1584,6 +1596,8 @@ static void ImAppResThreadHandleDecodePng( ImAppResSys* ressys, ImAppResEvent* r
 
 static void ImAppResThreadHandleDecodeJpeg( ImAppResSys* ressys, ImAppResEvent* resEvent )
 {
+	IMAPP_USE( ressys );
+	IMAPP_USE( resEvent );
 	// TODO
 }
 

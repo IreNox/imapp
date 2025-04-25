@@ -107,7 +107,7 @@ static const char s_fragmentShaderFont[] =
 	"}\n";
 
 static const char s_fragmentShaderFontSdf[] =
-	"#version 100\n"
+	"#version 130\n"
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
 	"varying vec2 vtfUV;\n"
@@ -115,10 +115,15 @@ static const char s_fragmentShaderFontSdf[] =
 	"float median( vec3 v ) {\n"
 	"	return max( min( v.r, v.g ), min( max( v.r, v.g ), v.b ) );\n"
 	"}\n"
+	"float screenPixelRange() {\n"
+	"	vec2 unitRange = vec2( 2.0 ) / vec2( textureSize( Texture, 0 ) );\n"
+	"	vec2 screenTexSize = vec2( 1.0 ) / fwidth( vtfUV );\n"
+	"	return max( 0.5 * dot( unitRange, screenTexSize ), 1.0 );\n"
+	"}\n"
 	"void main() {\n"
 	"	vec3 charDistances = texture2D(Texture, vtfUV.xy).rgb;\n"
 	"	float charDistanceMedian = median( charDistances );\n"
-	"	float charDistance = 2.0 * (charDistanceMedian - 0.5);\n"
+	"	float charDistance = screenPixelRange() * (charDistanceMedian - 0.5);\n"
 	"	float charAlpha = clamp( charDistance + 0.5, 0.0, 1.0 );\n"
 	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
 	"}\n";

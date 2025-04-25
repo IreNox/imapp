@@ -35,8 +35,8 @@ static void					ImAppPlatformFileWatcherPathStart( ImAppFileWatcherPath* path );
 
 static DWORD WINAPI			ImAppPlatformThreadEntry( void* voidThread );
 
-static const wchar_t* s_pWindowClass		= L"ImAppWindowClass";
-static  IDropTargetVtbl s_dropTargetVtbl	= { ImAppPlatformWindowDropTargetQueryInterface, ImAppPlatformWindowDropTargetAddRef, ImAppPlatformWindowDropTargetRelease, ImAppPlatformWindowDropTargetDragEnter, ImAppPlatformWindowDropTargetDragOver, ImAppPlatformWindowDropTargetDragLeave, ImAppPlatformWindowDropTargetDrop };
+static const wchar_t* s_pWindowClass	= L"ImAppWindowClass";
+static IDropTargetVtbl s_dropTargetVtbl	= { ImAppPlatformWindowDropTargetQueryInterface, ImAppPlatformWindowDropTargetAddRef, ImAppPlatformWindowDropTargetRelease, ImAppPlatformWindowDropTargetDragEnter, ImAppPlatformWindowDropTargetDragOver, ImAppPlatformWindowDropTargetDragLeave, ImAppPlatformWindowDropTargetDrop };
 
 struct ImAppPlatform
 {
@@ -137,7 +137,7 @@ struct ImAppThread
 	ImAppThreadFunc		func;
 	void*				arg;
 
-	volatile ULONG		isRunning;
+	volatile LONG		isRunning;
 };
 
 static const LPTSTR s_windowsSystemCursorMapping[] =
@@ -158,6 +158,11 @@ static_assert(IMAPP_ARRAY_COUNT( s_windowsSystemCursorMapping ) == ImUiInputMous
 
 int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd )
 {
+	IMAPP_USE( hInstance );
+	IMAPP_USE( hPrevInstance );
+	IMAPP_USE( lpCmdLine );
+	IMAPP_USE( nShowCmd );
+
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	int tmpFlag = _CrtSetDbgFlag( _CRTDBG_REPORT_FLAG );
 
@@ -176,7 +181,9 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	_controlfp_s( 0, ~newControl, newControl );
 #endif
 
+#if WINVER >= 0x0605
 	SetProcessDpiAwarenessContext( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
+#endif
 
 	ImAppPlatform platform = { 0 };
 
@@ -307,9 +314,9 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 		const wchar_t* pWideCommandLine = GetCommandLineW();
 		wchar_t** ppWideArgs = CommandLineToArgvW( pWideCommandLine, &argc );
 
-		argv = (char**)malloc( sizeof( char* ) * argc );
+		argv = (char**)malloc( sizeof( char* ) * (uintsize)argc );
 
-		for( uintsize i = 0u; i < argc; ++i )
+		for( int i = 0; i < argc; ++i )
 		{
 			const int argLength = WideCharToMultiByte( CP_UTF8, 0u, ppWideArgs[ i ], -1, NULL, 0, NULL, NULL );
 
@@ -328,7 +335,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
 	const int result = ImAppMain( &platform, argc, argv );
 
-	for( uintsize i = 0u; i < argc; ++i )
+	for( int i = 0; i < argc; ++i )
 	{
 		free( argv[ i ] );
 	}
@@ -379,7 +386,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 			return false;
 		}
 
-		for( uintsize i = 0; i < convertResult - 1; ++i )
+		for( int i = 0; i < convertResult - 1; ++i )
 		{
 			if( pTargetPath[ i ] == L'/' )
 			{
@@ -424,6 +431,8 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 
 sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
+	IMAPP_USE( platform );
+
 	LARGE_INTEGER currentPerformanceCounterValue;
 	QueryPerformanceCounter( &currentPerformanceCounterValue );
 
@@ -449,6 +458,8 @@ sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 
 void ImAppPlatformShowError( ImAppPlatform* platform, const char* message )
 {
+	IMAPP_USE( platform );
+
 	MessageBoxA( NULL, message, "I'm App", MB_ICONSTOP );
 }
 
@@ -460,6 +471,8 @@ void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor 
 
 void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 {
+	IMAPP_USE( platform );
+
 	if( !OpenClipboard( NULL ) )
 	{
 		IMAPP_DEBUG_LOGW( "Failed to open Clipboard." );
@@ -499,6 +512,8 @@ void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 
 void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 {
+	IMAPP_USE( platform );
+
 	if( !OpenClipboard( NULL ) )
 	{
 		IMAPP_DEBUG_LOGW( "Failed to open Clipboard." );
@@ -601,6 +616,9 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	case ImAppWindowStyle_Custom:		winStyle = WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
 	}
 
+	IMAPP_USE( x );
+	IMAPP_USE( y );
+
 	window->hwnd = CreateWindowExW(
 		WS_EX_APPWINDOW,
 		s_pWindowClass,
@@ -625,7 +643,11 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	SetWindowLongPtr( window->hwnd, GWLP_USERDATA, (LONG_PTR)window );
 
+#if WINVER >= 0x0605
 	window->dpiScale = GetDpiForWindow( window->hwnd ) / (float)USER_DEFAULT_SCREEN_DPI;
+#else
+	window->dpiScale = 1.0f;
+#endif
 	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, (int)ceil( width * window->dpiScale ), (int)ceil( height * window->dpiScale ), SWP_NOMOVE );
 
 	{
@@ -963,6 +985,11 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				window->x = (int)LOWORD( lParam );
 				window->y = (int)HIWORD( lParam );
+
+				if( window->updateCallback )
+				{
+					window->updateCallback( window, window->updateCallbackArg );
+				}
 			}
 			return 0;
 
@@ -1451,16 +1478,24 @@ HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetQueryInterface( __RPC__in
 
 ULONG STDMETHODCALLTYPE ImAppPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This )
 {
+	IMAPP_USE( This );
+
 	return 1u;
 }
 
 ULONG STDMETHODCALLTYPE ImAppPlatformWindowDropTargetRelease( __RPC__in IDropTarget* This )
 {
+	IMAPP_USE( This );
+
 	return 1u;
 }
 
 HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragEnter( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
 {
+	IMAPP_USE( grfKeyState );
+	IMAPP_USE( pt );
+	IMAPP_USE( pdwEffect );
+
 	ImAppWindow* window = (ImAppWindow*)This;
 
 	IEnumFORMATETC* formatEnum = NULL;
@@ -1492,16 +1527,27 @@ HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragEnter( __RPC__in IDro
 
 HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragOver( __RPC__in IDropTarget* This, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
 {
+	IMAPP_USE( This );
+	IMAPP_USE( grfKeyState );
+	IMAPP_USE( pt );
+	IMAPP_USE( pdwEffect );
+
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDragLeave( __RPC__in IDropTarget* This )
 {
+	IMAPP_USE( This );
+
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE ImAppPlatformWindowDropTargetDrop( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD* pdwEffect )
 {
+	IMAPP_USE( grfKeyState );
+	IMAPP_USE( pt );
+	IMAPP_USE( pdwEffect );
+
 	ImAppWindow* window = (ImAppWindow*)This;
 
 	STGMEDIUM medium = { 0u };
@@ -1678,6 +1724,8 @@ uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 
 void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 {
+	IMAPP_USE( platform );
+
 	const HANDLE fileHandle = (HANDLE)file;
 	CloseHandle( fileHandle );
 }
@@ -1948,6 +1996,7 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 	thread->arg			= arg;
 	thread->handle		= CreateThread( NULL, 0u, ImAppPlatformThreadEntry, thread, 0u, NULL );
 
+	IMAPP_USE( name );
 	//SetThreadDescription( thread->handle, name );
 
 	return thread;
@@ -1963,7 +2012,7 @@ void ImAppPlatformThreadDestroy( ImAppThread* thread )
 
 bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
 {
-	return InterlockedOrNoFence( (volatile ULONG*)&thread->isRunning, 0);
+	return InterlockedOrNoFence( (volatile LONG*)&thread->isRunning, 0);
 }
 
 static DWORD WINAPI ImAppPlatformThreadEntry( void* voidThread )
@@ -2005,11 +2054,15 @@ void ImAppPlatformMutexUnlock( ImAppMutex* mutex )
 
 ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
 {
+	IMAPP_USE( platform );
+
 	return (ImAppSemaphore*)CreateSemaphore( NULL, 0, LONG_MAX, NULL );
 }
 
 void ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
 {
+	IMAPP_USE( platform );
+
 	CloseHandle( (HANDLE)semaphore );
 }
 
