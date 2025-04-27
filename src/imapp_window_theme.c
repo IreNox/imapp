@@ -2,6 +2,8 @@
 
 #include "imapp_platform.h"
 
+#include <assert.h>
+
 static ImAppWindowTheme s_windowTheme;
 
 typedef struct ImAppWindowThemeState

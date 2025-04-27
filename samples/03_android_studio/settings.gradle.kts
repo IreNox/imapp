@@ -21,3 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "I'm App"
 include(":app")
+
+include(":externalModule")
+project(":externalModule").projectDir = File("../..")
