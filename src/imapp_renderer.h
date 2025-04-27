@@ -24,9 +24,13 @@ ImUiVertexFormat		ImAppRendererGetVertexFormat();
 ImAppRenderer*			ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window, ImUiColor clearColor );
 void					ImAppRendererDestroy( ImAppRenderer* renderer );
 
-bool					ImAppRendererRecreateResources( ImAppRenderer* renderer );
+bool					ImAppRendererCreateResources( ImAppRenderer* renderer );
+void					ImAppRendererDestroyResources( ImAppRenderer* renderer );
 
+ImAppRendererTexture*	ImAppRendererTextureCreate( ImAppRenderer* renderer );
 ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
+bool					ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
+void					ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 void					ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 
 void					ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurface* surface );

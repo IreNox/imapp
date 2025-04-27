@@ -184,6 +184,25 @@ static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
 		ImAppPlatformGetClipboardText( imapp->platform, imapp->imui );
 	}
 
+	const ImAppWindowDeviceState deviceState = ImAppPlatformWindowGetGlContextState( appWindow );
+	if( deviceState == ImAppWindowDeviceState_DeviceLost )
+	{
+		ImAppResSysDestroyDeviceResources( imapp->ressys );
+		ImAppRendererDestroyResources( imapp->renderer );
+
+		ImAppPlatformWindowPresent( appWindow );
+		return;
+	}
+	else if( deviceState == ImAppWindowDeviceState_NewDevice )
+	{
+		ImAppRendererCreateResources( imapp->renderer );
+		ImAppResSysCreateDeviceResources( imapp->ressys );
+	}
+	else if( deviceState == ImAppWindowDeviceState_NoDevice )
+	{
+		return;
+	}
+
 	int width;
 	int height;
 	ImAppPlatformWindowGetSize( appWindow, &width, &height );
@@ -230,20 +249,7 @@ static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
 		ImUiInputSetCopyText( imapp->imui, NULL, 0u );
 	}
 
-	if( !ImAppPlatformWindowPresent( appWindow ) )
-	{
-		if( !ImAppRendererRecreateResources( imapp->renderer ) )
-		{
-			ImAppQuit( imapp, 2 );
-			return;
-		}
-
-		if( !ImAppResSysRecreateEverything( imapp->ressys ) )
-		{
-			ImAppQuit( imapp, 2 );
-			return;
-		}
-	}
+	ImAppPlatformWindowPresent( appWindow );
 }
 
 static void ImAppFillDefaultParameters( ImAppParameters* parameters )
@@ -378,11 +384,11 @@ static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* paramet
 
 	if( parameters->defaultFontName )
 	{
-		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize, &imapp->defaultFontTexture );
+		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize );
 	}
 
 	{
-		ImUiToolboxThemeFillDefault( ImUiToolboxThemeGet(), imapp->defaultFont );
+		ImUiToolboxThemeFillDefault( ImUiToolboxThemeGet(), imapp->defaultFont ? imapp->defaultFont->uiFont : NULL );
 		ImAppWindowThemeFillDefault( ImAppWindowThemeGet() );
 	}
 
@@ -411,14 +417,8 @@ static void ImAppCleanup( ImAppContext* imapp )
 
 	if( imapp->defaultFont )
 	{
-		ImUiFontDestroy( imapp->imui, imapp->defaultFont );
+		ImAppResSysFontDestroy( imapp->ressys, imapp->defaultFont );
 		imapp->defaultFont = NULL;
-	}
-
-	if( imapp->defaultFontTexture )
-	{
-		ImAppRendererTextureDestroy( imapp->renderer, imapp->defaultFontTexture );
-		imapp->defaultFontTexture = NULL;
 	}
 
 	if( imapp->defaultResPak )
@@ -578,9 +578,10 @@ void ImAppResPakActivateTheme( ImAppContext* imapp, ImAppResPak* pak, const char
 	ImUiToolboxThemeSet( &theme->uiTheme );
 	ImAppWindowThemeSet( &theme->windowTheme );
 
-	if( !theme->uiTheme.font )
+	if( !theme->uiTheme.font &&
+		imapp->defaultFont )
 	{
-		ImUiToolboxThemeGet()->font = imapp->defaultFont;
+		ImUiToolboxThemeGet()->font = imapp->defaultFont->uiFont;
 	}
 }
 
@@ -631,7 +632,7 @@ ImUiImage ImAppImageGetImage( const ImAppImage* image )
 	ImUiImage result;
 	if( image && image->state == ImAppResState_Ready )
 	{
-		return image->data;
+		return image->uiImage;
 	}
 	else
 	{

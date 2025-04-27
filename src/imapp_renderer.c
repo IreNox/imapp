@@ -148,9 +148,6 @@ static bool		ImAppRendererCompileShader( GLuint shader, const char* shaderCode )
 static bool		ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
 static void		ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
 
-static bool		ImAppRendererCreateResources( ImAppRenderer* renderer );
-static void		ImAppRendererDestroyResources( ImAppRenderer* renderer );
-
 static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height );
 
 ImUiVertexFormat ImAppRendererGetVertexFormat()
@@ -286,7 +283,7 @@ static void ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRen
 	}
 }
 
-static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
+bool ImAppRendererCreateResources( ImAppRenderer* renderer )
 {
 	// Shader
 	renderer->vertexShader = glCreateShader( GL_VERTEX_SHADER );
@@ -337,7 +334,7 @@ static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
 	return true;
 }
 
-static void ImAppRendererDestroyResources( ImAppRenderer* renderer )
+void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 {
 	if( renderer->vertexArray != 0u )
 	{
@@ -369,24 +366,35 @@ static void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 	}
 }
 
-bool ImAppRendererRecreateResources( ImAppRenderer* renderer )
+ImAppRendererTexture* ImAppRendererTextureCreate( ImAppRenderer* renderer )
 {
-	ImAppRendererDestroyResources( renderer );
-
-	if( !ImAppRendererCreateResources( renderer ) )
-	{
-		return false;
-	}
-
-	return true;
+	return IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* pData, int width, int height, ImAppRendererFormat format, uint8_t flags )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
 {
-	ImAppRendererTexture* texture = IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
-	if( texture == NULL )
+	ImAppRendererTexture* texture = ImAppRendererTextureCreate( renderer );
+	if( !texture )
 	{
 		return NULL;
+	}
+
+	if( !ImAppRendererTextureInitializeDataFromMemory( renderer, texture, data, width, height, format, flags ) )
+	{
+		ImAppRendererTextureDestroy( renderer, texture );
+		return NULL;
+	}
+
+	return texture;
+}
+
+bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+{
+	IMAPP_USE( renderer );
+
+	if( texture == NULL )
+	{
+		return false;
 	}
 
 	texture->width		= width;
@@ -421,10 +429,21 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	const GLint wrapMode = flags & ImAppResPakTextureFlags_Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode );
-	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, pData );
+	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, data );
 	glBindTexture( GL_TEXTURE_2D, 0 );
 
-	return texture;
+	return true;
+}
+
+void ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture )
+{
+	IMAPP_USE( renderer );
+
+	if( texture->handle != 0u )
+	{
+		glDeleteTextures( 1u, &texture->handle );
+		texture->handle = 0u;
+	}
 }
 
 void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture )
@@ -434,11 +453,7 @@ void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture*
 		return;
 	}
 
-	if( texture->handle != 0u )
-	{
-		glDeleteTextures( 1u, &texture->handle );
-		texture->handle = 0u;
-	}
+	ImAppRendererTextureDestroyData( renderer, texture );
 
 	ImUiMemoryFree( renderer->allocator, texture );
 }

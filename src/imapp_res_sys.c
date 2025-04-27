@@ -29,6 +29,7 @@ struct ImAppResSys
 	ImAppRes*			firstUnusedRes;
 
 	ImUiHashMap			imageMap;
+	ImAppFont*			firstFont;
 
 	ImAppThread*		thread;
 
@@ -44,6 +45,8 @@ static void			ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEve
 
 static ImAppRes*	ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex );
 static void			ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res );
+
+static bool			ImAppResSysFontInitialize( ImAppResSys* ressys, ImAppFont* font );
 
 static void			ImAppResThreadEntry( void* arg );
 static void			ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* resEvent );
@@ -334,13 +337,13 @@ static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent
 	}
 
 	const ImAppResEventResultImageData* result = &resEvent->result.image;
-	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
-	image->data.width			= result->width;
-	image->data.height			= result->height;
-	image->data.uv.u0			= 0.0f;
-	image->data.uv.v0			= 0.0f;
-	image->data.uv.u1			= 1.0f;
-	image->data.uv.v1			= 1.0f;
+	image->uiImage.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
+	image->uiImage.width			= result->width;
+	image->uiImage.height			= result->height;
+	image->uiImage.uv.u0			= 0.0f;
+	image->uiImage.uv.v0			= 0.0f;
+	image->uiImage.uv.u1			= 1.0f;
+	image->uiImage.uv.v1			= 1.0f;
 
 	ImUiMemoryFree( ressys->allocator, result->data.data );
 
@@ -478,51 +481,49 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 		{
 			ImAppResFontData* fontData = &res->data.font;
 
-			if( sourceRes->textureIndex != IMAPP_RES_PAK_INVALID_INDEX )
+			if( sourceRes->textureIndex == IMAPP_RES_PAK_INVALID_INDEX )
 			{
-				if( !fontData->textureRes )
-				{
-					ImAppRes* textureRes = ImAppResSysLoad( pak, sourceRes->textureIndex );
-					if( !textureRes )
-					{
-						return res;
-					}
+				res->state = ImAppResState_Error;
+				return NULL;
+			}
 
-					fontData->textureRes = textureRes;
-				}
-
-				if( fontData->textureRes->state == ImAppResState_Error )
-				{
-					res->state = ImAppResState_Error;
-					return NULL;
-				}
-				else if( fontData->textureRes->state != ImAppResState_Ready )
+			if( !fontData->textureRes )
+			{
+				ImAppRes* textureRes = ImAppResSysLoad( pak, sourceRes->textureIndex );
+				if( !textureRes )
 				{
 					return res;
 				}
 
-				if( !fontData->loading )
-				{
-					ImAppResEvent resEvent;
-					resEvent.type			= ImAppResEventType_LoadResData;
-					resEvent.data.res.res	= res;
+				fontData->textureRes = textureRes;
+			}
 
-					if( !ImAppResEventQueuePush( pak->ressys, &pak->ressys->sendQueue, &resEvent ) )
-					{
-						res->state = ImAppResState_Error;
-						return NULL;
-					}
-
-					fontData->loading = true;
-				}
-
+			if( fontData->textureRes->state == ImAppResState_Error )
+			{
+				res->state = ImAppResState_Error;
+				return NULL;
+			}
+			else if( fontData->textureRes->state != ImAppResState_Ready )
+			{
 				return res;
 			}
-			else
+
+			if( !fontData->loading )
 			{
-				// TODO
-				fontData->font = ImAppResSysFontCreateSystem( res->key.pak->ressys, "arial.ttf", 16.0f, &fontData->texture );
+				ImAppResEvent resEvent;
+				resEvent.type			= ImAppResEventType_LoadResData;
+				resEvent.data.res.res	= res;
+
+				if( !ImAppResEventQueuePush( pak->ressys, &pak->ressys->sendQueue, &resEvent ) )
+				{
+					res->state = ImAppResState_Error;
+					return NULL;
+				}
+
+				fontData->loading = true;
 			}
+
+			return res;
 		}
 		break;
 
@@ -750,11 +751,29 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 	return res;
 }
 
-bool ImAppResSysRecreateEverything( ImAppResSys* ressys )
+void ImAppResSysDestroyDeviceResources( ImAppResSys* ressys )
 {
-	// TODO
-	IMAPP_USE( ressys );
-	return false;
+	for( ImAppResPak* pak = ressys->firstResPak; pak != NULL; pak = pak->nextResPak )
+	{
+		for( uintsize i = 0; i < pak->resourceCount; ++i )
+		{
+			ImAppRes* res = &pak->resources[ i ];
+			ImAppResSysUnload( pak, res );
+		}
+	}
+
+	for( ImAppFont* font = ressys->firstFont; font != NULL; font = font->nextFont )
+	{
+		ImAppRendererTextureDestroyData( ressys->renderer, font->texture );
+	}
+}
+
+void ImAppResSysCreateDeviceResources( ImAppResSys* ressys )
+{
+	for( ImAppFont* font = ressys->firstFont; font != NULL; font = font->nextFont )
+	{
+		ImAppResSysFontInitialize( ressys, font );
+	}
 }
 
 ImAppResPak* ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength )
@@ -1042,16 +1061,16 @@ ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelDat
 {
 	ImAppImage* image = IMUI_MEMORY_NEW( ressys->allocator, ImAppImage );
 	image->resourceName			= ImUiStringViewCreateEmpty();
-	image->data.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
-	image->data.width			= width;
-	image->data.height			= height;
-	image->data.uv.u0			= 0.0f;
-	image->data.uv.v0			= 0.0f;
-	image->data.uv.u1			= 1.0f;
-	image->data.uv.v1			= 1.0f;
+	image->uiImage.textureHandle	= (uint64_t)ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, width, height, ImAppRendererFormat_RGBA8, 0u );
+	image->uiImage.width			= width;
+	image->uiImage.height			= height;
+	image->uiImage.uv.u0			= 0.0f;
+	image->uiImage.uv.v0			= 0.0f;
+	image->uiImage.uv.u1			= 1.0f;
+	image->uiImage.uv.v1			= 1.0f;
 	image->state				= ImAppResState_Ready;
 
-	if( image->data.textureHandle == IMUI_TEXTURE_HANDLE_INVALID )
+	if( image->uiImage.textureHandle == IMUI_TEXTURE_HANDLE_INVALID )
 	{
 		ImUiMemoryFree( ressys->allocator, image );
 		return NULL;
@@ -1142,20 +1161,61 @@ ImAppResState ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
 
 void ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image )
 {
-	if( image->data.textureHandle != IMUI_TEXTURE_HANDLE_INVALID )
+	if( image->uiImage.textureHandle != IMUI_TEXTURE_HANDLE_INVALID )
 	{
-		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->data.textureHandle );
+		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->uiImage.textureHandle );
 	}
 
 	ImUiMemoryFree( ressys->allocator, image );
 }
 
-ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize, ImAppRendererTexture** texture )
+ImAppFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize )
 {
-	const ImAppBlob fontBlob = ImAppPlatformResourceLoadSystemFont( ressys->platform, fontName );
-	if( fontBlob.data == NULL )
+	const uintsize fontNameLength = strlen( fontName );
+	ImAppFont* font = (ImAppFont*)ImUiMemoryAllocZero( ressys->allocator, sizeof( ImAppFont ) + fontNameLength + 1 );
+	if( !font )
 	{
 		return NULL;
+	}
+
+	memcpy( font + 1, fontName, fontNameLength );
+
+	font->name.data		= (const char*)&font[ 1 ];
+	font->name.length	= fontNameLength;
+	font->size			= fontSize;
+	font->texture		= ImAppRendererTextureCreate( ressys->renderer );
+
+	if( !font->texture )
+	{
+		ImUiMemoryFree( ressys->allocator, font );
+		return NULL;
+	}
+
+	if( !ImAppResSysFontInitialize( ressys, font ) )
+	{
+		ImAppRendererTextureDestroy( ressys->renderer, font->texture );
+		ImUiMemoryFree( ressys->allocator, font );
+		return NULL;
+	}
+
+	font->nextFont = ressys->firstFont;
+
+	if( ressys->firstFont )
+	{
+		ressys->firstFont->prevFont = font;
+	}
+
+	ressys->firstFont = font;
+
+	return font;
+}
+
+static bool ImAppResSysFontInitialize( ImAppResSys* ressys, ImAppFont* font )
+{
+	const ImAppBlob fontBlob = ImAppPlatformResourceLoadSystemFont( ressys->platform, font->name.data );
+	if( fontBlob.data == NULL )
+	{
+		return false;
 	}
 
 	ImUiFontTrueTypeData* ttf = ImUiFontTrueTypeDataCreate( ressys->imui, fontBlob.data, fontBlob.size );
@@ -1172,7 +1232,7 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 
 	uint32_t width;
 	uint32_t height;
-	ImUiFontTrueTypeDataCalculateMinTextureSize( ttf, fontSize, &width, &height );
+	ImUiFontTrueTypeDataCalculateMinTextureSize( ttf, font->size, &width, &height );
 	width = (width + 4u - 1u) & (0 - 4);
 	height = (height + 4u - 1u) & (0 - 4);
 
@@ -1184,7 +1244,7 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 		return false;
 	}
 
-	ImUiFontTrueTypeImage* ttfImage = ImUiFontTrueTypeDataGenerateTextureData( ttf, fontSize, textureData, width * height, width, height );
+	ImUiFontTrueTypeImage* ttfImage = ImUiFontTrueTypeDataGenerateTextureData( ttf, font->size, textureData, width * height, width, height );
 	if( !ttfImage )
 	{
 		ImUiFontTrueTypeDataDestroy( ttf );
@@ -1192,10 +1252,10 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 		return false;
 	}
 
-	*texture = ImAppRendererTextureCreateFromMemory( ressys->renderer, textureData, width, height, ImAppRendererFormat_R8, ImAppResPakTextureFlags_Font );
+	const bool textureOk = ImAppRendererTextureInitializeDataFromMemory( ressys->renderer, font->texture, textureData, width, height, ImAppRendererFormat_R8, ImAppResPakTextureFlags_Font );
 	free( textureData );
 
-	if( !*texture )
+	if( !textureOk )
 	{
 		ImUiFontTrueTypeDataDestroy( ttf );
 		ImUiMemoryFree( ressys->allocator, fontBlob.data );
@@ -1203,7 +1263,7 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	}
 
 	ImUiImage uiImage;
-	uiImage.textureHandle	= (uint64_t)*texture;
+	uiImage.textureHandle	= (uint64_t)font->texture;
 	uiImage.width			= width;
 	uiImage.height			= height;
 	uiImage.uv.u0			= 0.0f;
@@ -1211,12 +1271,45 @@ ImUiFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName
 	uiImage.uv.u1			= 1.0f;
 	uiImage.uv.v1			= 1.0f;
 
-	ImUiFont* font = ImUiFontCreateTrueType( ressys->imui, ttfImage, uiImage );
+	font->uiFont = ImUiFontCreateTrueType( ressys->imui, ttfImage, uiImage );
 
 	ImUiFontTrueTypeDataDestroy( ttf );
 	ImUiMemoryFree( ressys->allocator, fontBlob.data );
 
-	return font;
+	if( !font->uiFont )
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void ImAppResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font )
+{
+	if( !font )
+	{
+		return;
+	}
+
+	if( font->prevFont )
+	{
+		font->prevFont->nextFont = font->nextFont;
+	}
+
+	if( font->nextFont )
+	{
+		font->nextFont->prevFont = font->prevFont;
+	}
+
+	if( font == ressys->firstFont )
+	{
+		ressys->firstFont = font->nextFont;
+	}
+
+	ImUiFontDestroy( ressys->imui, font->uiFont );
+	ImAppRendererTextureDestroy( ressys->renderer, font->texture );
+
+	ImUiMemoryFree( ressys->allocator, font );
 }
 
 static void ImAppResThreadEntry( void* arg )
@@ -1290,12 +1383,6 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 			{
 				ImUiFontDestroy( ressys->imui, res->data.font.font );
 				res->data.font.font = NULL;
-			}
-
-			if( res->data.font.texture )
-			{
-				ImAppRendererTextureDestroy( ressys->renderer, res->data.font.texture );
-				res->data.font.texture = NULL;
 			}
 		}
 		break;

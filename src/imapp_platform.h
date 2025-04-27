@@ -35,13 +35,20 @@ typedef enum ImAppWindowStyle
 	ImAppWindowStyle_Custom
 } ImAppWindowStyle;
 
-typedef enum ImAppWindowState ImAppWindowState;
-enum ImAppWindowState
+typedef enum ImAppWindowState
 {
 	ImAppWindowState_Default,
 	ImAppWindowState_Maximized,
 	ImAppWindowState_Minimized
-};
+} ImAppWindowState;
+
+typedef enum ImAppWindowDeviceState
+{
+	ImAppWindowDeviceState_Ok,
+	ImAppWindowDeviceState_NewDevice,
+	ImAppWindowDeviceState_NoDevice,
+	ImAppWindowDeviceState_DeviceLost
+} ImAppWindowDeviceState;
 
 typedef void(*ImAppPlatformWindowUpdateCallback)( ImAppWindow* window, void* arg );
 
@@ -50,6 +57,7 @@ void					ImAppPlatformWindowDestroy( ImAppWindow* window );
 
 bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );
 void					ImAppPlatformWindowDestroyGlContext( ImAppWindow* window );
+ImAppWindowDeviceState	ImAppPlatformWindowGetGlContextState( const ImAppWindow* window );
 
 void					ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg );
 bool					ImAppPlatformWindowPresent( ImAppWindow* window );

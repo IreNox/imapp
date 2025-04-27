@@ -17,15 +17,31 @@ struct ImAppImage
 {
 	ImUiStringView			resourceName;
 
-	ImUiImage				data;
+	ImUiImage				uiImage;
+	ImAppBlob				data;
 	ImAppResState			state;
+};
+
+typedef struct ImAppFont ImAppFont;
+struct ImAppFont
+{
+	ImAppFont*				prevFont;
+	ImAppFont*				nextFont;
+
+	ImUiStringView			name;
+	float					size;
+
+	ImUiFont*				uiFont;
+	ImAppRendererTexture*	texture;
 };
 
 ImAppResSys*	ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
 void			ImAppResSysDestroy( ImAppResSys* ressys );
 
 void			ImAppResSysUpdate( ImAppResSys* ressys, bool wait );
-bool			ImAppResSysRecreateEverything( ImAppResSys* ressys );
+
+void			ImAppResSysDestroyDeviceResources( ImAppResSys* ressys );
+void			ImAppResSysCreateDeviceResources( ImAppResSys* ressys );
 
 ImAppResPak*	ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
 ImAppResPak*	ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName );
@@ -38,4 +54,5 @@ ImAppImage*		ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* reso
 ImAppResState	ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
 void			ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
 
-ImUiFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize, ImAppRendererTexture** texture );
+ImAppFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );
+void			ImAppResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font );

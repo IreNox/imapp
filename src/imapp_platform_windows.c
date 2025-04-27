@@ -790,6 +790,16 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->hglrc = NULL;
 }
 
+ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+{
+	if( !window->hglrc )
+	{
+		return ImAppWindowDeviceState_NoDevice;
+	}
+
+	return ImAppWindowDeviceState_Ok;
+}
+
 void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
 {
 	window->updateCallback		= callback;
@@ -819,6 +829,11 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
+	if( !window->hglrc )
+	{
+		return false;
+	}
+
 	return wglSwapLayerBuffers( window->hdc, WGL_SWAP_MAIN_PLANE );
 }
 
