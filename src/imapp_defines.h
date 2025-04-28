@@ -35,7 +35,7 @@
 
 #if defined( __EMSCRIPTEN__ )
 #	define IMAPP_PLATFORM_WEB			TIKI_ON
-#	define IMAPP_PLATFORM_SDL           TIKI_ON
+//#	define IMAPP_PLATFORM_SDL           TIKI_ON
 #else
 #	define IMAPP_PLATFORM_WEB			TIKI_OFF
 #endif

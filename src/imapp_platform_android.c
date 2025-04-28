@@ -856,11 +856,6 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 			}
 		}
 	}
-
-	if( callback )
-	{
-		callback( window, arg );
-	}
 }
 
 static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )

@@ -61,7 +61,7 @@ struct ImAppRendererTexture
 	uint8						flags;
 };
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
 #else
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
@@ -221,7 +221,9 @@ static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
 		GLsizei infoLength;
 		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
 
-		ImAppTrace( "[renderer] Failed to compile Shader. Error: %s\n", buffer );
+		ImAppTrace( "[renderer] Failed to compile Shader.\n" );
+		ImAppTrace( "Code:\n%s\n", pShaderCode );
+		ImAppTrace( "Error:\n%s\n", buffer );
 		return false;
 	}
 

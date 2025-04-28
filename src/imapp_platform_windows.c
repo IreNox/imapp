@@ -823,8 +823,6 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	// prevent recursive calls
 	window->updateCallback		= NULL;
 	window->updateCallbackArg	= NULL;
-
-	callback( window, arg );
 }
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
