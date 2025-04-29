@@ -20,6 +20,61 @@
 			"sdl_shaders_gl.h": "c",
 			"sdl_sysvideo.h": "c"
 		},
-		"makefile.makefilePath": "${workspaceDir}/build/gmake_linux_sdl/Makefile"
+		"makefile.makefilePath": "${workspaceDir}/build/gmake_linux/Makefile"
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Sample Launch",
+				"type": "cppdbg",
+				"request": "launch",
+				"program": "${workspaceFolder}/build/gmake_linux/x64/Debug/01_hello_world",
+				"args": [],
+				"stopAtEntry": false,
+				"cwd": "${workspaceFolder}",
+				"MIMode": "gdb",
+				"setupCommands": [
+					{
+						"description": "Enable pretty-printing for gdb",
+						"text": "-enable-pretty-printing",
+						"ignoreFailures": true
+					},
+					{
+						"description": "Set Disassembly Flavor to Intel",
+						"text": "-gdb-set disassembly-flavor intel",
+						"ignoreFailures": true
+					}
+				]
+			}
+	
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "build debug/x64",
+				"type": "shell",
+				"command": "nix-shell",
+				"args": [
+					"../..",
+					"--run",
+					"make config=debug_x64"
+				],
+				"problemMatcher": {
+					"base": "$gcc",
+					"applyTo": "allDocuments",
+					"fileLocation": [ "relative", "${workspaceFolder}/build/gmake_linux" ]
+				},
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				},
+				"options": {
+					"cwd": "${workspaceFolder}/build/gmake_linux"
+				}
+			}
+		]
 	}
 }
