@@ -7,11 +7,14 @@
 #include "imapp_event_queue.h"
 #include "imapp_internal.h"
 
-//#include "imapp_platform_pthread.h"
-
 #include <EGL/egl.h>
+#include <linux/limits.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <wayland-client.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/unistd.h>
+#include <wayland-egl.h>
 
 //////////////////////////////////////////////////////////////////////////
 // Main
@@ -43,6 +46,8 @@ struct ImAppPlatform
 	//SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
 
+#include "imapp_platform_pthread.h"
+
 struct ImAppWindow
 {
 	ImUiAllocator*			allocator;
@@ -54,6 +59,7 @@ struct ImAppWindow
 	struct wl_surface*			wlSurface;
 	struct wl_shell_surface*	wlShellSurface;
 
+	EGLDisplay				eglDisplay;
 	EGLSurface				eglSurface;
 	EGLContext				eglContext;
 
@@ -207,7 +213,7 @@ int main( int argc, char* argv[] )
 
 	platform.fontBasePathLength = IMAPP_ARRAY_COUNT( fontsPath ) - 1;
 	platform.fontBasePath = malloc( platform.fontBasePathLength + 1 );
-	if( !fontsPath )
+	if( !platform.fontBasePath )
 	{
 		return 1;
 	}
@@ -238,10 +244,20 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	{
 		platform->resourceBasePathLength++;
 	}
+
+	char exePath[ PATH_MAX ];
+	uintsize exePathLength = 0;
+
 	if( isRelativePath )
 	{
-		const char* basePath = SDL_GetBasePath();
-		platform->resourceBasePathLength += strlen( basePath );
+		const sintsize exeLinkResult = readlink( "/proc/self/exe", exePath, sizeof( exePath ) );
+		if( exeLinkResult < 0 )
+		{
+			return false;
+		}
+
+		exePathLength = (uintsize)exeLinkResult;
+		platform->resourceBasePathLength += exePathLength;
 		platform->resourceBasePathLength -= 2; // for "./"
 	}
 
@@ -253,8 +269,9 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 
 	if( isRelativePath )
 	{
-		const char* basePath = SDL_GetBasePath();
-		strncpy( platform->resourceBasePath, basePath, platform->resourceBasePathLength + 1 );
+		memcpy( platform->resourceBasePath, exePath, exePathLength );
+		platform->resourceBasePath[ exePathLength ] = '\0';
+
 		sourcePath += 2;
 	}
 
@@ -269,7 +286,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 			targetPath++;
 		}
 
-		strncpy( targetPath, sourcePath, platform->resourceBasePathLength - (targetPath - platform->resourceBasePath) + 1 );
+		strncpy( targetPath, sourcePath, platform->resourceBasePathLength - (uintsize)(targetPath - platform->resourceBasePath) + 1 );
 
 		if( needsSeperatorEnd )
 		{
@@ -427,7 +444,7 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 	ImUiMemoryFree( window->allocator, window );
 }
 
-bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
+bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 {
 	// Choose config
 	EGLint attribList[] =
@@ -444,6 +461,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 	//EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
 
 	EGLConfig config;
+	EGLint numConfigs;
 	if( !eglChooseConfig( window->eglDisplay, attribList, &config, 1, &numConfigs ) )
 	{
 		ImAppPlatformWindowDestroyGlContext( window );
@@ -451,7 +469,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 	}
 
 	// Create a surface
-	window->eglSurface = eglCreateWindowSurface( window->eglDisplay, config, (EGLNativeWindowType)window->xWindow, NULL );
+	window->eglSurface = eglCreateWindowSurface( window->eglDisplay, config, (EGLNativeWindowType)window->wlWindow, NULL );
 	if( window->eglSurface == EGL_NO_SURFACE )
 	{
 		ImAppPlatformWindowDestroyGlContext( window );
@@ -472,11 +490,16 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 
 void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 {
-	if( window->glContext != NULL )
+	if( window->eglContext != NULL )
 	{
-		SDL_GL_DeleteContext( window->glContext );
-		window->glContext = NULL;
+		eglDestroyContext( window->eglDisplay, window->eglContext );
+		window->eglContext = NULL;
 	}
+}
+
+ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+{
+	return ImAppWindowDeviceState_Ok;
 }
 
 void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
@@ -485,143 +508,147 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	SDL_GL_SetSwapInterval( 1 );
 #endif
 
-	while( window->firstPoppedDrop )
-	{
-		ImAppWindowDrop* drop = window->firstPoppedDrop;
-		window->firstPoppedDrop = drop->nextDrop;
-
-		ImUiMemoryFree( window->platform->allocator, drop );
-	}
-
-	SDL_Event sdlEvent;
-	while( SDL_PollEvent( &sdlEvent ) )
-	{
-		switch( sdlEvent.type )
-		{
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-			{
-				const SDL_KeyboardEvent* sdlKeyEvent = &sdlEvent.key;
-
-				const ImUiInputKey mappedKey = window->platform->inputKeyMapping[ sdlKeyEvent->keysym.scancode ];
-				if( mappedKey != ImUiInputKey_None )
-				{
-					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
-					const bool repeate				= sdlKeyEvent->repeat != 0;
-					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
-					ImAppEventQueuePush( &window->eventQueue, &keyEvent );
-				}
-			}
-			break;
-
-		case SDL_TEXTINPUT:
-			{
-				const SDL_TextInputEvent* textInputEvent = &sdlEvent.text;
-
-				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
-				{
-					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
-					ImAppEventQueuePush( &window->eventQueue, &charEvent );
-				}
-			}
-			break;
-
-		case SDL_MOUSEMOTION:
-			{
-				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
-
-				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
-				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
-			}
-			break;
-
-		case SDL_MOUSEBUTTONDOWN:
-		case SDL_MOUSEBUTTONUP:
-			{
-				const SDL_MouseButtonEvent* sdlButtonEvent = &sdlEvent.button;
-
-				ImUiInputMouseButton button;
-				switch( sdlButtonEvent->button )
-				{
-				case SDL_BUTTON_LEFT:	button = ImUiInputMouseButton_Left; break;
-				case SDL_BUTTON_MIDDLE:	button = ImUiInputMouseButton_Middle; break;
-				case SDL_BUTTON_RIGHT:	button = ImUiInputMouseButton_Right; break;
-				case SDL_BUTTON_X1:		button = ImUiInputMouseButton_X1; break;
-				case SDL_BUTTON_X2:		button = ImUiInputMouseButton_X2; break;
-
-				default:
-					continue;
-				}
-
-				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
-				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
-			}
-			break;
-
-		case SDL_MOUSEWHEEL:
-			{
-				const SDL_MouseWheelEvent* sdlWheelEvent = &sdlEvent.wheel;
-
-				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
-				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
-			}
-			break;
-
-		case SDL_WINDOWEVENT:
-			{
-				const SDL_WindowEvent* sdlWindowEvent = &sdlEvent.window;
-				switch( sdlWindowEvent->event )
-				{
-				case SDL_WINDOWEVENT_CLOSE:
-					{
-						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
-						ImAppEventQueuePush( &window->eventQueue, &closeEvent );
-					}
-					break;
-
-				default:
-					break;
-				}
-			}
-			break;
-
-		case SDL_DROPFILE:
-		case SDL_DROPTEXT:
-			{
-				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
-
-				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
-				ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + textLength );
-				drop->type = sdlEvent.type == SDL_DROPFILE ? ImAppDropType_File : ImAppDropType_Text;
-
-				memcpy( drop->pathOrText, sdlDropEvent->file, textLength );
-				drop->pathOrText[ textLength ] = '\0';
-
-				drop->nextDrop = window->firstNewDrop;
-				window->firstNewDrop = drop;
-			}
-			break;
-
-		case SDL_QUIT:
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-			emscripten_cancel_main_loop();
-#else
-			// TODO
-#endif
-			break;
-		}
-	}
-
-	if( callback )
-	{
-		callback( window, arg );
-	}
+//	while( window->firstPoppedDrop )
+//	{
+//		ImAppWindowDrop* drop = window->firstPoppedDrop;
+//		window->firstPoppedDrop = drop->nextDrop;
+//
+//		ImUiMemoryFree( window->platform->allocator, drop );
+//	}
+//
+//	SDL_Event sdlEvent;
+//	while( SDL_PollEvent( &sdlEvent ) )
+//	{
+//		switch( sdlEvent.type )
+//		{
+//		case SDL_KEYDOWN:
+//		case SDL_KEYUP:
+//			{
+//				const SDL_KeyboardEvent* sdlKeyEvent = &sdlEvent.key;
+//
+//				const ImUiInputKey mappedKey = window->platform->inputKeyMapping[ sdlKeyEvent->keysym.scancode ];
+//				if( mappedKey != ImUiInputKey_None )
+//				{
+//					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+//					const bool repeate				= sdlKeyEvent->repeat != 0;
+//					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
+//					ImAppEventQueuePush( &window->eventQueue, &keyEvent );
+//				}
+//			}
+//			break;
+//
+//		case SDL_TEXTINPUT:
+//			{
+//				const SDL_TextInputEvent* textInputEvent = &sdlEvent.text;
+//
+//				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
+//				{
+//					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
+//					ImAppEventQueuePush( &window->eventQueue, &charEvent );
+//				}
+//			}
+//			break;
+//
+//		case SDL_MOUSEMOTION:
+//			{
+//				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
+//
+//				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
+//				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
+//			}
+//			break;
+//
+//		case SDL_MOUSEBUTTONDOWN:
+//		case SDL_MOUSEBUTTONUP:
+//			{
+//				const SDL_MouseButtonEvent* sdlButtonEvent = &sdlEvent.button;
+//
+//				ImUiInputMouseButton button;
+//				switch( sdlButtonEvent->button )
+//				{
+//				case SDL_BUTTON_LEFT:	button = ImUiInputMouseButton_Left; break;
+//				case SDL_BUTTON_MIDDLE:	button = ImUiInputMouseButton_Middle; break;
+//				case SDL_BUTTON_RIGHT:	button = ImUiInputMouseButton_Right; break;
+//				case SDL_BUTTON_X1:		button = ImUiInputMouseButton_X1; break;
+//				case SDL_BUTTON_X2:		button = ImUiInputMouseButton_X2; break;
+//
+//				default:
+//					continue;
+//				}
+//
+//				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
+//				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
+//				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+//			}
+//			break;
+//
+//		case SDL_MOUSEWHEEL:
+//			{
+//				const SDL_MouseWheelEvent* sdlWheelEvent = &sdlEvent.wheel;
+//
+//				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
+//				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
+//			}
+//			break;
+//
+//		case SDL_WINDOWEVENT:
+//			{
+//				const SDL_WindowEvent* sdlWindowEvent = &sdlEvent.window;
+//				switch( sdlWindowEvent->event )
+//				{
+//				case SDL_WINDOWEVENT_CLOSE:
+//					{
+//						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
+//						ImAppEventQueuePush( &window->eventQueue, &closeEvent );
+//					}
+//					break;
+//
+//				default:
+//					break;
+//				}
+//			}
+//			break;
+//
+//		case SDL_DROPFILE:
+//		case SDL_DROPTEXT:
+//			{
+//				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
+//
+//				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
+//				ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + textLength );
+//				drop->type = sdlEvent.type == SDL_DROPFILE ? ImAppDropType_File : ImAppDropType_Text;
+//
+//				memcpy( drop->pathOrText, sdlDropEvent->file, textLength );
+//				drop->pathOrText[ textLength ] = '\0';
+//
+//				drop->nextDrop = window->firstNewDrop;
+//				window->firstNewDrop = drop;
+//			}
+//			break;
+//
+//		case SDL_QUIT:
+//#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+//			emscripten_cancel_main_loop();
+//#else
+//			// TODO
+//#endif
+//			break;
+//		}
+//	}
 }
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
-	SDL_GL_SwapWindow( window->sdlWindow );
+	if( window->eglContext == EGL_NO_CONTEXT )
+	{
+		return false;
+	}
+
+	if( !eglSwapBuffers( window->eglDisplay, window->eglSurface ) )
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -630,23 +657,29 @@ ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
 	return &window->eventQueue;
 }
 
+ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+{
+	return window->uiFunc;
+}
+
 bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
-	if( !window->firstNewDrop )
-	{
-		return false;
-	}
+	//if( !window->firstNewDrop )
+	//{
+	//	return false;
+	//}
 
-	ImAppWindowDrop* drop = window->firstNewDrop;
-	outData->type		= drop->type;
-	outData->pathOrText	= drop->pathOrText;
+	//ImAppWindowDrop* drop = window->firstNewDrop;
+	//outData->type		= drop->type;
+	//outData->pathOrText	= drop->pathOrText;
 
-	window->firstNewDrop = drop->nextDrop;
+	//window->firstNewDrop = drop->nextDrop;
 
-	drop->nextDrop = window->firstPoppedDrop;
-	window->firstPoppedDrop = drop;
+	//drop->nextDrop = window->firstPoppedDrop;
+	//window->firstPoppedDrop = drop;
 
-	return true;
+	//return true;
+	return false;
 }
 
 void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
@@ -657,40 +690,79 @@ void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
+bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
+{
+	// TODO
+	return true;
+}
+
 void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
 {
-	SDL_GetWindowSize( window->sdlWindow, outWidth, outHeight );
+	//SDL_GetWindowSize( window->sdlWindow, outWidth, outHeight );
+}
+
+void ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+{
+
 }
 
 void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
 {
-	SDL_GetWindowPosition( window->sdlWindow, outX, outY );
+	//SDL_GetWindowPosition( window->sdlWindow, outX, outY );
+}
+
+void ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+{
+
 }
 
 ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* pWindow )
 {
-	const Uint32 flags = SDL_GetWindowFlags( pWindow->sdlWindow );
-	if( flags & SDL_WINDOW_MINIMIZED )
-	{
-		return ImAppWindowState_Minimized;
-	}
-	if( flags & SDL_WINDOW_MAXIMIZED )
-	{
-		return ImAppWindowState_Maximized;
-	}
+	//const Uint32 flags = SDL_GetWindowFlags( pWindow->sdlWindow );
+	//if( flags & SDL_WINDOW_MINIMIZED )
+	//{
+	//	return ImAppWindowState_Minimized;
+	//}
+	//if( flags & SDL_WINDOW_MAXIMIZED )
+	//{
+	//	return ImAppWindowState_Maximized;
+	//}
 
 	return ImAppWindowState_Default;
 }
 
+void ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+{
+}
+
+const char* ImAppPlatformWindowGetTitle( const ImAppWindow* window )
+{
+	return NULL;
+}
+
+void ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+{
+}
+
+void ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+{
+}
+
 float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
-	float dpi;
-	if( SDL_GetDisplayDPI( SDL_GetWindowDisplayIndex( window->sdlWindow ), &dpi, NULL, NULL ) != 0 )
-	{
-		return 1.0f;
-	}
+	//float dpi;
+	//if( SDL_GetDisplayDPI( SDL_GetWindowDisplayIndex( window->sdlWindow ), &dpi, NULL, NULL ) != 0 )
+	//{
+	//	return 1.0f;
+	//}
 
-	return dpi / 96.0f;
+	//return dpi / 96.0f;
+	return 1.0f;
+}
+
+void ImAppPlatformWindowClose( ImAppWindow* window )
+{
+
 }
 
 void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
@@ -723,8 +795,19 @@ ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 
 	if( length == (uintsize)-1 )
 	{
-		SDL_RWops* rwops = (SDL_RWops*)file;
-		length = rwops->size( rwops ) - offset;
+		struct stat fileStats;
+		if( fstat( fileno( (FILE*)file ), &fileStats ) != 0 )
+		{
+			ImAppPlatformResourceClose( platform, file );
+			const ImAppBlob result = { NULL, 0u };
+			return result;
+		}
+
+		length = (uintsize)fileStats.st_size - offset;
+		if( length > (uintsize)fileStats.st_size )
+		{
+			length = 0;
+		}
 	}
 
 	void* memory = ImUiMemoryAlloc( platform->allocator, length );
@@ -757,7 +840,7 @@ ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 	memcpy( resourcePath, platform->resourceBasePath, platform->resourceBasePathLength );
 	memcpy( resourcePath + platform->resourceBasePathLength, resourceName, resourceNameLength + 1 );
 
-	SDL_RWops* file = SDL_RWFromFile( platform->resourceBasePath, "rb" );
+	FILE* file = fopen( platform->resourceBasePath, "rb" );
 	if( !file )
 	{
 		ImAppTrace( "Error: Failed to open '%s'\n", platform->resourceBasePath );
@@ -768,15 +851,14 @@ ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 }
 uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
 {
-	SDL_RWops* rwopts = (SDL_RWops*)file;
+	FILE* nativeFile = (FILE*)file;
 
-	if( SDL_RWseek( rwopts, (Sint64)offset, RW_SEEK_SET ) == -1 )
+	if( fseek( nativeFile, (long)offset, SEEK_SET ) == -1 )
 	{
 		return 0u;
 	}
 
-	const size_t readResult = SDL_RWread( rwopts, outData, 1u, length );
-
+	const size_t readResult = fread( outData, 1u, length, nativeFile );
 	if( readResult == 0u )
 	{
 		return 0u;
@@ -787,8 +869,8 @@ uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 
 void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 {
-	SDL_RWops* rwops = (SDL_RWops*)file;
-	SDL_RWclose( rwops );
+	FILE* nativeFile = (FILE*)file;
+	fclose( nativeFile );
 }
 
 ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
@@ -805,7 +887,7 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	memcpy( fontPath, platform->fontBasePath, platform->fontBasePathLength );
 	memcpy( fontPath + platform->fontBasePathLength, fontName, fontNameLength + 1 );
 
-	SDL_RWops* file = SDL_RWFromFile( fontPath, "rb" );
+	FILE* file = fopen( fontPath, "rb" );
 	if( !file )
 	{
 		ImAppTrace( "Error: Failed to open '%s'\n", fontPath );
@@ -814,20 +896,20 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 		return result;
 	}
 
-	const Sint64 fileSize = SDL_RWsize( file );
-	if( fileSize == -1 )
+	struct stat fileStats;
+	if( fstat( fileno( file ), &fileStats ) != 0 )
 	{
 		ImUiMemoryFree( platform->allocator, fontPath );
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileSize );
+	void* memory = ImUiMemoryAlloc( platform->allocator, (size_t)fileStats.st_size );
 
-	const size_t readResult = SDL_RWread( file, memory, 1u, (size_t)fileSize );
-	SDL_RWclose( file );
+	const size_t readResult = fread( memory, 1u, (size_t)fileStats.st_size, file );
+	fclose( file );
 
-	if( readResult != fileSize )
+	if( readResult != fileStats.st_size )
 	{
 		ImUiMemoryFree( platform->allocator, memory );
 		ImUiMemoryFree( platform->allocator, fontPath );
@@ -836,7 +918,7 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	}
 
 	ImUiMemoryFree( platform->allocator, fontPath );
-	const ImAppBlob result = { memory, (size_t)fileSize };
+	const ImAppBlob result = { memory, (size_t)fileStats.st_size };
 	return result;
 }
 

@@ -206,11 +206,11 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 
 	// Get configs
 	EGLint numConfigs;
-	if ( !eglGetConfigs( window->eglDisplay, NULL, 0, &numConfigs ) )
-	{
-		ImAppPlatformWindowDestroyGlContext( window );
-		return false;
-	}
+	//if ( !eglGetConfigs( window->eglDisplay, NULL, 0, &numConfigs ) )
+	//{
+	//	ImAppPlatformWindowDestroyGlContext( window );
+	//	return false;
+	//}
 
 	// Choose config
 	EGLint attribList[] =
