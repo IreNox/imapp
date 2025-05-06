@@ -61,7 +61,7 @@ struct ImAppRendererTexture
 	uint8						flags;
 };
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
 #else
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
@@ -183,6 +183,7 @@ ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 	if( glewInit() != GLEW_OK )
 	{
 		ImAppPlatformShowError( platform, "Failed to initialize GLEW.\n" );
+		ImAppRendererDestroy( renderer );
 		return NULL;
 	}
 #endif
@@ -403,7 +404,7 @@ bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAp
 	texture->height		= height;
 	texture->flags		= flags;
 
-	GLint sourceFormat = GL_RGBA;
+	GLenum sourceFormat = GL_RGBA;
 	GLint targetFormat = GL_RGBA;
 	switch( format )
 	{
@@ -524,10 +525,10 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
 
 	const GLfloat projectionMatrix[ 4 ][ 4 ] = {
-		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
-		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
-		{  0.0f,			0.0f,			-1.0f,	0.0f },
-		{ -1.0f,			1.0f,			 0.0f,	1.0f }
+		{  2.0f / (float)width,	0.0f,					 0.0f,	0.0f },
+		{  0.0f,				-2.0f / (float)height,	 0.0f,	0.0f },
+		{  0.0f,				0.0f,					-1.0f,	0.0f },
+		{ -1.0f,				1.0f,					 0.0f,	1.0f }
 	};
 
 	bool alphaBlend = true;

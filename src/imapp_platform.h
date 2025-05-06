@@ -70,7 +70,7 @@ bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* out
 void					ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
 bool					ImAppPlatformWindowHasFocus( const ImAppWindow* window );
 void					ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
-void					ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height );
+void					ImAppPlatformWindowSetSize( ImAppWindow* window, int width, int height );
 void					ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
 void					ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y );
 ImAppWindowState		ImAppPlatformWindowGetState( const ImAppWindow* window );
