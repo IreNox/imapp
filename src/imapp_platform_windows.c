@@ -883,7 +883,7 @@ void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* 
 	*outHeight	= window->height;
 }
 
-void ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+void ImAppPlatformWindowSetSize( ImAppWindow* window, int width, int height )
 {
 	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER );
 }
