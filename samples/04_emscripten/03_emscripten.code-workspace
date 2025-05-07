@@ -13,7 +13,8 @@
 		"files.associations": {
 			"imapp_internal.h": "c",
 			"imapp.h": "c",
-			"imui_cpp.h": "c"
+			"imui_cpp.h": "c",
+			"filesystem": "cpp"
 		}
 	},
 	"tasks": {
@@ -41,6 +42,19 @@
 				"type": "shell",
 				"label": "run-server",
 				"command": "${workspaceFolder}/run-server.cmd"
+			},
+			{
+				"label": "start-server",
+				"type": "process",
+				//"command": "${env:EMSDK}/upstream/emscripten/emrun.bat --no-browser --port 8080 ${workspaceFolder}/build/${command:cmake.launchTargetFilename}"
+				"command": "${input:server-command}"
+			}
+		],
+		"inputs": [
+			{
+				"id": "server-command",
+				"type": "command",
+				"command": "livePreview.runServerLoggingTask"
 			}
 		]
 	},
@@ -49,11 +63,12 @@
 		"configurations": [
 			{
 				"name": "WASM Debug Chrome",
-				"port": 8081,
+				//"port": 8080,
 				"request": "launch",
 				"type": "chrome",
-				"url": "http://localhost:8080/sample_emscripten.html",
-				"webRoot": "${workspaceFolder}/build"
+				"url": "http://localhost:3000/build/${command:cmake.launchTargetFilename}",
+				"webRoot": "${workspaceFolder}/build",
+				//"preLaunchTask": "start-server"
 			},
 			{
 				"name": "Launch Server",

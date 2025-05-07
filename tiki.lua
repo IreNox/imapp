@@ -80,5 +80,10 @@ elseif tiki.target_platform == Platforms.Android then
 	end 
 elseif tiki.target_platform == Platforms.Linux then
 	module:add_library_file( "GL" )
+	module:add_library_file( "EGL" )
 	module:add_library_file( "GLEW" )
+	module:add_library_file( "wayland-egl" )
+	module:add_library_file( "wayland-client" )
+	
+	module:set_define( "_POSIX_C_SOURCE", "200112L" )
 end

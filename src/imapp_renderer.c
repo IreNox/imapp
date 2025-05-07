@@ -61,14 +61,20 @@ struct ImAppRendererTexture
 	uint8						flags;
 };
 
+#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
+#else
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
+#endif
+
 static const char s_vertexShader[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"uniform mat4 ProjectionMatrix;\n"
-	"attribute vec2 Position;\n"
-	"attribute vec2 TexCoord;\n"
-	"attribute vec4 Color;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 Position;\n"
+	"in vec2 TexCoord;\n"
+	"in vec4 Color;\n"
+	"out vec2 vtfUV;\n"
+	"out vec4 vtfColor;\n"
 	"void main() {\n"
 	"	vtfUV		= TexCoord;\n"
 	"	vtfColor	= Color;\n"
@@ -76,56 +82,60 @@ static const char s_vertexShader[] =
 	"}\n";
 
 static const char s_fragmentShaderTexture[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	vec4 texColor = texture2D(Texture, vtfUV.xy);\n"
-	"	gl_FragColor = vtfColor * texColor;\n"
+	"	vec4 texColor = texture(Texture, vtfUV.xy);\n"
+	"	fbColor = vtfColor * texColor;\n"
 	"}\n";
 
 static const char s_fragmentShaderColor[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	gl_FragColor = vtfColor;\n"
+	"	fbColor = vtfColor;\n"
 	"}\n";
 
 static const char s_fragmentShaderFont[] =
-	"#version 100\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	float charAlpha = texture2D(Texture, vtfUV.xy).a;\n"
-	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
+	"	float charAlpha = texture(Texture, vtfUV.xy).a;\n"
+	"	fbColor = vec4(vtfColor.rgb, vtfColor.a * charAlpha);\n"
 	"}\n";
 
 static const char s_fragmentShaderFontSdf[] =
-	"#version 130\n"
+	IMAPP_RENDERER_GLSL_VERSION
 	"precision mediump float;\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 vtfUV;\n"
-	"varying vec4 vtfColor;\n"
-	"float median( vec3 v ) {\n"
-	"	return max( min( v.r, v.g ), min( max( v.r, v.g ), v.b ) );\n"
+	"in vec2 vtfUV;\n"
+	"in vec4 vtfColor;\n"
+	"out vec4 fbColor;\n"
+	"float median(vec3 v) {\n"
+	"	return max(min(v.r, v.g), min(max(v.r, v.g), v.b));\n"
 	"}\n"
 	"float screenPixelRange() {\n"
-	"	vec2 unitRange = vec2( 2.0 ) / vec2( textureSize( Texture, 0 ) );\n"
-	"	vec2 screenTexSize = vec2( 1.0 ) / fwidth( vtfUV );\n"
-	"	return max( 0.5 * dot( unitRange, screenTexSize ), 1.0 );\n"
+	"	vec2 unitRange = vec2(2.0) / vec2(textureSize(Texture, 0));\n"
+	"	vec2 screenTexSize = vec2(1.0) / fwidth(vtfUV);\n"
+	"	return max( 0.5 * dot(unitRange, screenTexSize), 1.0 );\n"
 	"}\n"
 	"void main() {\n"
-	"	vec3 charDistances = texture2D(Texture, vtfUV.xy).rgb;\n"
+	"	vec3 charDistances = texture(Texture, vtfUV.xy).rgb;\n"
 	"	float charDistanceMedian = median( charDistances );\n"
 	"	float charDistance = screenPixelRange() * (charDistanceMedian - 0.5);\n"
-	"	float charAlpha = clamp( charDistance + 0.5, 0.0, 1.0 );\n"
-	"	gl_FragColor = vec4( vtfColor.rgb, vtfColor.a * charAlpha );\n"
+	"	float charAlpha = clamp(charDistance + 0.5, 0.0, 1.0);\n"
+	"	fbColor = vec4(vtfColor.rgb, vtfColor.a * charAlpha);\n"
 	"}\n";
 
 static const struct ImUiVertexElement s_vertexLayout[] = {
@@ -137,9 +147,6 @@ static const struct ImUiVertexElement s_vertexLayout[] = {
 static bool		ImAppRendererCompileShader( GLuint shader, const char* shaderCode );
 static bool		ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
 static void		ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
-
-static bool		ImAppRendererCreateResources( ImAppRenderer* renderer );
-static void		ImAppRendererDestroyResources( ImAppRenderer* renderer );
 
 static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height );
 
@@ -214,7 +221,9 @@ static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
 		GLsizei infoLength;
 		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
 
-		ImAppTrace( "[renderer] Failed to compile Shader. Error: %s\n", buffer );
+		ImAppTrace( "[renderer] Failed to compile Shader.\n" );
+		ImAppTrace( "Code:\n%s\n", pShaderCode );
+		ImAppTrace( "Error:\n%s\n", buffer );
 		return false;
 	}
 
@@ -276,7 +285,7 @@ static void ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRen
 	}
 }
 
-static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
+bool ImAppRendererCreateResources( ImAppRenderer* renderer )
 {
 	// Shader
 	renderer->vertexShader = glCreateShader( GL_VERTEX_SHADER );
@@ -327,7 +336,7 @@ static bool ImAppRendererCreateResources( ImAppRenderer* renderer )
 	return true;
 }
 
-static void ImAppRendererDestroyResources( ImAppRenderer* renderer )
+void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 {
 	if( renderer->vertexArray != 0u )
 	{
@@ -359,24 +368,35 @@ static void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 	}
 }
 
-bool ImAppRendererRecreateResources( ImAppRenderer* renderer )
+ImAppRendererTexture* ImAppRendererTextureCreate( ImAppRenderer* renderer )
 {
-	ImAppRendererDestroyResources( renderer );
-
-	if( !ImAppRendererCreateResources( renderer ) )
-	{
-		return false;
-	}
-
-	return true;
+	return IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* pData, int width, int height, ImAppRendererFormat format, uint8_t flags )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
 {
-	ImAppRendererTexture* texture = IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
-	if( texture == NULL )
+	ImAppRendererTexture* texture = ImAppRendererTextureCreate( renderer );
+	if( !texture )
 	{
 		return NULL;
+	}
+
+	if( !ImAppRendererTextureInitializeDataFromMemory( renderer, texture, data, width, height, format, flags ) )
+	{
+		ImAppRendererTextureDestroy( renderer, texture );
+		return NULL;
+	}
+
+	return texture;
+}
+
+bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+{
+	IMAPP_USE( renderer );
+
+	if( texture == NULL )
+	{
+		return false;
 	}
 
 	texture->width		= width;
@@ -411,10 +431,21 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	const GLint wrapMode = flags & ImAppResPakTextureFlags_Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode );
-	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, pData );
+	glTexImage2D( GL_TEXTURE_2D, 0, targetFormat, (GLsizei)width, (GLsizei)height, 0, sourceFormat, GL_UNSIGNED_BYTE, data );
 	glBindTexture( GL_TEXTURE_2D, 0 );
 
-	return texture;
+	return true;
+}
+
+void ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture )
+{
+	IMAPP_USE( renderer );
+
+	if( texture->handle != 0u )
+	{
+		glDeleteTextures( 1u, &texture->handle );
+		texture->handle = 0u;
+	}
 }
 
 void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture )
@@ -424,11 +455,7 @@ void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture*
 		return;
 	}
 
-	if( texture->handle != 0u )
-	{
-		glDeleteTextures( 1u, &texture->handle );
-		texture->handle = 0u;
-	}
+	ImAppRendererTextureDestroyData( renderer, texture );
 
 	ImUiMemoryFree( renderer->allocator, texture );
 }

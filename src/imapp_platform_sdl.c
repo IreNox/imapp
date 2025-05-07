@@ -6,7 +6,7 @@
 #include "imapp_event_queue.h"
 #include "imapp_internal.h"
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <SDL2/SDL.h>
 #else
 #	include <SDL.h>
@@ -98,8 +98,17 @@ static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
 };
 static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors");
 
-int main( int argc, char* argv[] )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+int main()
+#else
+int _main( int argc, char* argv[] )
+#endif
 {
+	#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+	int argc = 0;
+	char** argv = NULL;
+	#endif
+
 	ImAppPlatform platform = { 0 };
 
 	if( SDL_Init( SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER ) < 0 )
@@ -241,7 +250,7 @@ int main( int argc, char* argv[] )
 	const char fontsPath[] = "/run/current-system/sw/share/X11/fonts/";
 
 	platform.fontBasePathLength = IMAPP_ARRAY_COUNT( fontsPath ) - 1;
-	platform.fontBasePath = malloc( platform.fontBasePathLength + 1 );
+	platform.fontBasePath = (char*)malloc( platform.fontBasePathLength + 1 );
 	if( !fontsPath )
 	{
 		return 1;
@@ -286,7 +295,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		platform->resourceBasePathLength -= 2; // for "./"
 	}
 
-	platform->resourceBasePath = malloc( platform->resourceBasePathLength + 1 );
+	platform->resourceBasePath = (char*)malloc( platform->resourceBasePathLength + 1 );
 	if( !resourcePath )
 	{
 		return false;
@@ -507,6 +516,16 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 		SDL_GL_DeleteContext( window->glContext );
 		window->glContext = NULL;
 	}
+}
+
+ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+{
+	if( window->glContext == NULL )
+	{
+		return ImAppWindowDeviceState_NoDevice;
+	}
+
+	return ImAppWindowDeviceState_Ok;
 }
 
 void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
@@ -835,7 +854,7 @@ ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 	const size_t resourceNameLength = strlen( resourceName );
 	const size_t resourcePathLength = platform->resourceBasePathLength + resourceNameLength + 1;
 
-	char* resourcePath = ImUiMemoryAlloc( platform->allocator, resourcePathLength );
+	char* resourcePath = (char*)ImUiMemoryAlloc( platform->allocator, resourcePathLength );
 	memcpy( resourcePath, platform->resourceBasePath, platform->resourceBasePathLength );
 	memcpy( resourcePath + platform->resourceBasePathLength, resourceName, resourceNameLength + 1 );
 
@@ -880,7 +899,7 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 {
 	const size_t fontNameLength = strlen( fontName );
 	const size_t fontPathLength = platform->fontBasePathLength + fontNameLength;
-	char* fontPath = ImUiMemoryAlloc( platform->allocator, fontPathLength + 1 );
+	char* fontPath = (char*)ImUiMemoryAlloc( platform->allocator, fontPathLength + 1 );
 	if( !fontPath )
 	{
 		const ImAppBlob result = { NULL, 0u };

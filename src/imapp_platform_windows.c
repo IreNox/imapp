@@ -790,6 +790,16 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->hglrc = NULL;
 }
 
+ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+{
+	if( !window->hglrc )
+	{
+		return ImAppWindowDeviceState_NoDevice;
+	}
+
+	return ImAppWindowDeviceState_Ok;
+}
+
 void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
 {
 	window->updateCallback		= callback;
@@ -813,12 +823,15 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	// prevent recursive calls
 	window->updateCallback		= NULL;
 	window->updateCallbackArg	= NULL;
-
-	callback( window, arg );
 }
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
+	if( !window->hglrc )
+	{
+		return false;
+	}
+
 	return wglSwapLayerBuffers( window->hdc, WGL_SWAP_MAIN_PLANE );
 }
 
@@ -986,11 +999,6 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			{
 				window->x = (int)GET_X_LPARAM( lParam );
 				window->y = (int)GET_Y_LPARAM( lParam );
-
-				if( window->hasSizeChanged && window->updateCallback )
-				{
-					window->updateCallback( window, window->updateCallbackArg );
-				}
 			}
 			return 0;
 
@@ -1001,6 +1009,7 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		case WM_EXITSIZEMOVE:
 			window->isResize = false;
 			window->hasSizeChanged = false;
+
 			window->updateCallback( window, window->updateCallbackArg );
 			return 0;
 
@@ -1027,13 +1036,15 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				window->width			= (clientRect.right - clientRect.left);
 				window->height			= (clientRect.bottom - clientRect.top);
 				window->hasSizeChanged	= true;
-
-				if( window->updateCallback )
-				{
-					window->updateCallback( window, window->updateCallbackArg );
-				}
 			}
 			return 0;
+
+		case WM_PAINT:
+			if( window->isResize )
+			{
+				window->updateCallback( window, window->updateCallbackArg );
+			}
+			break;
 
 		case WM_SETCURSOR:
 			{

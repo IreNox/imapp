@@ -12,6 +12,9 @@
 
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
+	IMAPP_USE( argc );
+	IMAPP_USE( argv );
+
 	parameters->tickIntervalMs		= 15;
 	parameters->windowTitle			= "I'm App - Resources";
 	parameters->windowWidth			= 960;
@@ -28,10 +31,15 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 
 void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
 {
+	IMAPP_USE( programContext );
+	IMAPP_USE( appWindow );
+
 	ImAppResPakActivateTheme( imapp, ImAppResourceGetDefaultPak( imapp ), "config" );
 	ImUiToolboxSampleTick( uiWindow );
 }
 
-void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )
+void ImAppProgramShutdown( ImAppContext* imapp, void* programContext )
 {
+	IMAPP_USE( imapp );
+	IMAPP_USE( programContext );
 }

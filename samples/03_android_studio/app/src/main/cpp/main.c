@@ -20,7 +20,7 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	parameters->windowWidth			= 400;
 	parameters->windowHeight		= 250;
 	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
-    parameters->defaultFontSize     = 48u;
+    parameters->defaultFontSize     = 16u;
 
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)malloc( sizeof( ImAppTestProgramContext ) );
 	context->tickIndex = 0u;

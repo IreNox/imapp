@@ -659,6 +659,7 @@ struct ImAppWindow
 	EGLDisplay			display;
 	EGLSurface			surface;
 	EGLContext			context;
+	bool				hasDeviceLost;
 	bool				hasDeviceChange;
 
 	int					width;
@@ -743,7 +744,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	window->surface = eglCreateWindowSurface( window->display, config, window->pNativeWindow, NULL );
 
 	const EGLint contextAttributes[] = {
-		EGL_CONTEXT_CLIENT_VERSION,	2,
+		EGL_CONTEXT_CLIENT_VERSION,	3,
 		EGL_NONE
 	};
 
@@ -787,6 +788,24 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->display = EGL_NO_DISPLAY;
 
 	window->pNativeWindow = NULL;
+}
+
+ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+{
+	if( window->display == EGL_NO_DISPLAY )
+	{
+		return ImAppWindowDeviceState_NoDevice;
+	}
+	else if( window->hasDeviceLost)
+	{
+		return ImAppWindowDeviceState_DeviceLost;
+	}
+	else if( window->hasDeviceChange )
+	{
+		return ImAppWindowDeviceState_NewDevice;
+	}
+
+	return ImAppWindowDeviceState_Ok;
 }
 
 void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
@@ -837,25 +856,23 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 			}
 		}
 	}
-
-	if( callback )
-	{
-		callback( window, arg );
-	}
 }
 
 static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
 {
-	if( window->context == EGL_NO_CONTEXT )
-	{
-		window->pNativeWindow = pSystemEvent->data.window.window;
-		return;
-	}
-
-	ImAppPlatformWindowDestroyGlContext( window );
 	window->pNativeWindow = pSystemEvent->data.window.window;
-	window->isOpen = ImAppPlatformWindowCreateGlContext( window );
-	window->hasDeviceChange = true;
+
+	if( !window->pNativeWindow )
+	{
+		window->hasDeviceLost = true;
+		window->isOpen = false;
+	}
+	else if( window->hasDeviceLost )
+	{
+		window->isOpen = ImAppPlatformWindowCreateGlContext( window );
+		window->hasDeviceLost = false;
+		window->hasDeviceChange = true;
+	}
 }
 
 static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
@@ -1009,11 +1026,18 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 
 bool ImAppPlatformWindowPresent( ImAppWindow* window )
 {
-	if( window->hasDeviceChange )
+	if( window->display == EGL_NO_DISPLAY )
 	{
-		window->hasDeviceChange = false;
 		return false;
 	}
+
+	if( window->hasDeviceLost )
+	{
+		ImAppPlatformWindowDestroyGlContext( window );
+		return false;
+	}
+
+	window->hasDeviceChange = false;
 
 	eglSwapBuffers( window->display, window->surface );
 	return true;
