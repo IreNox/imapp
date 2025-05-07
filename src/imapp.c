@@ -159,6 +159,8 @@ static void ImAppTick( void* arg )
 
 static void ImAppTickUi( ImAppWindow* appWindow, void* arg )
 {
+	IMAPP_USE( appWindow );
+
 	ImAppContext* imapp = (ImAppContext*)arg;
 
 	imapp->frame = ImUiBegin( imapp->imui, imapp->lastTickValue / 1000.0f );
