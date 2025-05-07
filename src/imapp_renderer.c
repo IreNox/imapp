@@ -508,14 +508,18 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	uintsize indexDataSize = 0u;
 	ImUiSurfaceGetMaxBufferSizes( surface, &vertexDataSize, &indexDataSize );
 
-	if( vertexDataSize > renderer->vertexBufferSize )
+	if( vertexDataSize > renderer->vertexBufferSize ||
+		renderer->vertexBufferSize > vertexDataSize * 2 )
 	{
+		vertexDataSize = IMUI_NEXT_POWER_OF_TWO( vertexDataSize );
 		renderer->vertexBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->vertexBufferData, renderer->vertexBufferSize, vertexDataSize );
 		renderer->vertexBufferSize = vertexDataSize;
 	}
 
-	if( indexDataSize > renderer->elementBufferSize )
+	if( indexDataSize > renderer->elementBufferSize ||
+		renderer->elementBufferSize > indexDataSize * 2 )
 	{
+		indexDataSize = IMUI_NEXT_POWER_OF_TWO( indexDataSize );
 		renderer->elementBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->elementBufferData, renderer->elementBufferSize, indexDataSize );
 		renderer->elementBufferSize = indexDataSize;
 	}
