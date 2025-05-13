@@ -525,8 +525,8 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	}
 
 	const ImUiDrawData* drawData = ImUiSurfaceGenerateDrawData( surface, renderer->vertexBufferData, &vertexDataSize, renderer->elementBufferData, &indexDataSize );
-	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, (GLsizeiptr)vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
 
 	const GLfloat projectionMatrix[ 4 ][ 4 ] = {
 		{  2.0f / (float)width,	0.0f,					 0.0f,	0.0f },

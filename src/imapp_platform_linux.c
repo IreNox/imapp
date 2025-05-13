@@ -8,6 +8,7 @@
 #include "imapp_internal.h"
 
 #include <EGL/egl.h>
+//#include <libxml/xmlreader.h>
 #include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,12 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
+//typedef struct ImAppPlatformLinuxFont
+//{
+//	const char*					path;
+//	uintsize					pathLength;
+//} ImAppPlatformLinuxFont;
+
 struct ImAppPlatform
 {
 	ImUiAllocator*				allocator;
@@ -26,10 +33,11 @@ struct ImAppPlatform
 	//ImUiInputKey	inputKeyMapping[ SDL_NUM_SCANCODES ];
 
 	char*						resourceBasePath;
-	size_t						resourceBasePathLength;
+	uintsize					resourceBasePathLength;
 
-	char*						fontBasePath;
-	size_t						fontBasePathLength;
+	//ImAppPlatformLinuxFont*		fonts;
+	//uintsize					fontsCapacity;
+	//uintsize					fontsCount;
 
 	struct wl_display*			wlDisplay;
 	struct wl_registry*			wlRegistry;
@@ -94,6 +102,8 @@ struct ImAppWindow
 // };
 // static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
 
+//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform *platform );
+
 static void ImAppPlatformWaylandRegistryGlobalCallback( void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version );
 static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name );
 
@@ -101,7 +111,7 @@ static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_
 static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height );
 static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface );
 
-static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
+//static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
 static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
 
 static const struct wl_registry_listener s_wlRegistryListener =
@@ -117,10 +127,10 @@ static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
 	ImAppPlatformWaylandShellSurfacePopupDoneCallback
 };
 
-static struct wl_callback_listener s_wlWindowConfigCallbackListener =
-{
-	ImAppPlatformWaylandHandleWindowConfigCallback
-};
+//static struct wl_callback_listener s_wlWindowConfigCallbackListener =
+//{
+//	ImAppPlatformWaylandHandleWindowConfigCallback
+//};
 
 const struct wl_callback_listener s_wlWindowDrawCallbackListener =
 {
@@ -249,18 +259,6 @@ int main( int argc, char* argv[] )
 	// 	platform.inputKeyMapping[ scanCode ] = keyValue;
 	// }
 
-	// Linux sucks and there one million ways to store fonts, so hardcoded one path for my distribution.
-	const char fontsPath[] = "/run/current-system/sw/share/X11/fonts/";
-
-	platform.fontBasePathLength = IMAPP_ARRAY_COUNT( fontsPath ) - 1;
-	platform.fontBasePath = malloc( platform.fontBasePathLength + 1 );
-	if( !platform.fontBasePath )
-	{
-		return 1;
-	}
-
-	strncpy( platform.fontBasePath, fontsPath, platform.fontBasePathLength + 1 );
-
 	const int result = ImAppMain( &platform, argc, argv );
 
 	return result;
@@ -269,6 +267,8 @@ int main( int argc, char* argv[] )
 bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
+
+	//ImAppPlatformLinuxReadFontConfig( platform );
 
 	platform->wlDisplay = wl_display_connect( NULL );
 	if( !platform->wlDisplay )
@@ -329,7 +329,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		platform->resourceBasePathLength -= 2; // for "./"
 	}
 
-	platform->resourceBasePath = malloc( platform->resourceBasePathLength + 1 );
+	platform->resourceBasePath = ImUiMemoryAlloc( platform->allocator, platform->resourceBasePathLength + 1 );
 	if( !resourcePath )
 	{
 		return false;
@@ -366,6 +366,71 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
+//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform *platform )
+//{
+//	xmlTextReaderPtr fontConfReader = xmlReaderForFile( "/etc/fonts/fonts.conf", NULL, 0 );
+//	if( !fontConfReader )
+//	{
+//		IMAPP_DEBUG_LOGW( "Failed to read '/etc/fonts/fonts.conf'." );
+//		return;
+//	}
+//
+//	while( xmlTextReaderRead( fontConfReader ) == 1 )
+//	{
+//		const int nodeType = xmlTextReaderNodeType( fontConfReader );
+//		const char* nodeName = xmlTextReaderConstName( fontConfReader );
+//		if( nodeType != XML_READER_TYPE_ELEMENT ||
+//			strcmp( nodeName, "dir" ) != 0 ||
+//			xmlTextReaderGetAttribute( fontConfReader, "prefix" ) != NULL )
+//		{
+//			continue;
+//		}
+//
+//		if( xmlTextReaderRead( fontConfReader ) != 1 ||
+//			xmlTextReaderNodeType( fontConfReader ) != XML_READER_TYPE_TEXT )
+//		{
+//			continue;
+//		}
+//
+//		const char* sourceFontPath = xmlTextReaderConstValue( fontConfReader );
+//		if( !sourceFontPath )
+//		{
+//			continue;
+//		}
+//		const uintsize fontPathLength = strlen( sourceFontPath );
+//
+//		if( fontPathLength >= PATH_MAX )
+//		{
+//			IMAPP_DEBUG_LOGW( "Font path '%s' is too long.", sourceFontPath );
+//			continue;
+//		}
+//
+//		if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( platform->allocator, platform->fonts, platform->fontsCapacity, platform->fontsCount + 1 ) )
+//		{
+//			return;
+//		}
+//
+//		ImAppPlatformLinuxFont* font = &platform->fonts[ platform->fontsCount ];
+//		font->pathLength = fontPathLength + 1; // +1 for ending '/'
+//
+//		char* targetFontPath = ImUiMemoryAlloc( platform->allocator, font->pathLength + 1 ); // +1 for null terminator
+//		if( !targetFontPath )
+//		{
+//			return;
+//		}
+//
+//		memcpy( targetFontPath, sourceFontPath, fontPathLength );
+//		targetFontPath[ fontPathLength ] = '/';
+//		targetFontPath[ fontPathLength + 1 ] = '\0';
+//
+//		font->path = targetFontPath;
+//
+//		platform->fontsCount++;
+//	}
+//
+//	xmlFreeTextReader( fontConfReader );
+//}
+
 void ImAppPlatformShutdown( ImAppPlatform* platform )
 {
 	//for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
@@ -373,6 +438,17 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	//	SDL_FreeCursor( platform->systemCursors[ i ] );
 	//	platform->systemCursors[ i ] = NULL;
 	//}
+
+	ImUiMemoryFree( platform->allocator, platform->resourceBasePath );
+	platform->resourceBasePath = NULL;
+	platform->resourceBasePathLength = 0;
+
+	//for( uintsize i = 0u; i < platform->fontsCount; ++i )
+	//{
+	//	ImUiMemoryFree( platform->allocator, platform->fonts[ i ].path );
+	//}
+	//platform->fontsCount = 0;
+	//IMUI_MEMORY_ARRAY_FREE( platform->allocator, platform->fonts, platform->fontsCapacity );
 
 	platform->allocator = NULL;
 }
@@ -723,23 +799,23 @@ static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struc
 {
 }
 
-static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time )
-{
-	ImAppWindow* window = (ImAppWindow*)data;
-
-	wl_callback_destroy( callback );
-
-	//window->configured = 1;
-
-	if( !window->wlDrawCallback )
-	{
-		ImAppPlatformWaylandHandleWindowDrawCallback( data, NULL, time );
-	}
-}
+//static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time )
+//{
+//	ImAppWindow* window = (ImAppWindow*)data;
+//
+//	wl_callback_destroy( callback );
+//
+//	//window->configured = 1;
+//
+//	if( !window->wlDrawCallback )
+//	{
+//		ImAppPlatformWaylandHandleWindowDrawCallback( data, NULL, time );
+//	}
+//}
 
 static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time )
 {
-	ImAppWindow* window = (ImAppWindow*)data;
+	//ImAppWindow* window = (ImAppWindow*)data;
 
 	if( callback )
 	{
@@ -1227,23 +1303,56 @@ void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 
 ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
 {
-	const size_t fontNameLength = strlen( fontName );
-	const size_t fontPathLength = platform->fontBasePathLength + fontNameLength;
-	char* fontPath = ImUiMemoryAlloc( platform->allocator, fontPathLength + 1 );
-	if( !fontPath )
+	char fontMatchCmd[ PATH_MAX ];
+	snprintf( fontMatchCmd, sizeof( fontMatchCmd ), "fc-match -f \"%%{file}\" %s", fontName );
+
+	FILE* file = NULL;
+	char fontPath[ PATH_MAX ];
+
+	FILE* fontMatchProc = popen( fontMatchCmd, "r" );
+	if( !fontMatchProc )
 	{
+		ImAppTrace( "Error: Failed to start '%s'\n", fontMatchCmd );
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	memcpy( fontPath, platform->fontBasePath, platform->fontBasePathLength );
-	memcpy( fontPath + platform->fontBasePathLength, fontName, fontNameLength + 1 );
+	uintsize read = 0;
+	uintsize readTotal = 0;
+	do
+	{
+		read = fread( fontPath + readTotal, 1, sizeof( fontPath ) - readTotal, fontMatchProc );
+		readTotal += read;
+	}
+	while( read > 0 || readTotal == sizeof( fontPath ) );
 
-	FILE* file = fopen( fontPath, "rb" );
+	pclose( fontMatchProc );
+
+	file = fopen( fontPath, "rb" );
+
+	//const size_t fontNameLength = strlen( fontName );
+	//for( uintsize fontIndex = 0; fontIndex < platform->fontsCount; ++fontIndex )
+	//{
+	//	const ImAppPlatformLinuxFont* font = &platform->fonts[ fontIndex ];
+
+	//	if( font->pathLength + fontNameLength + 1 >= PATH_MAX )
+	//	{
+	//		continue;
+	//	}
+
+	//	memcpy( fontPath, font->path, font->pathLength );
+	//	strncpy( fontPath + font->pathLength, fontName, PATH_MAX - font->pathLength );
+
+	//	file = fopen( fontPath, "rb" );
+	//	if( file )
+	//	{
+	//		break;
+	//	}
+	//}
+
 	if( !file )
 	{
 		ImAppTrace( "Error: Failed to open '%s'\n", fontPath );
-		ImUiMemoryFree( platform->allocator, fontPath );
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
@@ -1251,7 +1360,6 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	struct stat fileStats;
 	if( fstat( fileno( file ), &fileStats ) != 0 )
 	{
-		ImUiMemoryFree( platform->allocator, fontPath );
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
@@ -1264,12 +1372,10 @@ ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	if( readResult != fileStats.st_size )
 	{
 		ImUiMemoryFree( platform->allocator, memory );
-		ImUiMemoryFree( platform->allocator, fontPath );
 		const ImAppBlob result = { NULL, 0u };
 		return result;
 	}
 
-	ImUiMemoryFree( platform->allocator, fontPath );
 	const ImAppBlob result = { memory, (size_t)fileStats.st_size };
 	return result;
 }
