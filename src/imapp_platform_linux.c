@@ -1,6 +1,6 @@
 #include "imapp_platform.h"
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) && IMAPP_DISABLED( IMAPP_PLATFORM_SDL )
 
 #include "imapp_debug.h"
 #include "imapp_drop_queue.h"
@@ -8,14 +8,16 @@
 #include "imapp_internal.h"
 
 #include <EGL/egl.h>
-//#include <libxml/xmlreader.h>
+#include <linux/input-event-codes.h>
 #include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <unistd.h>
 #include <wayland-egl.h>
+#include <xkbcommon/xkbcommon.h>
 
 //////////////////////////////////////////////////////////////////////////
 // Main
@@ -51,7 +53,16 @@ struct ImAppPlatform
 	struct wl_cursor*			wlDefaultCursor;
 	struct wl_surface*			wlCursorSurface;
 
+	struct xkb_context*			xkbContext;
+
 	EGLDisplay					eglDisplay;
+
+	ImAppWindow**				windows;
+	uintsize					windowsCapacity;
+	uintsize					windowsCount;
+
+	ImAppWindow*				mouseFocusWindow;
+	ImAppWindow*				keyboardFocusWindow;
 
 	//SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
@@ -114,17 +125,31 @@ static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struc
 //static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
 static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
 
+static void ImAppPlatformWaylandHandlePointerEnter( void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y );
+static void ImAppPlatformWaylandHandlePointerLeave( void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface );
+static void ImAppPlatformWaylandHandlePointerMotion( void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y );
+static void ImAppPlatformWaylandHandlePointerButton( void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state );
+static void ImAppPlatformWaylandHandlePointerAxis( void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value );
+
+static void ImAppPlatformWaylandHandleKeyboardKeymap( void *data, struct wl_keyboard *keyboard, uint32_t format, int32_t fd, uint32_t size );
+static void ImAppPlatformWaylandHandleKeyboardEnter( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys );
+static void ImAppPlatformWaylandHandleKeyboardLeave( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface );
+static void ImAppPlatformWaylandHandleKeyboardKey( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state );
+static void ImAppPlatformWaylandHandleKeyboardModifiers( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group );
+
+static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_seat *seat, uint32_t capabilities );
+
 static const struct wl_registry_listener s_wlRegistryListener =
 {
-	  ImAppPlatformWaylandRegistryGlobalCallback,
-	  ImAppPlatformWaylandRegistryGlobalRemoveCallback
+	&ImAppPlatformWaylandRegistryGlobalCallback,
+	&ImAppPlatformWaylandRegistryGlobalRemoveCallback
 };
 
 static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
 {
-	ImAppPlatformWaylandShellSurfacePingCallback,
-	ImAppPlatformWaylandShellSurfaceConfigureCallback,
-	ImAppPlatformWaylandShellSurfacePopupDoneCallback
+	&ImAppPlatformWaylandShellSurfacePingCallback,
+	&ImAppPlatformWaylandShellSurfaceConfigureCallback,
+	&ImAppPlatformWaylandShellSurfacePopupDoneCallback
 };
 
 //static struct wl_callback_listener s_wlWindowConfigCallbackListener =
@@ -134,7 +159,30 @@ static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
 
 const struct wl_callback_listener s_wlWindowDrawCallbackListener =
 {
-	ImAppPlatformWaylandHandleWindowDrawCallback
+	&ImAppPlatformWaylandHandleWindowDrawCallback
+};
+
+static struct wl_pointer_listener s_wlWindowPointerListener =
+{
+	&ImAppPlatformWaylandHandlePointerEnter,
+	&ImAppPlatformWaylandHandlePointerLeave,
+	&ImAppPlatformWaylandHandlePointerMotion,
+	&ImAppPlatformWaylandHandlePointerButton,
+	&ImAppPlatformWaylandHandlePointerAxis
+};
+
+static struct wl_keyboard_listener s_wlKeyboardListener =
+{
+	&ImAppPlatformWaylandHandleKeyboardKeymap,
+	&ImAppPlatformWaylandHandleKeyboardEnter,
+	&ImAppPlatformWaylandHandleKeyboardLeave,
+	&ImAppPlatformWaylandHandleKeyboardKey,
+	&ImAppPlatformWaylandHandleKeyboardModifiers
+};
+
+static struct wl_seat_listener s_wlSeatListener =
+{
+	&ImAppPlatformWaylandHandleSeatCapabilities
 };
 
 int main( int argc, char* argv[] )
@@ -277,6 +325,10 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		return false;
 	}
 
+	platform->wlRegistry = wl_display_get_registry( platform->wlDisplay );
+	wl_registry_add_listener( platform->wlRegistry, &s_wlRegistryListener, platform );
+	wl_display_roundtrip( platform->wlDisplay );
+
 	platform->eglDisplay = eglGetDisplay( (EGLNativeDisplayType)platform->wlDisplay );
 	if( platform->eglDisplay == EGL_NO_DISPLAY )
 	{
@@ -293,9 +345,9 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		return false;
 	}
 
-	platform->wlRegistry = wl_display_get_registry( platform->wlDisplay );
-	wl_registry_add_listener( platform->wlRegistry, &s_wlRegistryListener, platform );
-	wl_display_dispatch( platform->wlDisplay );
+	//wl_display_dispatch( platform->wlDisplay );
+
+	platform->xkbContext = xkb_context_new( XKB_CONTEXT_NO_FLAGS );
 
 	// for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
 	// {
@@ -453,31 +505,41 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickInterval )
+int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickIntervalMs )
 {
-	//int64_t currentTick			= (int64_t)SDL_GetTicks64();
-	//const int64_t deltaTicks	= currentTick - lastTickValue;
-	//int64_t timeToWait = IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
+	wl_display_dispatch_pending( platform->wlDisplay );
 
-	//if( tickInterval == 0 )
+	struct timespec timeSpec;
+	clock_gettime( CLOCK_REALTIME, &timeSpec );
+
+	int64_t currentTick			= ((int64_t)timeSpec.tv_sec * 1000000000) + timeSpec.tv_nsec;
+	const int64_t deltaTicks	= currentTick - lastTickValue;
+	int64_t timeToWait			= IMUI_MAX( tickIntervalMs * 1000000, deltaTicks ) - deltaTicks;
+
+	//if( tickIntervalMs == 0 )
 	//{
 	//	timeToWait = INT_MAX;
 	//}
 
-	//if( timeToWait > 1 )
-	//{
-	//	SDL_WaitEventTimeout( NULL, (int)timeToWait - 1 );
+	if( timeToWait > 1 )
+	{
+		// TODO: use event loop
+		usleep( (useconds_t)timeToWait / 1000 );
 
-	//	currentTick = (int64_t)SDL_GetTicks64();
-	//}
+		clock_gettime( CLOCK_REALTIME, &timeSpec );
+		currentTick = (int64_t)timeSpec.tv_nsec;
+	}
 
-	//return (int64_t)currentTick;
-	return 0;
+	return currentTick;
+}
+
+double ImAppPlatformTicksToSeconds( sint64 tickValue )
+{
+	return (double)tickValue / 1000000000.0;
 }
 
 static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version )
 {
-
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 
 	if( strcmp( interface, "wl_compositor" ) == 0 )
@@ -492,8 +554,8 @@ static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_re
 	}
 	else if( strcmp( interface, "wl_seat" ) == 0 )
 	{
-		//d->seat = static_cast<wl_seat*>(wl_registry_bind( registry, name, &wl_seat_interface, 1 ));
-		//wl_seat_add_listener( d->seat, &seat_listener, d );
+		platform->wlSeat = wl_registry_bind( registry, name, &wl_seat_interface, 1 );
+		wl_seat_add_listener( platform->wlSeat, &s_wlSeatListener, platform );
 	}
 	else if( strcmp( interface, "wl_shm" ) == 0 )
 	{
@@ -638,6 +700,11 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
+	if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( platform->allocator, platform->windows, platform->windowsCapacity, platform->windowsCount + 1 ) )
+	{
+		return NULL;
+	}
+
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 	if( window == NULL )
 	{
@@ -726,12 +793,15 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 
 	ImAppEventQueueConstruct( &window->eventQueue, platform->allocator );
 
+	platform->windows[ platform->windowsCount++ ] = window;
 	return window;
 }
 
 void ImAppPlatformWindowDestroy( ImAppWindow* window )
 {
 	IMAPP_ASSERT( window->eglContext == EGL_NO_CONTEXT );
+
+	ImAppPlatform* platform = window->platform;
 
 	//while( window->firstNewDrop )
 	//{
@@ -767,6 +837,17 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 	{
 		wl_surface_destroy( window->wlSurface );
 		window->wlSurface = NULL;
+	}
+
+	for( uintsize i = 0; i < platform->windowsCount; ++i )
+	{
+		if( platform->windows[ i ] != window )
+		{
+			continue;
+		}
+
+		IMUI_MEMORY_ARRAY_REMOVE_UNSORTED( platform->windows, platform->windowsCount, i );
+		break;
 	}
 
 	ImUiMemoryFree( window->allocator, window );
@@ -850,6 +931,150 @@ static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_
 	//wl_callback_add_listener( window->wlDrawCallback, &s_wlWindowDrawCallbackListener, window );
 
 	//eglSwapBuffers( window->platform->eglDisplay, window->eglSurface );
+}
+
+static void ImAppPlatformWaylandHandlePointerEnter( void *data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y )
+{
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	for( uintsize i = 0; i < platform->windowsCount; ++i )
+	{
+		if( platform->windows[ i ]->wlSurface != surface )
+		{
+			continue;
+		}
+
+		platform->mouseFocusWindow = platform->windows[ i ];
+		break;
+	}
+}
+
+static void ImAppPlatformWaylandHandlePointerLeave( void *data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface )
+{
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	platform->mouseFocusWindow = NULL;
+}
+
+static void ImAppPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y )
+{
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+	if( !platform->mouseFocusWindow )
+	{
+		return;
+	}
+
+	ImAppEvent mouseEvent;
+	mouseEvent.motion.type	= ImAppEventType_Motion;
+	mouseEvent.motion.x		= wl_fixed_to_int( x );
+	mouseEvent.motion.y		= wl_fixed_to_int( y );
+
+	ImAppEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
+}
+
+static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state )
+{
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+	if( !platform->mouseFocusWindow )
+	{
+		return;
+	}
+
+	ImAppEvent mouseEvent;
+	mouseEvent.button.type	= state == WL_POINTER_BUTTON_STATE_PRESSED ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
+	//mouseEvent.button.x		= x;
+	//mouseEvent.button.y		= y;
+
+	switch( button )
+	{
+	case BTN_LEFT:
+		mouseEvent.button.button	= ImUiInputMouseButton_Left;
+		break;
+
+	case BTN_MIDDLE:
+		mouseEvent.button.button	= ImUiInputMouseButton_Middle;
+		break;
+
+	case BTN_RIGHT:
+		mouseEvent.button.button	= ImUiInputMouseButton_Right;
+		break;
+
+	case BTN_BACK:
+		mouseEvent.button.button	= ImUiInputMouseButton_X1;
+		break;
+
+	case BTN_FORWARD:
+		mouseEvent.button.button	= ImUiInputMouseButton_X2;
+		break;
+	}
+
+	ImAppEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
+}
+
+static void ImAppPlatformWaylandHandlePointerAxis( void *data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value )
+{
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+	if( !platform->mouseFocusWindow )
+	{
+		return;
+	}
+
+	ImAppEvent mouseEvent;
+	mouseEvent.scroll.type	= ImAppEventType_Scroll;
+	//mouseEvent.button.x		= x;
+	//mouseEvent.button.y		= y;
+
+	if( axis == WL_POINTER_AXIS_VERTICAL_SCROLL )
+	{
+		mouseEvent.scroll.x = wl_fixed_to_int( value );
+	}
+	else
+	{
+		mouseEvent.scroll.x = wl_fixed_to_int( value );
+	}
+
+	ImAppEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
+}
+
+static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size )
+{
+	//char* keymap_string = mmap( NULL, size, PROT_READ, MAP_SHARED, fd, 0 );
+	//xkb_keymap_unref( keymap );
+	//keymap = xkb_keymap_new_from_string( xkb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS );
+	//munmap( keymap_string, size );
+	//close( fd );
+	//xkb_state_unref( xkb_state );
+	//xkb_state = xkb_state_new( keymap );
+}
+
+static void ImAppPlatformWaylandHandleKeyboardEnter( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys )
+{
+}
+
+static void ImAppPlatformWaylandHandleKeyboardLeave( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface )
+{
+}
+
+static void ImAppPlatformWaylandHandleKeyboardKey( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state )
+{
+}
+
+static void ImAppPlatformWaylandHandleKeyboardModifiers( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group )
+{
+}
+
+static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_seat *seat, uint32_t capabilities )
+{
+	if( capabilities & WL_SEAT_CAPABILITY_POINTER )
+	{
+		struct wl_pointer* pointer = wl_seat_get_pointer( seat );
+		wl_pointer_add_listener( pointer, &s_wlWindowPointerListener, data );
+	}
+	else if( capabilities & WL_SEAT_CAPABILITY_KEYBOARD )
+	{
+		struct wl_keyboard *keyboard = wl_seat_get_keyboard( seat );
+		wl_keyboard_add_listener( keyboard, &s_wlKeyboardListener, data );
+	}
 }
 
 bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
@@ -1116,8 +1341,8 @@ void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 
 bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
 {
-	// TODO
-	return true;
+	return window->platform->mouseFocusWindow == window ||
+		window->platform->keyboardFocusWindow == window;
 }
 
 void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )

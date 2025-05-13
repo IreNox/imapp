@@ -13,7 +13,8 @@ typedef struct ImAppPlatform ImAppPlatform;
 bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
-sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval );
+sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs );
+double					ImAppPlatformTicksToSeconds( sint64 tickValue );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 
