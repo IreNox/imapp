@@ -14,7 +14,7 @@ bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* alloca
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
 sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs );
-double					ImAppPlatformTicksToSeconds( sint64 tickValue );
+double					ImAppPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 

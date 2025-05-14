@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <unistd.h>
@@ -32,7 +33,7 @@ struct ImAppPlatform
 {
 	ImUiAllocator*				allocator;
 
-	//ImUiInputKey	inputKeyMapping[ SDL_NUM_SCANCODES ];
+	ImUiInputKey				inputKeyMapping[ 65536u ];
 
 	char*						resourceBasePath;
 	uintsize					resourceBasePathLength;
@@ -54,6 +55,8 @@ struct ImAppPlatform
 	struct wl_surface*			wlCursorSurface;
 
 	struct xkb_context*			xkbContext;
+	struct xkb_keymap*			xkbKeymap;
+	struct xkb_state*			xkbState;
 
 	EGLDisplay					eglDisplay;
 
@@ -195,117 +198,126 @@ int main( int argc, char* argv[] )
 	// 	return 1;
 	// }
 
-	// for( size_t i = 0u; i < ImUiInputKey_MAX; ++i )
-	// {
-	// 	const ImUiInputKey keyValue = (ImUiInputKey)i;
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	uintsize maxScanCode = 0u;
+#endif
+	for( size_t i = 0u; i < ImUiInputKey_MAX; ++i )
+	{
+		const ImUiInputKey keyValue = (ImUiInputKey)i;
 
-	// 	SDL_Scancode scanCode = SDL_SCANCODE_UNKNOWN;
-	// 	switch( keyValue )
-	// 	{
-	// 	case ImUiInputKey_None:				scanCode = SDL_SCANCODE_UNKNOWN; break;
-	// 	case ImUiInputKey_A:				scanCode = SDL_SCANCODE_A; break;
-	// 	case ImUiInputKey_B:				scanCode = SDL_SCANCODE_B; break;
-	// 	case ImUiInputKey_C:				scanCode = SDL_SCANCODE_C; break;
-	// 	case ImUiInputKey_D:				scanCode = SDL_SCANCODE_D; break;
-	// 	case ImUiInputKey_E:				scanCode = SDL_SCANCODE_E; break;
-	// 	case ImUiInputKey_F:				scanCode = SDL_SCANCODE_F; break;
-	// 	case ImUiInputKey_G:				scanCode = SDL_SCANCODE_G; break;
-	// 	case ImUiInputKey_H:				scanCode = SDL_SCANCODE_H; break;
-	// 	case ImUiInputKey_I:				scanCode = SDL_SCANCODE_I; break;
-	// 	case ImUiInputKey_J:				scanCode = SDL_SCANCODE_J; break;
-	// 	case ImUiInputKey_K:				scanCode = SDL_SCANCODE_K; break;
-	// 	case ImUiInputKey_L:				scanCode = SDL_SCANCODE_L; break;
-	// 	case ImUiInputKey_M:				scanCode = SDL_SCANCODE_M; break;
-	// 	case ImUiInputKey_N:				scanCode = SDL_SCANCODE_N; break;
-	// 	case ImUiInputKey_O:				scanCode = SDL_SCANCODE_O; break;
-	// 	case ImUiInputKey_P:				scanCode = SDL_SCANCODE_P; break;
-	// 	case ImUiInputKey_Q:				scanCode = SDL_SCANCODE_Q; break;
-	// 	case ImUiInputKey_R:				scanCode = SDL_SCANCODE_R; break;
-	// 	case ImUiInputKey_S:				scanCode = SDL_SCANCODE_S; break;
-	// 	case ImUiInputKey_T:				scanCode = SDL_SCANCODE_T; break;
-	// 	case ImUiInputKey_U:				scanCode = SDL_SCANCODE_U; break;
-	// 	case ImUiInputKey_V:				scanCode = SDL_SCANCODE_V; break;
-	// 	case ImUiInputKey_W:				scanCode = SDL_SCANCODE_W; break;
-	// 	case ImUiInputKey_X:				scanCode = SDL_SCANCODE_X; break;
-	// 	case ImUiInputKey_Y:				scanCode = SDL_SCANCODE_Y; break;
-	// 	case ImUiInputKey_Z:				scanCode = SDL_SCANCODE_Z; break;
-	// 	case ImUiInputKey_1:				scanCode = SDL_SCANCODE_1; break;
-	// 	case ImUiInputKey_2:				scanCode = SDL_SCANCODE_2; break;
-	// 	case ImUiInputKey_3:				scanCode = SDL_SCANCODE_3; break;
-	// 	case ImUiInputKey_4:				scanCode = SDL_SCANCODE_4; break;
-	// 	case ImUiInputKey_5:				scanCode = SDL_SCANCODE_5; break;
-	// 	case ImUiInputKey_6:				scanCode = SDL_SCANCODE_6; break;
-	// 	case ImUiInputKey_7:				scanCode = SDL_SCANCODE_7; break;
-	// 	case ImUiInputKey_8:				scanCode = SDL_SCANCODE_8; break;
-	// 	case ImUiInputKey_9:				scanCode = SDL_SCANCODE_9; break;
-	// 	case ImUiInputKey_0:				scanCode = SDL_SCANCODE_0; break;
-	// 	case ImUiInputKey_Enter:			scanCode = SDL_SCANCODE_RETURN; break;
-	// 	case ImUiInputKey_Escape:			scanCode = SDL_SCANCODE_ESCAPE; break;
-	// 	case ImUiInputKey_Backspace:		scanCode = SDL_SCANCODE_BACKSPACE; break;
-	// 	case ImUiInputKey_Tab:				scanCode = SDL_SCANCODE_TAB; break;
-	// 	case ImUiInputKey_Space:			scanCode = SDL_SCANCODE_SPACE; break;
-	// 	case ImUiInputKey_LeftShift:		scanCode = SDL_SCANCODE_LSHIFT; break;
-	// 	case ImUiInputKey_RightShift:		scanCode = SDL_SCANCODE_RSHIFT; break;
-	// 	case ImUiInputKey_LeftControl:		scanCode = SDL_SCANCODE_LCTRL; break;
-	// 	case ImUiInputKey_RightControl:		scanCode = SDL_SCANCODE_RCTRL; break;
-	// 	case ImUiInputKey_LeftAlt:			scanCode = SDL_SCANCODE_LALT; break;
-	// 	case ImUiInputKey_RightAlt:			scanCode = SDL_SCANCODE_RALT; break;
-	// 	case ImUiInputKey_Minus:			scanCode = SDL_SCANCODE_MINUS; break;
-	// 	case ImUiInputKey_Equals:			scanCode = SDL_SCANCODE_EQUALS; break;
-	// 	case ImUiInputKey_LeftBracket:		scanCode = SDL_SCANCODE_LEFTBRACKET; break;
-	// 	case ImUiInputKey_RightBracket:		scanCode = SDL_SCANCODE_RIGHTBRACKET; break;
-	// 	case ImUiInputKey_Backslash:		scanCode = SDL_SCANCODE_BACKSLASH; break;
-	// 	case ImUiInputKey_Semicolon:		scanCode = SDL_SCANCODE_SEMICOLON; break;
-	// 	case ImUiInputKey_Apostrophe:		scanCode = SDL_SCANCODE_APOSTROPHE; break;
-	// 	case ImUiInputKey_Grave:			scanCode = SDL_SCANCODE_GRAVE; break;
-	// 	case ImUiInputKey_Comma:			scanCode = SDL_SCANCODE_COMMA; break;
-	// 	case ImUiInputKey_Period:			scanCode = SDL_SCANCODE_PERIOD; break;
-	// 	case ImUiInputKey_Slash:			scanCode = SDL_SCANCODE_SLASH; break;
-	// 	case ImUiInputKey_F1:				scanCode = SDL_SCANCODE_F1; break;
-	// 	case ImUiInputKey_F2:				scanCode = SDL_SCANCODE_F2; break;
-	// 	case ImUiInputKey_F3:				scanCode = SDL_SCANCODE_F3; break;
-	// 	case ImUiInputKey_F4:				scanCode = SDL_SCANCODE_F4; break;
-	// 	case ImUiInputKey_F5:				scanCode = SDL_SCANCODE_F5; break;
-	// 	case ImUiInputKey_F6:				scanCode = SDL_SCANCODE_F6; break;
-	// 	case ImUiInputKey_F7:				scanCode = SDL_SCANCODE_F7; break;
-	// 	case ImUiInputKey_F8:				scanCode = SDL_SCANCODE_F8; break;
-	// 	case ImUiInputKey_F9:				scanCode = SDL_SCANCODE_F9; break;
-	// 	case ImUiInputKey_F10:				scanCode = SDL_SCANCODE_F10; break;
-	// 	case ImUiInputKey_F11:				scanCode = SDL_SCANCODE_F11; break;
-	// 	case ImUiInputKey_F12:				scanCode = SDL_SCANCODE_F12; break;
-	// 	case ImUiInputKey_Print:			scanCode = SDL_SCANCODE_PRINTSCREEN; break;
-	// 	case ImUiInputKey_Pause:			scanCode = SDL_SCANCODE_PAUSE; break;
-	// 	case ImUiInputKey_Insert:			scanCode = SDL_SCANCODE_INSERT; break;
-	// 	case ImUiInputKey_Delete:			scanCode = SDL_SCANCODE_DELETE; break;
-	// 	case ImUiInputKey_Home:				scanCode = SDL_SCANCODE_HOME; break;
-	// 	case ImUiInputKey_End:				scanCode = SDL_SCANCODE_END; break;
-	// 	case ImUiInputKey_PageUp:			scanCode = SDL_SCANCODE_PAGEUP; break;
-	// 	case ImUiInputKey_PageDown:			scanCode = SDL_SCANCODE_PAGEDOWN; break;
-	// 	case ImUiInputKey_Up:				scanCode = SDL_SCANCODE_UP; break;
-	// 	case ImUiInputKey_Left:				scanCode = SDL_SCANCODE_LEFT; break;
-	// 	case ImUiInputKey_Down:				scanCode = SDL_SCANCODE_DOWN; break;
-	// 	case ImUiInputKey_Right:			scanCode = SDL_SCANCODE_RIGHT; break;
-	// 	case ImUiInputKey_Numpad_Divide:	scanCode = SDL_SCANCODE_KP_DIVIDE; break;
-	// 	case ImUiInputKey_Numpad_Multiply:	scanCode = SDL_SCANCODE_KP_MULTIPLY; break;
-	// 	case ImUiInputKey_Numpad_Minus:		scanCode = SDL_SCANCODE_KP_MINUS; break;
-	// 	case ImUiInputKey_Numpad_Plus:		scanCode = SDL_SCANCODE_KP_PLUS; break;
-	// 	case ImUiInputKey_Numpad_Enter:		scanCode = SDL_SCANCODE_KP_ENTER; break;
-	// 	case ImUiInputKey_Numpad_1:			scanCode = SDL_SCANCODE_KP_1; break;
-	// 	case ImUiInputKey_Numpad_2:			scanCode = SDL_SCANCODE_KP_2; break;
-	// 	case ImUiInputKey_Numpad_3:			scanCode = SDL_SCANCODE_KP_3; break;
-	// 	case ImUiInputKey_Numpad_4:			scanCode = SDL_SCANCODE_KP_4; break;
-	// 	case ImUiInputKey_Numpad_5:			scanCode = SDL_SCANCODE_KP_5; break;
-	// 	case ImUiInputKey_Numpad_6:			scanCode = SDL_SCANCODE_KP_6; break;
-	// 	case ImUiInputKey_Numpad_7:			scanCode = SDL_SCANCODE_KP_7; break;
-	// 	case ImUiInputKey_Numpad_8:			scanCode = SDL_SCANCODE_KP_8; break;
-	// 	case ImUiInputKey_Numpad_9:			scanCode = SDL_SCANCODE_KP_9; break;
-	// 	case ImUiInputKey_Numpad_0:			scanCode = SDL_SCANCODE_KP_0; break;
-	// 	case ImUiInputKey_Numpad_Period:	scanCode = SDL_SCANCODE_KP_PERIOD; break;
-	// 	case ImUiInputKey_MAX:				break;
-	// 	}
+		xkb_keysym_t keySymbol = XKB_KEY_NoSymbol;
+		switch( keyValue )
+		{
+		case ImUiInputKey_None:				keySymbol = XKB_KEY_NoSymbol; break;
+		case ImUiInputKey_A:				keySymbol = XKB_KEY_A; break;
+		case ImUiInputKey_B:				keySymbol = XKB_KEY_B; break;
+		case ImUiInputKey_C:				keySymbol = XKB_KEY_C; break;
+		case ImUiInputKey_D:				keySymbol = XKB_KEY_D; break;
+		case ImUiInputKey_E:				keySymbol = XKB_KEY_E; break;
+		case ImUiInputKey_F:				keySymbol = XKB_KEY_F; break;
+		case ImUiInputKey_G:				keySymbol = XKB_KEY_G; break;
+		case ImUiInputKey_H:				keySymbol = XKB_KEY_H; break;
+		case ImUiInputKey_I:				keySymbol = XKB_KEY_I; break;
+		case ImUiInputKey_J:				keySymbol = XKB_KEY_J; break;
+		case ImUiInputKey_K:				keySymbol = XKB_KEY_K; break;
+		case ImUiInputKey_L:				keySymbol = XKB_KEY_L; break;
+		case ImUiInputKey_M:				keySymbol = XKB_KEY_M; break;
+		case ImUiInputKey_N:				keySymbol = XKB_KEY_N; break;
+		case ImUiInputKey_O:				keySymbol = XKB_KEY_O; break;
+		case ImUiInputKey_P:				keySymbol = XKB_KEY_P; break;
+		case ImUiInputKey_Q:				keySymbol = XKB_KEY_Q; break;
+		case ImUiInputKey_R:				keySymbol = XKB_KEY_R; break;
+		case ImUiInputKey_S:				keySymbol = XKB_KEY_S; break;
+		case ImUiInputKey_T:				keySymbol = XKB_KEY_T; break;
+		case ImUiInputKey_U:				keySymbol = XKB_KEY_U; break;
+		case ImUiInputKey_V:				keySymbol = XKB_KEY_V; break;
+		case ImUiInputKey_W:				keySymbol = XKB_KEY_W; break;
+		case ImUiInputKey_X:				keySymbol = XKB_KEY_X; break;
+		case ImUiInputKey_Y:				keySymbol = XKB_KEY_Y; break;
+		case ImUiInputKey_Z:				keySymbol = XKB_KEY_Z; break;
+		case ImUiInputKey_1:				keySymbol = XKB_KEY_1; break;
+		case ImUiInputKey_2:				keySymbol = XKB_KEY_2; break;
+		case ImUiInputKey_3:				keySymbol = XKB_KEY_3; break;
+		case ImUiInputKey_4:				keySymbol = XKB_KEY_4; break;
+		case ImUiInputKey_5:				keySymbol = XKB_KEY_5; break;
+		case ImUiInputKey_6:				keySymbol = XKB_KEY_6; break;
+		case ImUiInputKey_7:				keySymbol = XKB_KEY_7; break;
+		case ImUiInputKey_8:				keySymbol = XKB_KEY_8; break;
+		case ImUiInputKey_9:				keySymbol = XKB_KEY_9; break;
+		case ImUiInputKey_0:				keySymbol = XKB_KEY_0; break;
+		case ImUiInputKey_Enter:			keySymbol = XKB_KEY_Return; break;
+		case ImUiInputKey_Escape:			keySymbol = XKB_KEY_Escape; break;
+		case ImUiInputKey_Backspace:		keySymbol = XKB_KEY_BackSpace; break;
+		case ImUiInputKey_Tab:				keySymbol = XKB_KEY_Tab; break;
+		case ImUiInputKey_Space:			keySymbol = XKB_KEY_space; break;
+		case ImUiInputKey_LeftShift:		keySymbol = XKB_KEY_Shift_L; break;
+		case ImUiInputKey_RightShift:		keySymbol = XKB_KEY_Shift_R; break;
+		case ImUiInputKey_LeftControl:		keySymbol = XKB_KEY_Control_L; break;
+		case ImUiInputKey_RightControl:		keySymbol = XKB_KEY_Control_R; break;
+		case ImUiInputKey_LeftAlt:			keySymbol = XKB_KEY_Alt_L; break;
+		case ImUiInputKey_RightAlt:			keySymbol = XKB_KEY_Alt_R; break;
+		case ImUiInputKey_Minus:			keySymbol = XKB_KEY_minus; break;
+		case ImUiInputKey_Equals:			keySymbol = XKB_KEY_equal; break;
+		case ImUiInputKey_LeftBracket:		keySymbol = XKB_KEY_bracketleft; break;
+		case ImUiInputKey_RightBracket:		keySymbol = XKB_KEY_bracketright; break;
+		case ImUiInputKey_Backslash:		keySymbol = XKB_KEY_backslash; break;
+		case ImUiInputKey_Semicolon:		keySymbol = XKB_KEY_semicolon; break;
+		case ImUiInputKey_Apostrophe:		keySymbol = XKB_KEY_apostrophe; break;
+		case ImUiInputKey_Grave:			keySymbol = XKB_KEY_grave; break;
+		case ImUiInputKey_Comma:			keySymbol = XKB_KEY_comma; break;
+		case ImUiInputKey_Period:			keySymbol = XKB_KEY_period; break;
+		case ImUiInputKey_Slash:			keySymbol = XKB_KEY_slash; break;
+		case ImUiInputKey_F1:				keySymbol = XKB_KEY_F1; break;
+		case ImUiInputKey_F2:				keySymbol = XKB_KEY_F2; break;
+		case ImUiInputKey_F3:				keySymbol = XKB_KEY_F3; break;
+		case ImUiInputKey_F4:				keySymbol = XKB_KEY_F4; break;
+		case ImUiInputKey_F5:				keySymbol = XKB_KEY_F5; break;
+		case ImUiInputKey_F6:				keySymbol = XKB_KEY_F6; break;
+		case ImUiInputKey_F7:				keySymbol = XKB_KEY_F7; break;
+		case ImUiInputKey_F8:				keySymbol = XKB_KEY_F8; break;
+		case ImUiInputKey_F9:				keySymbol = XKB_KEY_F9; break;
+		case ImUiInputKey_F10:				keySymbol = XKB_KEY_F10; break;
+		case ImUiInputKey_F11:				keySymbol = XKB_KEY_F11; break;
+		case ImUiInputKey_F12:				keySymbol = XKB_KEY_F12; break;
+		case ImUiInputKey_Print:			keySymbol = XKB_KEY_Print; break;
+		case ImUiInputKey_Pause:			keySymbol = XKB_KEY_Pause; break;
+		case ImUiInputKey_Insert:			keySymbol = XKB_KEY_Insert; break;
+		case ImUiInputKey_Delete:			keySymbol = XKB_KEY_Delete; break;
+		case ImUiInputKey_Home:				keySymbol = XKB_KEY_Home; break;
+		case ImUiInputKey_End:				keySymbol = XKB_KEY_End; break;
+		case ImUiInputKey_PageUp:			keySymbol = XKB_KEY_Page_Up; break;
+		case ImUiInputKey_PageDown:			keySymbol = XKB_KEY_Page_Down; break;
+		case ImUiInputKey_Up:				keySymbol = XKB_KEY_Up; break;
+		case ImUiInputKey_Left:				keySymbol = XKB_KEY_Left; break;
+		case ImUiInputKey_Down:				keySymbol = XKB_KEY_Down; break;
+		case ImUiInputKey_Right:			keySymbol = XKB_KEY_Right; break;
+		case ImUiInputKey_Numpad_Divide:	keySymbol = XKB_KEY_KP_Divide; break;
+		case ImUiInputKey_Numpad_Multiply:	keySymbol = XKB_KEY_KP_Multiply; break;
+		case ImUiInputKey_Numpad_Minus:		keySymbol = XKB_KEY_KP_Subtract; break;
+		case ImUiInputKey_Numpad_Plus:		keySymbol = XKB_KEY_KP_Add; break;
+		case ImUiInputKey_Numpad_Enter:		keySymbol = XKB_KEY_KP_Enter; break;
+		case ImUiInputKey_Numpad_1:			keySymbol = XKB_KEY_KP_1; break;
+		case ImUiInputKey_Numpad_2:			keySymbol = XKB_KEY_KP_2; break;
+		case ImUiInputKey_Numpad_3:			keySymbol = XKB_KEY_KP_3; break;
+		case ImUiInputKey_Numpad_4:			keySymbol = XKB_KEY_KP_4; break;
+		case ImUiInputKey_Numpad_5:			keySymbol = XKB_KEY_KP_5; break;
+		case ImUiInputKey_Numpad_6:			keySymbol = XKB_KEY_KP_6; break;
+		case ImUiInputKey_Numpad_7:			keySymbol = XKB_KEY_KP_7; break;
+		case ImUiInputKey_Numpad_8:			keySymbol = XKB_KEY_KP_8; break;
+		case ImUiInputKey_Numpad_9:			keySymbol = XKB_KEY_KP_9; break;
+		case ImUiInputKey_Numpad_0:			keySymbol = XKB_KEY_KP_0; break;
+		case ImUiInputKey_Numpad_Period:	keySymbol = XKB_KEY_KP_Separator; break;
+		case ImUiInputKey_MAX:				break;
+		}
 
-	// 	platform.inputKeyMapping[ scanCode ] = keyValue;
-	// }
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+		maxScanCode = keySymbol > maxScanCode ? keySymbol : maxScanCode;
+		IMAPP_ASSERT( keySymbol < IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
+#endif
+
+		platform.inputKeyMapping[ keySymbol ] = keyValue;
+	}
+	IMAPP_ASSERT( maxScanCode + 1u == IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
 
 	const int result = ImAppMain( &platform, argc, argv );
 
@@ -502,19 +514,31 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	//platform->fontsCount = 0;
 	//IMUI_MEMORY_ARRAY_FREE( platform->allocator, platform->fonts, platform->fontsCapacity );
 
+	if( platform->eglDisplay != EGL_NO_DISPLAY )
+	{
+		eglTerminate( platform->eglDisplay );
+		platform->eglDisplay = EGL_NO_DISPLAY;
+	}
+
+	if( platform->wlDisplay )
+	{
+		wl_display_disconnect( platform->wlDisplay );
+		platform->wlDisplay = NULL;
+	}
+
 	platform->allocator = NULL;
 }
 
-int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickIntervalMs )
+sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs )
 {
 	wl_display_dispatch_pending( platform->wlDisplay );
 
 	struct timespec timeSpec;
 	clock_gettime( CLOCK_REALTIME, &timeSpec );
 
-	int64_t currentTick			= ((int64_t)timeSpec.tv_sec * 1000000000) + timeSpec.tv_nsec;
-	const int64_t deltaTicks	= currentTick - lastTickValue;
-	int64_t timeToWait			= IMUI_MAX( tickIntervalMs * 1000000, deltaTicks ) - deltaTicks;
+	sint64 currentTick		= ((sint64)timeSpec.tv_sec * 1000000000) + timeSpec.tv_nsec;
+	const sint64 deltaTicks	= currentTick - lastTickValue;
+	sint64 timeToWait		= IMUI_MAX( tickIntervalMs * 1000000, deltaTicks ) - deltaTicks;
 
 	//if( tickIntervalMs == 0 )
 	//{
@@ -527,13 +551,13 @@ int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64
 		usleep( (useconds_t)timeToWait / 1000 );
 
 		clock_gettime( CLOCK_REALTIME, &timeSpec );
-		currentTick = (int64_t)timeSpec.tv_nsec;
+		currentTick = (sint64)timeSpec.tv_nsec;
 	}
 
 	return currentTick;
 }
 
-double ImAppPlatformTicksToSeconds( sint64 tickValue )
+double ImAppPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue )
 {
 	return (double)tickValue / 1000000000.0;
 }
@@ -1038,29 +1062,76 @@ static void ImAppPlatformWaylandHandlePointerAxis( void *data, struct wl_pointer
 
 static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size )
 {
-	//char* keymap_string = mmap( NULL, size, PROT_READ, MAP_SHARED, fd, 0 );
-	//xkb_keymap_unref( keymap );
-	//keymap = xkb_keymap_new_from_string( xkb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS );
-	//munmap( keymap_string, size );
-	//close( fd );
-	//xkb_state_unref( xkb_state );
-	//xkb_state = xkb_state_new( keymap );
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	char* keymap_string = mmap( NULL, size, PROT_READ, MAP_SHARED, fd, 0 );
+	xkb_keymap_unref( platform->xkbKeymap );
+	platform->xkbKeymap = xkb_keymap_new_from_string( platform->xkbContext, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS );
+	munmap( keymap_string, size );
+	close( fd );
+	xkb_state_unref( platform->xkbState );
+	platform->xkbState = xkb_state_new( platform->xkbKeymap );
 }
 
-static void ImAppPlatformWaylandHandleKeyboardEnter( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys )
+static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys )
 {
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	for( uintsize i = 0; i < platform->windowsCount; ++i )
+	{
+		if( platform->windows[ i ]->wlSurface != surface )
+		{
+			continue;
+		}
+
+		platform->keyboardFocusWindow = platform->windows[ i ];
+		break;
+	}
 }
 
-static void ImAppPlatformWaylandHandleKeyboardLeave( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface )
+static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface *surface )
 {
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	platform->keyboardFocusWindow = NULL;
 }
 
-static void ImAppPlatformWaylandHandleKeyboardKey( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state )
+static void ImAppPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state )
 {
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+	if( !platform->keyboardFocusWindow )
+	{
+		return;
+	}
+
+	const xkb_keysym_t keySymbol = xkb_state_key_get_one_sym( platform->xkbState, key + 8 );
+
+	if( state == WL_KEYBOARD_KEY_STATE_PRESSED )
+	{
+		const uint32_t keyCharacter = xkb_keysym_to_utf32( keySymbol );
+		if( keyCharacter >= ' ' )
+		{
+			ImAppEvent keyboardEvent;
+			keyboardEvent.character.type		= ImAppEventType_Character;
+			keyboardEvent.character.character	= keyCharacter;
+
+			ImAppEventQueuePush( &platform->keyboardFocusWindow->eventQueue, &keyboardEvent );
+		}
+	}
+
+	ImAppEvent keyboardEvent;
+	keyboardEvent.key.type		= state == WL_KEYBOARD_KEY_STATE_PRESSED ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+	keyboardEvent.key.key		= platform->inputKeyMapping[ keySymbol ];
+	//keyboardEvent.key.repeat	= ...;
+
+	ImAppEventQueuePush( &platform->keyboardFocusWindow->eventQueue, &keyboardEvent );
 }
 
-static void ImAppPlatformWaylandHandleKeyboardModifiers( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group )
+static void ImAppPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group )
 {
+	ImAppPlatform* platform = (ImAppPlatform*)data;
+
+	xkb_state_update_mask( platform->xkbState, mods_depressed, mods_latched, mods_locked, 0, 0, group );
 }
 
 static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_seat *seat, uint32_t capabilities )
@@ -1070,7 +1141,8 @@ static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_se
 		struct wl_pointer* pointer = wl_seat_get_pointer( seat );
 		wl_pointer_add_listener( pointer, &s_wlWindowPointerListener, data );
 	}
-	else if( capabilities & WL_SEAT_CAPABILITY_KEYBOARD )
+
+	if( capabilities & WL_SEAT_CAPABILITY_KEYBOARD )
 	{
 		struct wl_keyboard *keyboard = wl_seat_get_keyboard( seat );
 		wl_keyboard_add_listener( keyboard, &s_wlKeyboardListener, data );

@@ -55,8 +55,8 @@ struct ImAppRendererTexture
 {
 	GLuint						handle;
 
-	int							width;
-	int							height;
+	uint32						width;
+	uint32						height;
 
 	uint8						flags;
 };
@@ -374,7 +374,7 @@ ImAppRendererTexture* ImAppRendererTextureCreate( ImAppRenderer* renderer )
 	return IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
 	ImAppRendererTexture* texture = ImAppRendererTextureCreate( renderer );
 	if( !texture )
@@ -391,7 +391,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	return texture;
 }
 
-bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
 	IMAPP_USE( renderer );
 
