@@ -55,13 +55,13 @@ struct ImAppRendererTexture
 {
 	GLuint						handle;
 
-	int							width;
-	int							height;
+	uint32						width;
+	uint32						height;
 
 	uint8						flags;
 };
 
-#if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
+#if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
 #else
 #	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
@@ -183,6 +183,7 @@ ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 	if( glewInit() != GLEW_OK )
 	{
 		ImAppPlatformShowError( platform, "Failed to initialize GLEW.\n" );
+		ImAppRendererDestroy( renderer );
 		return NULL;
 	}
 #endif
@@ -373,7 +374,7 @@ ImAppRendererTexture* ImAppRendererTextureCreate( ImAppRenderer* renderer )
 	return IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
 	ImAppRendererTexture* texture = ImAppRendererTextureCreate( renderer );
 	if( !texture )
@@ -390,7 +391,7 @@ ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* rende
 	return texture;
 }
 
-bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags )
+bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
 	IMAPP_USE( renderer );
 
@@ -403,7 +404,7 @@ bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAp
 	texture->height		= height;
 	texture->flags		= flags;
 
-	GLint sourceFormat = GL_RGBA;
+	GLenum sourceFormat = GL_RGBA;
 	GLint targetFormat = GL_RGBA;
 	switch( format )
 	{
@@ -507,27 +508,31 @@ static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* sur
 	uintsize indexDataSize = 0u;
 	ImUiSurfaceGetMaxBufferSizes( surface, &vertexDataSize, &indexDataSize );
 
-	if( vertexDataSize > renderer->vertexBufferSize )
+	if( vertexDataSize > renderer->vertexBufferSize ||
+		renderer->vertexBufferSize > vertexDataSize * 2 )
 	{
+		vertexDataSize = IMUI_NEXT_POWER_OF_TWO( vertexDataSize );
 		renderer->vertexBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->vertexBufferData, renderer->vertexBufferSize, vertexDataSize );
 		renderer->vertexBufferSize = vertexDataSize;
 	}
 
-	if( indexDataSize > renderer->elementBufferSize )
+	if( indexDataSize > renderer->elementBufferSize ||
+		renderer->elementBufferSize > indexDataSize * 2 )
 	{
+		indexDataSize = IMUI_NEXT_POWER_OF_TWO( indexDataSize );
 		renderer->elementBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->elementBufferData, renderer->elementBufferSize, indexDataSize );
 		renderer->elementBufferSize = indexDataSize;
 	}
 
 	const ImUiDrawData* drawData = ImUiSurfaceGenerateDrawData( surface, renderer->vertexBufferData, &vertexDataSize, renderer->elementBufferData, &indexDataSize );
-	glBufferData( GL_ARRAY_BUFFER, vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, (GLsizeiptr)vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
 
 	const GLfloat projectionMatrix[ 4 ][ 4 ] = {
-		{  2.0f / width,	0.0f,			 0.0f,	0.0f },
-		{  0.0f,			-2.0f / height,	 0.0f,	0.0f },
-		{  0.0f,			0.0f,			-1.0f,	0.0f },
-		{ -1.0f,			1.0f,			 0.0f,	1.0f }
+		{  2.0f / (float)width,	0.0f,					 0.0f,	0.0f },
+		{  0.0f,				-2.0f / (float)height,	 0.0f,	0.0f },
+		{  0.0f,				0.0f,					-1.0f,	0.0f },
+		{ -1.0f,				1.0f,					 0.0f,	1.0f }
 	};
 
 	bool alphaBlend = true;

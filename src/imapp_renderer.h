@@ -28,8 +28,8 @@ bool					ImAppRendererCreateResources( ImAppRenderer* renderer );
 void					ImAppRendererDestroyResources( ImAppRenderer* renderer );
 
 ImAppRendererTexture*	ImAppRendererTextureCreate( ImAppRenderer* renderer );
-ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
-bool					ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, int width, int height, ImAppRendererFormat format, uint8_t flags );
+ImAppRendererTexture*	ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags );
+bool					ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags );
 void					ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 void					ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture );
 

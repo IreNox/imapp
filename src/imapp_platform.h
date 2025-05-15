@@ -13,7 +13,8 @@ typedef struct ImAppPlatform ImAppPlatform;
 bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
 void					ImAppPlatformShutdown( ImAppPlatform* platform );
 
-sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval );
+sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs );
+double					ImAppPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue );
 
 void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
 
@@ -70,7 +71,7 @@ bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* out
 void					ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
 bool					ImAppPlatformWindowHasFocus( const ImAppWindow* window );
 void					ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
-void					ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height );
+void					ImAppPlatformWindowSetSize( ImAppWindow* window, int width, int height );
 void					ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
 void					ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y );
 ImAppWindowState		ImAppPlatformWindowGetState( const ImAppWindow* window );
