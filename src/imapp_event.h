@@ -35,7 +35,7 @@ typedef struct ImAppInputCharacterEvent ImAppInputCharacterEvent;
 struct ImAppInputCharacterEvent
 {
 	ImAppEventType			type;
-	char					character;
+	uint32_t				character;
 };
 
 typedef struct ImAppInputMotionEvent ImAppInputMotionEvent;
