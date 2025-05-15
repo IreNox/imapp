@@ -101,7 +101,7 @@ static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCu
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 int main()
 #else
-int _main( int argc, char* argv[] )
+int main( int argc, char* argv[] )
 #endif
 {
 	#if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
@@ -352,11 +352,11 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64_t tickInterval )
+sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
-	int64_t currentTick			= (int64_t)SDL_GetTicks64();
-	const int64_t deltaTicks	= currentTick - lastTickValue;
-	int64_t timeToWait = IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
+	sint64 currentTick		= (sint64)SDL_GetTicks64();
+	const sint64 deltaTicks	= currentTick - lastTickValue;
+	sint64 timeToWait		= IMUI_MAX( tickInterval, deltaTicks ) - deltaTicks;
 
 	if( tickInterval == 0 )
 	{
@@ -367,10 +367,15 @@ int64_t ImAppPlatformTick( ImAppPlatform* platform, int64_t lastTickValue, int64
 	{
 		SDL_WaitEventTimeout( NULL, (int)timeToWait - 1 );
 
-		currentTick = (int64_t)SDL_GetTicks64();
+		currentTick = (sint64)SDL_GetTicks64();
 	}
 
-	return (int64_t)currentTick;
+	return (sint64)currentTick;
+}
+
+double ImAppPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue )
+{
+	return tickValue / 1000.0;
 }
 
 void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* pMessage )
@@ -603,7 +608,7 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 				}
 
 				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
+				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .button = button, .repeateCount = sdlButtonEvent->clicks } };
 				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			break;
