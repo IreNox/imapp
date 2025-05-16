@@ -163,7 +163,8 @@ static void ImAppTickUi( ImAppWindow* appWindow, void* arg )
 
 	ImAppContext* imapp = (ImAppContext*)arg;
 
-	imapp->frame = ImUiBegin( imapp->imui, (float)imapp->lastTickValue / 1000.0f );
+	const double time = ImAppPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
+	imapp->frame = ImUiBegin( imapp->imui, time );
 
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 	{

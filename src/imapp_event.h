@@ -35,7 +35,7 @@ typedef struct ImAppInputCharacterEvent ImAppInputCharacterEvent;
 struct ImAppInputCharacterEvent
 {
 	ImAppEventType			type;
-	char					character;
+	uint32_t				character;
 };
 
 typedef struct ImAppInputMotionEvent ImAppInputMotionEvent;
@@ -50,8 +50,6 @@ typedef struct ImAppInputButtonEvent ImAppInputButtonEvent;
 struct ImAppInputButtonEvent
 {
 	ImAppEventType			type;
-	int32_t					x;
-	int32_t					y;
 	ImUiInputMouseButton	button;
 	uint8_t					repeateCount;
 };
