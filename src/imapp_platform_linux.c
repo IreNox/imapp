@@ -20,6 +20,9 @@
 #include <wayland-egl.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include "xdg-shell.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
+
 //////////////////////////////////////////////////////////////////////////
 // Main
 
@@ -45,6 +48,7 @@ struct ImAppPlatform
 	struct wl_display*			wlDisplay;
 	struct wl_registry*			wlRegistry;
 	struct wl_compositor*		wlCompositor;
+	struct wl_subcompositor*	wlSubCompositor;
 	struct wl_shell*			wlShell;
 	struct wl_seat*				wlSeat;
 	struct wl_pointer*			wlPointer;
@@ -53,6 +57,9 @@ struct ImAppPlatform
 	struct wl_cursor_theme*		wlCursorTheme;
 	struct wl_cursor*			wlDefaultCursor;
 	struct wl_surface*			wlCursorSurface;
+
+	struct xdg_wm_base*			xdgWmBase;
+	struct zxdg_decoration_manager_v1* zxdgDecorationManager;
 
 	struct xkb_context*			xkbContext;
 	struct xkb_keymap*			xkbKeymap;
@@ -81,12 +88,17 @@ struct ImAppWindow
 
 	struct wl_egl_window*		wlWindow;
 	struct wl_surface*			wlSurface;
-	struct wl_shell_surface*	wlShellSurface;
-	struct wl_callback*			wlDrawCallback;
+	//struct wl_shell_surface*	wlShellSurface;
+	//struct wl_callback*			wlDrawCallback;
+
+	struct xdg_surface*			xdgSurface;
+	struct xdg_toplevel*		xdgToplevel;
+	struct zxdg_toplevel_decoration_v1* xdgDecoration;
 
 	EGLSurface					eglSurface;
 	EGLContext					eglContext;
 
+	bool						isInitialized;
 	int							x;
 	int							y;
 	int							width;
@@ -116,31 +128,42 @@ struct ImAppWindow
 // };
 // static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
 
-//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform *platform );
+//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform* platform );
 
-static void ImAppPlatformWaylandRegistryGlobalCallback( void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version );
+static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version );
 static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name );
 
-static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial );
-static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height );
-static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface );
+//static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial );
+//static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height );
+//static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface );
 
 //static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
-static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
+//static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
 
-static void ImAppPlatformWaylandHandlePointerEnter( void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y );
-static void ImAppPlatformWaylandHandlePointerLeave( void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface );
-static void ImAppPlatformWaylandHandlePointerMotion( void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y );
-static void ImAppPlatformWaylandHandlePointerButton( void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state );
-static void ImAppPlatformWaylandHandlePointerAxis( void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value );
+static void ImAppPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y );
+static void ImAppPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface );
+static void ImAppPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y );
+static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state );
+static void ImAppPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value );
 
-static void ImAppPlatformWaylandHandleKeyboardKeymap( void *data, struct wl_keyboard *keyboard, uint32_t format, int32_t fd, uint32_t size );
-static void ImAppPlatformWaylandHandleKeyboardEnter( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys );
-static void ImAppPlatformWaylandHandleKeyboardLeave( void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface );
-static void ImAppPlatformWaylandHandleKeyboardKey( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state );
-static void ImAppPlatformWaylandHandleKeyboardModifiers( void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group );
+static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size );
+static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys );
+static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface );
+static void ImAppPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state );
+static void ImAppPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group );
 
-static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_seat *seat, uint32_t capabilities );
+static void ImAppPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities );
+
+static void ImAppPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial );
+
+static void ImAppPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial );
+
+static void ImAppPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states );
+static void ImAppPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel );
+static void ImAppPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height );
+static void ImAppPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities );
+
+static void ImAppPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode );
 
 static const struct wl_registry_listener s_wlRegistryListener =
 {
@@ -148,24 +171,24 @@ static const struct wl_registry_listener s_wlRegistryListener =
 	&ImAppPlatformWaylandRegistryGlobalRemoveCallback
 };
 
-static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
-{
-	&ImAppPlatformWaylandShellSurfacePingCallback,
-	&ImAppPlatformWaylandShellSurfaceConfigureCallback,
-	&ImAppPlatformWaylandShellSurfacePopupDoneCallback
-};
+//static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
+//{
+//	&ImAppPlatformWaylandShellSurfacePingCallback,
+//	&ImAppPlatformWaylandShellSurfaceConfigureCallback,
+//	&ImAppPlatformWaylandShellSurfacePopupDoneCallback
+//};
 
 //static struct wl_callback_listener s_wlWindowConfigCallbackListener =
 //{
 //	ImAppPlatformWaylandHandleWindowConfigCallback
 //};
 
-const struct wl_callback_listener s_wlWindowDrawCallbackListener =
-{
-	&ImAppPlatformWaylandHandleWindowDrawCallback
-};
+//static const struct wl_callback_listener s_wlWindowDrawCallbackListener =
+//{
+//	&ImAppPlatformWaylandHandleWindowDrawCallback
+//};
 
-static struct wl_pointer_listener s_wlWindowPointerListener =
+static const struct wl_pointer_listener s_wlWindowPointerListener =
 {
 	&ImAppPlatformWaylandHandlePointerEnter,
 	&ImAppPlatformWaylandHandlePointerLeave,
@@ -174,7 +197,7 @@ static struct wl_pointer_listener s_wlWindowPointerListener =
 	&ImAppPlatformWaylandHandlePointerAxis
 };
 
-static struct wl_keyboard_listener s_wlKeyboardListener =
+static const struct wl_keyboard_listener s_wlKeyboardListener =
 {
 	&ImAppPlatformWaylandHandleKeyboardKeymap,
 	&ImAppPlatformWaylandHandleKeyboardEnter,
@@ -183,20 +206,37 @@ static struct wl_keyboard_listener s_wlKeyboardListener =
 	&ImAppPlatformWaylandHandleKeyboardModifiers
 };
 
-static struct wl_seat_listener s_wlSeatListener =
+static const struct wl_seat_listener s_wlSeatListener =
 {
 	&ImAppPlatformWaylandHandleSeatCapabilities
+};
+
+static const struct xdg_wm_base_listener s_xdgWmBaseListener =
+{
+	&ImAppPlatformWaylandHandleXdgPing
+};
+
+static const struct xdg_surface_listener s_xdgSurfaceListener =
+{
+	&ImAppPlatformWaylandHandleXdgSurfaceConfigure
+};
+
+static const struct xdg_toplevel_listener s_xdgToplevelListener =
+{
+	&ImAppPlatformWaylandHandleXdgToplevelConfigure,
+	&ImAppPlatformWaylandHandleXdgToplevelClose,
+	&ImAppPlatformWaylandHandleXdgToplevelConfigureBounds,
+	&ImAppPlatformWaylandHandleXdgToplevelWmCapabilities
+};
+
+static const struct zxdg_toplevel_decoration_v1_listener s_xdgDecorationListener =
+{
+	&ImAppPlatformWaylandHandleXdgDecorationConfigure
 };
 
 int main( int argc, char* argv[] )
 {
 	ImAppPlatform platform = { 0 };
-
-	// if( SDL_Init( SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER ) < 0 )
-	// {
-	// 	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", "Failed to initialize SDL.", NULL );
-	// 	return 1;
-	// }
 
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	uintsize maxScanCode = 0u;
@@ -430,7 +470,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
-//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform *platform )
+//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform* platform )
 //{
 //	xmlTextReaderPtr fontConfReader = xmlReaderForFile( "/etc/fonts/fonts.conf", NULL, 0 );
 //	if( !fontConfReader )
@@ -536,9 +576,9 @@ sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 	struct timespec timeSpec;
 	clock_gettime( CLOCK_REALTIME, &timeSpec );
 
-	sint64 currentTick		= ((sint64)timeSpec.tv_sec * 1000000000) + timeSpec.tv_nsec;
+	sint64 currentTick		= ((sint64)timeSpec.tv_sec*  1000000000) + timeSpec.tv_nsec;
 	const sint64 deltaTicks	= currentTick - lastTickValue;
-	sint64 timeToWait		= IMUI_MAX( tickIntervalMs * 1000000, deltaTicks ) - deltaTicks;
+	sint64 timeToWait		= IMUI_MAX( tickIntervalMs*  1000000, deltaTicks ) - deltaTicks;
 
 	//if( tickIntervalMs == 0 )
 	//{
@@ -566,11 +606,16 @@ static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_re
 {
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 
+	IMAPP_DEBUG_LOGI( "Global registry: %s", interface );
+
 	if( strcmp( interface, "wl_compositor" ) == 0 )
 	{
 		platform->wlCompositor = (struct wl_compositor*)wl_registry_bind( registry, name, &wl_compositor_interface, 1 );
-
 		platform->wlCursorSurface = wl_compositor_create_surface( platform->wlCompositor );
+	}
+	else if( strcmp( interface, "wl_subcompositor" ) == 0 )
+	{
+		platform->wlSubCompositor = (struct wl_subcompositor*)wl_registry_bind( registry, name, &wl_subcompositor_interface, 1 );
 	}
 	else if( strcmp( interface, "wl_shell" ) == 0 )
 	{
@@ -587,7 +632,15 @@ static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_re
 		//d->cursor_theme = wl_cursor_theme_load( NULL, 32, d->shm );
 		//d->default_cursor = wl_cursor_theme_get_cursor( d->cursor_theme, "left_ptr" );
 	}
-
+	else if( strcmp( interface, "zxdg_decoration_manager_v1" ) == 0 )
+	{
+		platform->zxdgDecorationManager = wl_registry_bind( registry, name, &zxdg_decoration_manager_v1_interface, 1 );
+		xdg_wm_base_add_listener( platform->xdgWmBase, &s_xdgWmBaseListener, platform );
+	}
+	else if( strcmp( interface, xdg_wm_base_interface.name ) == 0 )
+	{
+		platform->xdgWmBase = (struct xdg_wm_base*)wl_registry_bind( registry, name, &xdg_wm_base_interface, IMUI_MIN( version, 2 ) );
+	}
 }
 
 static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name )
@@ -597,10 +650,10 @@ static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct
 
 void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 {
-	//int fd_pipe[ 2 ]; /* fd_pipe[0]: read end of pipe, fd_pipe[1]: write end of pipe */
+	//int fd_pipe[ 2 ]; /* fd_pipe[0]: read end of pipe, fd_pipe[1]: write end of pipe* /
 	//int zenity_major = 0, zenity_minor = 0, output_len = 0;
 	//int argc = 5, i;
-	//const char *argv[ 5 + 2 /* icon name */ + 2 /* title */ + 2 /* message */ + 2 * MAX_BUTTONS + 1 /* NULL */ ] = {
+	//const char* argv[ 5 + 2 /* icon name* / + 2 /* title* / + 2 /* message* / + 2*  MAX_BUTTONS + 1 /* NULL* / ] = {
 	//	"zenity", "--question", "--switch", "--no-wrap", "--no-markup"
 	//};
 
@@ -617,9 +670,9 @@ void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 	//}
 
 	///* https://gitlab.gnome.org/GNOME/zenity/-/commit/c686bdb1b45e95acf010efd9ca0c75527fbb4dea
-	// * This commit removed --icon-name without adding a deprecation notice.
-	// * We need to handle it gracefully, otherwise no message box will be shown.
-	// */
+	//*  This commit removed --icon-name without adding a deprecation notice.
+	//*  We need to handle it gracefully, otherwise no message box will be shown.
+	//* /
 	//argv[ argc++ ] = zenity_major > 3 || (zenity_major == 3 && zenity_minor >= 90) ? "--icon" : "--icon-name";
 	//argv[ argc++ ] = "dialog-error";
 
@@ -634,15 +687,15 @@ void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 
 	//if( run_zenity( argv, fd_pipe ) == 0 )
 	//{
-	//	FILE *outputfp = NULL;
-	//	char *output = NULL;
-	//	char *tmp = NULL;
+	//	FILE* outputfp = NULL;
+	//	char* output = NULL;
+	//	char* tmp = NULL;
 
 	//	if( buttonid == NULL )
 	//	{
-	//		/* if we don't need buttonid, we can return immediately */
+	//		/* if we don't need buttonid, we can return immediately* /
 	//		close( fd_pipe[ 0 ] );
-	//		return 0; /* success */
+	//		return 0; /* success* /
 	//	}
 	//	*buttonid = -1;
 
@@ -667,17 +720,17 @@ void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 	//	if( (tmp == NULL) || (*tmp == '\0') || (*tmp == '\n') )
 	//	{
 	//		SDL_free( output );
-	//		return 0; /* User simply closed the dialog */
+	//		return 0; /* User simply closed the dialog* /
 	//	}
 
-	//	/* It likes to add a newline... */
+	//	/* It likes to add a newline...* /
 	//	tmp = SDL_strrchr( output, '\n' );
 	//	if( tmp != NULL )
 	//	{
 	//		*tmp = '\0';
 	//	}
 
-	//	/* Check which button got pressed */
+	//	/* Check which button got pressed* /
 	//	for( i = 0; i < messageboxdata->numbuttons; i += 1 )
 	//	{
 	//		if( messageboxdata->buttons[ i ].text != NULL )
@@ -691,12 +744,12 @@ void ImAppPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 	//	}
 
 	//	SDL_free( output );
-	//	return 0; /* success! */
+	//	return 0; /* success!* /
 	//}
 
 	//close( fd_pipe[ 0 ] );
 	//close( fd_pipe[ 1 ] );
-	//return -1; /* run_zenity() calls SDL_SetError(), so message is already set */
+	//return -1; /* run_zenity() calls SDL_SetError(), so message is already set* /
 
 	//SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
 }
@@ -750,15 +803,17 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
-	window->wlShellSurface = wl_shell_get_shell_surface( platform->wlShell, window->wlSurface );
-	if( !window->wlShellSurface )
+	if( platform->xdgWmBase )
 	{
-		IMAPP_DEBUG_LOGE( "Failed to create Wayland Shell Surface." );
-		ImAppPlatformWindowDestroy( window );
-		return NULL;
-	}
+		window->xdgSurface = xdg_wm_base_get_xdg_surface( platform->xdgWmBase, window->wlSurface );
+		xdg_surface_add_listener( window->xdgSurface, &s_xdgSurfaceListener, window );
 
-	wl_shell_surface_add_listener( window->wlShellSurface, &s_wlShellSurfaceListener, window );
+		window->xdgToplevel = xdg_surface_get_toplevel( window->xdgSurface );
+		xdg_toplevel_add_listener( window->xdgToplevel, &s_xdgToplevelListener, window );
+
+		xdg_toplevel_set_title( window->xdgToplevel, windowTitle );
+		xdg_toplevel_set_app_id( window->xdgToplevel, windowTitle );
+	}
 
 	window->wlWindow = wl_egl_window_create( window->wlSurface, width, height );
 	if( !window->wlWindow )
@@ -768,9 +823,65 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
-	wl_shell_surface_set_title( window->wlShellSurface, windowTitle );
+	if( window->xdgToplevel )
+	{
+		switch( state )
+		{
+		case ImAppWindowState_Default:
+			break;
 
-	wl_shell_surface_set_toplevel( window->wlShellSurface );
+		case ImAppWindowState_Minimized:
+			xdg_toplevel_set_maximized( window->xdgToplevel );
+			break;
+
+		case ImAppWindowState_Maximized:
+			xdg_toplevel_set_minimized( window->xdgToplevel );
+			break;
+		}
+	}
+
+	if( platform->xdgWmBase )
+	{
+		wl_surface_commit( window->wlSurface );
+		if( window->xdgSurface )
+		{
+			while( !window->isInitialized )
+			{
+				wl_display_flush( platform->wlDisplay );
+				wl_display_dispatch( platform->wlDisplay );
+			}
+		}
+
+		if( style != ImAppWindowStyle_Borderless &&
+			window->xdgToplevel &&
+			platform->zxdgDecorationManager )
+		{
+			window->xdgDecoration = zxdg_decoration_manager_v1_get_toplevel_decoration( platform->zxdgDecorationManager, window->xdgToplevel );
+			zxdg_toplevel_decoration_v1_add_listener( window->xdgDecoration, &s_xdgDecorationListener, window );
+		}
+
+		xdg_surface_set_window_geometry( window->xdgSurface, 0, 0, window->width, window->height );
+
+		if( platform->zxdgDecorationManager && window->xdgDecoration )
+		{
+			//const enum zxdg_toplevel_decoration_v1_mode mode = bordered ?  : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
+			zxdg_toplevel_decoration_v1_set_mode( window->xdgDecoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE );
+		}
+	}
+	//else
+	//{
+		//window->wlShellSurface = wl_shell_get_shell_surface( platform->wlShell, window->wlSurface );
+		//if( !window->wlShellSurface )
+		//{
+		//	IMAPP_DEBUG_LOGE( "Failed to create Wayland Shell Surface." );
+		//	ImAppPlatformWindowDestroy( window );
+		//	return NULL;
+		//}
+		//wl_shell_surface_add_listener( window->wlShellSurface, &s_wlShellSurfaceListener, window );
+	//
+	//	wl_shell_surface_set_title( window->wlShellSurface, windowTitle );
+	//	wl_shell_surface_set_toplevel( window->wlShellSurface );
+	//}
 
 	//callback = wl_display_sync( platform->eglDisplay );
 	//wl_callback_add_listener( callback, &configure_callback_listener, this );
@@ -788,21 +899,6 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	//	{
 	//		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	//	}
-	//	break;
-	//}
-
-	//switch( state )
-	//{
-	//case ImAppWindowState_Default:
-	//	flags |= SDL_WINDOW_SHOWN;
-	//	break;
-
-	//case ImAppWindowState_Minimized:
-	//	flags |= SDL_WINDOW_MINIMIZED;
-	//	break;
-
-	//case ImAppWindowState_Maximized:
-	//	flags |= SDL_WINDOW_MAXIMIZED;
 	//	break;
 	//}
 
@@ -851,11 +947,11 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 		window->wlWindow = NULL;
 	}
 
-	if( window->wlShellSurface )
-	{
-		wl_shell_surface_destroy( window->wlShellSurface );
-		window->wlShellSurface = NULL;
-	}
+	//if( window->wlShellSurface )
+	//{
+	//	wl_shell_surface_destroy( window->wlShellSurface );
+	//	window->wlShellSurface = NULL;
+	//}
 
 	if( window->wlSurface )
 	{
@@ -877,32 +973,32 @@ void ImAppPlatformWindowDestroy( ImAppWindow* window )
 	ImUiMemoryFree( window->allocator, window );
 }
 
-static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial )
-{
-	wl_shell_surface_pong( shell_surface, serial );
-}
-
-static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height )
-{
-	ImAppWindow* window = (ImAppWindow*)data;
-
-	if( window->wlWindow )
-	{
-		wl_egl_window_resize( window->wlWindow, width, height, 0, 0 );
-	}
-
-	window->width = width;
-	window->height = height;
-
-	//if( window->state != ImAppWindowState_Maximized )
-	//{
-	//	window->window_size = window->geometry;
-	//}
-}
-
-static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface )
-{
-}
+//static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial )
+//{
+//	wl_shell_surface_pong( shell_surface, serial );
+//}
+//
+//static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height )
+//{
+//	ImAppWindow* window = (ImAppWindow*)data;
+//
+//	if( window->wlWindow )
+//	{
+//		wl_egl_window_resize( window->wlWindow, width, height, 0, 0 );
+//	}
+//
+//	window->width = width;
+//	window->height = height;
+//
+//	//if( window->state != ImAppWindowState_Maximized )
+//	//{
+//	//	window->window_size = window->geometry;
+//	//}
+//}
+//
+//static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface )
+//{
+//}
 
 //static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time )
 //{
@@ -918,46 +1014,46 @@ static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struc
 //	}
 //}
 
-static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time )
-{
-	//ImAppWindow* window = (ImAppWindow*)data;
+//static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time )
+//{
+//	//ImAppWindow* window = (ImAppWindow*)data;
+//
+//	if( callback )
+//	{
+//		wl_callback_destroy( callback );
+//	}
+//
+//	//struct wl_region* region;
+//	//
+//	//assert( window->callback == callback );
+//	//window->callback = NULL;
+//
+//
+//	//if( !window->configured )
+//	//	return;
+//
+//	//window->drawPtr( window );
+//
+//	//if( window->opaque || window->fullscreen )
+//	//{
+//	//	region = wl_compositor_create_region( window->display->compositor );
+//	//	wl_region_add( region, 0, 0, window->geometry.width,
+//	//					window->geometry.height );
+//	//	wl_surface_set_opaque_region( window->surface, region );
+//	//	wl_region_destroy( region );
+//	//}
+//	//else
+//	//{
+//	//	wl_surface_set_opaque_region( window->surface, NULL );
+//	//}
+//
+//	//window->wlDrawCallback = wl_surface_frame( window->wlSurface );
+//	//wl_callback_add_listener( window->wlDrawCallback, &s_wlWindowDrawCallbackListener, window );
+//
+//	//eglSwapBuffers( window->platform->eglDisplay, window->eglSurface );
+//}
 
-	if( callback )
-	{
-		wl_callback_destroy( callback );
-	}
-
-	//struct wl_region* region;
-	//
-	//assert( window->callback == callback );
-	//window->callback = NULL;
-
-
-	//if( !window->configured )
-	//	return;
-
-	//window->drawPtr( window );
-
-	//if( window->opaque || window->fullscreen )
-	//{
-	//	region = wl_compositor_create_region( window->display->compositor );
-	//	wl_region_add( region, 0, 0, window->geometry.width,
-	//					window->geometry.height );
-	//	wl_surface_set_opaque_region( window->surface, region );
-	//	wl_region_destroy( region );
-	//}
-	//else
-	//{
-	//	wl_surface_set_opaque_region( window->surface, NULL );
-	//}
-
-	//window->wlDrawCallback = wl_surface_frame( window->wlSurface );
-	//wl_callback_add_listener( window->wlDrawCallback, &s_wlWindowDrawCallbackListener, window );
-
-	//eglSwapBuffers( window->platform->eglDisplay, window->eglSurface );
-}
-
-static void ImAppPlatformWaylandHandlePointerEnter( void *data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y )
+static void ImAppPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y )
 {
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 
@@ -973,7 +1069,7 @@ static void ImAppPlatformWaylandHandlePointerEnter( void *data, struct wl_pointe
 	}
 }
 
-static void ImAppPlatformWaylandHandlePointerLeave( void *data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface )
+static void ImAppPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface )
 {
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 
@@ -1035,7 +1131,7 @@ static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_point
 	ImAppEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
 }
 
-static void ImAppPlatformWaylandHandlePointerAxis( void *data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value )
+static void ImAppPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value )
 {
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 	if( !platform->mouseFocusWindow )
@@ -1089,7 +1185,7 @@ static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keybo
 	}
 }
 
-static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface *surface )
+static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface )
 {
 	ImAppPlatform* platform = (ImAppPlatform*)data;
 
@@ -1134,7 +1230,7 @@ static void ImAppPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_k
 	xkb_state_update_mask( platform->xkbState, mods_depressed, mods_latched, mods_locked, 0, 0, group );
 }
 
-static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_seat *seat, uint32_t capabilities )
+static void ImAppPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities )
 {
 	if( capabilities & WL_SEAT_CAPABILITY_POINTER )
 	{
@@ -1144,9 +1240,45 @@ static void ImAppPlatformWaylandHandleSeatCapabilities( void *data, struct wl_se
 
 	if( capabilities & WL_SEAT_CAPABILITY_KEYBOARD )
 	{
-		struct wl_keyboard *keyboard = wl_seat_get_keyboard( seat );
+		struct wl_keyboard* keyboard = wl_seat_get_keyboard( seat );
 		wl_keyboard_add_listener( keyboard, &s_wlKeyboardListener, data );
 	}
+}
+
+static void ImAppPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial )
+{
+	xdg_wm_base_pong( xdg_wm_base, serial );
+}
+
+static void ImAppPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial )
+{
+	ImAppWindow* window = (ImAppWindow*)data;
+
+	//Wayland_HandleResize( window, window->w, window->h, wind->scale_factor );
+	xdg_surface_ack_configure( xdg_surface, serial );
+
+	window->isInitialized = true;
+
+}
+
+static void ImAppPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states )
+{
+}
+
+static void ImAppPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel )
+{
+}
+
+static void ImAppPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height )
+{
+}
+
+static void ImAppPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities )
+{
+}
+
+static void ImAppPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode )
+{
 }
 
 bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
@@ -1262,9 +1394,9 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //			{
 //				const SDL_TextInputEvent* textInputEvent = &sdlEvent.text;
 //
-//				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
+//				for( const char* pText = textInputEvent->text;* pText != '\0'; ++pText )
 //				{
-//					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
+//					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character =* pText } };
 //					ImAppEventQueuePush( &window->eventQueue, &charEvent );
 //				}
 //			}
