@@ -9,8 +9,9 @@
 
 #include <math.h>
 #include <windows.h>
-#include <shellapi.h>
 #include <windowsx.h>
+#include <shellapi.h>
+#include <Xinput.h>
 
 #define CINTERFACE
 #include <oleidl.h>
@@ -21,6 +22,7 @@
 
 typedef struct ImAppFileWatcherPath ImAppFileWatcherPath;
 
+static void					ImAppPlatformWindowUpdateController( ImAppWindow* window );
 static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 static ImUiInputKey			ImAppPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam );
 HRESULT STDMETHODCALLTYPE	ImAppPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject );
@@ -96,6 +98,8 @@ struct ImAppWindow
 	int					titleHeight;
 	int					titleButtonsX;
 	LRESULT				windowHitResult;
+
+	XINPUT_STATE		lastControllerState;
 
 	ImAppEventQueue		eventQueue;
 
@@ -815,6 +819,8 @@ void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 		ImUiMemoryFree( window->platform->allocator, drop );
 	}
 
+	ImAppPlatformWindowUpdateController( window );
+
 	MSG message;
 	while( PeekMessage( &message, NULL, 0u, 0u, PM_REMOVE ) )
 	{
@@ -966,6 +972,100 @@ float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
 void ImAppPlatformWindowClose( ImAppWindow* window )
 {
 	SendMessage( window->hwnd, WM_CLOSE, 0, 0 );
+}
+
+static const s_controllerButtonsXInput[] =
+{
+	XINPUT_GAMEPAD_DPAD_UP,
+	XINPUT_GAMEPAD_DPAD_DOWN,
+	XINPUT_GAMEPAD_DPAD_LEFT,
+	XINPUT_GAMEPAD_DPAD_RIGHT,
+	XINPUT_GAMEPAD_START,
+	XINPUT_GAMEPAD_BACK,
+	XINPUT_GAMEPAD_LEFT_THUMB,
+	XINPUT_GAMEPAD_RIGHT_THUMB,
+	XINPUT_GAMEPAD_LEFT_SHOULDER,
+	XINPUT_GAMEPAD_RIGHT_SHOULDER,
+	XINPUT_GAMEPAD_A,
+	XINPUT_GAMEPAD_B,
+	XINPUT_GAMEPAD_X,
+	XINPUT_GAMEPAD_Y
+};
+
+static const s_controllerButtonsImUi[] =
+{
+	ImUiInputKey_Gamepad_Dpad_Up,
+	ImUiInputKey_Gamepad_Dpad_Down,
+	ImUiInputKey_Gamepad_Dpad_Left,
+	ImUiInputKey_Gamepad_Dpad_Right,
+	ImUiInputKey_Gamepad_Start,
+	ImUiInputKey_Gamepad_Back,
+	ImUiInputKey_Gamepad_LeftThumb,
+	ImUiInputKey_Gamepad_RightThumb,
+	ImUiInputKey_Gamepad_LeftShoulder,
+	ImUiInputKey_Gamepad_RightShoulder,
+	ImUiInputKey_Gamepad_A,
+	ImUiInputKey_Gamepad_B,
+	ImUiInputKey_Gamepad_X,
+	ImUiInputKey_Gamepad_Y
+};
+static_assert( IMAPP_ARRAY_COUNT( s_controllerButtonsXInput ) == IMAPP_ARRAY_COUNT( s_controllerButtonsImUi ), "more controller buttons" );
+
+static void ImAppPlatformWindowUpdateController( ImAppWindow* window )
+{
+	XINPUT_STATE state;
+	if( XInputGetState( 0u, &state ) != ERROR_SUCCESS )
+	{
+		return;
+	}
+	else if( state.dwPacketNumber == window->lastControllerState.dwPacketNumber )
+	{
+		return;
+	}
+
+	if( state.Gamepad.sThumbLX != window->lastControllerState.Gamepad.sThumbLX ||
+		state.Gamepad.sThumbLY != window->lastControllerState.Gamepad.sThumbLY )
+	{
+		ImAppEvent directionEvent = { .type = ImAppEventType_Direction };
+		if( state.Gamepad.sThumbLX < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE )
+		{
+			directionEvent.direction.x = (float)(state.Gamepad.sThumbLX + XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) / (32768.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		}
+		else if( state.Gamepad.sThumbLX > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE )
+		{
+			directionEvent.direction.x = (float)(state.Gamepad.sThumbLX - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) / (32767.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		}
+
+		if( state.Gamepad.sThumbLY < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE )
+		{
+			directionEvent.direction.y = (float)(state.Gamepad.sThumbLY + XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) / (-32768.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		}
+		else if( state.Gamepad.sThumbLY > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE )
+		{
+			directionEvent.direction.y = (float)(state.Gamepad.sThumbLY - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) / (-32767.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		}
+
+		ImAppEventQueuePush( &window->eventQueue, &directionEvent );
+	}
+
+	for( uintsize i = 0; i < IMAPP_ARRAY_COUNT( s_controllerButtonsXInput ); ++i )
+	{
+		const bool isDown = (state.Gamepad.wButtons & s_controllerButtonsXInput[ i ]) != 0;
+		const bool wasDown = (window->lastControllerState.Gamepad.wButtons & s_controllerButtonsXInput[ i ]) != 0;
+
+		if( isDown == wasDown )
+		{
+			continue;
+		}
+
+		ImAppEvent keyEvent;
+		keyEvent.key.type	= isDown ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+		keyEvent.key.key	= s_controllerButtonsImUi[ i ];
+
+		ImAppEventQueuePush( &window->eventQueue, &keyEvent );
+	}
+
+	window->lastControllerState = state;
 }
 
 static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )

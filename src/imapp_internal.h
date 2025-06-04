@@ -28,6 +28,7 @@ struct ImAppContext
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
 	ImUiInputMouseCursor	lastCursor;
+	double					lastFocusExecuteTime;
 
 	ImAppPlatform*			platform;
 	ImUiContext*			imui;

@@ -297,7 +297,12 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 		{ ImUiInputShortcut_Paste,					ImUiInputModifier_RightShift,	ImUiInputKey_Insert },
 		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_LeftCtrl,		ImUiInputKey_A },
 		{ ImUiInputShortcut_SelectAll,				ImUiInputModifier_RightCtrl,	ImUiInputKey_A },
-		{ ImUiInputShortcut_ToggleInsertReplace,	ImUiInputModifier_None,			ImUiInputKey_Insert }
+		{ ImUiInputShortcut_ToggleInsertReplace,	ImUiInputModifier_None,			ImUiInputKey_Insert },
+		{ ImUiInputShortcut_Confirm,				ImUiInputModifier_None,			ImUiInputKey_Gamepad_A },
+		{ ImUiInputShortcut_Back,					ImUiInputModifier_None,			ImUiInputKey_Gamepad_B },
+		{ ImUiInputShortcut_FocusPrevious,			ImUiInputModifier_LeftShift,	ImUiInputKey_Tab },
+		{ ImUiInputShortcut_FocusPrevious,			ImUiInputModifier_RightShift,	ImUiInputKey_Tab },
+		{ ImUiInputShortcut_FocusNext,				ImUiInputModifier_None,			ImUiInputKey_Tab },
 	};
 
 	parameters->shortcuts			= s_inputShortcuts;
@@ -508,8 +513,28 @@ static void ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window )
 		case ImAppEventType_Scroll:
 			ImUiInputPushMouseScroll( input, (float)windowEvent.scroll.x, (float)windowEvent.scroll.y );
 			break;
+
+		case ImAppEventType_Direction:
+			ImUiInputPushDirection( input, windowEvent.direction.x, windowEvent.direction.y );
+			break;
 		}
 	}
+
+	const ImUiPos focusDirection = ImUiInputGetDirection( imapp->imui );
+	if( focusDirection.x != 0.0f || focusDirection.y != 0.0f )
+	{
+		const double time = ImAppPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
+		if( (time - imapp->lastFocusExecuteTime) > 0.5 )
+		{
+			ImUiInputPushFocusExecute( input );
+			imapp->lastFocusExecuteTime = time;
+		}
+	}
+	else
+	{
+		imapp->lastFocusExecuteTime = 0.0f;
+	}
+
 
 	ImUiInputEnd( imapp->imui );
 }
