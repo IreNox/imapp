@@ -12,6 +12,8 @@ newoption {
 
 local imapp_path = module.config.base_path
 
+module.module_type = ModuleTypes.FilesModule
+
 tiki.use_sdl = _OPTIONS[ "use_sdl" ] == "on" and (tiki.target_platform == Platforms.Windows or tiki.target_platform == Platforms.Linux)
 --tiki.use_lib = false
 
@@ -79,11 +81,18 @@ elseif tiki.target_platform == Platforms.Android then
 		solution:add_project( package_project )
 	end 
 elseif tiki.target_platform == Platforms.Linux then
+	module:add_external( "https://github.com/nigels-com/glew@2.2.0" )
+
+	--module:add_include_dir( "/usr/include/libxml2" )
+
 	module:add_library_file( "GL" )
 	module:add_library_file( "EGL" )
-	module:add_library_file( "GLEW" )
+	--module:add_library_file( "GLEW" )
 	module:add_library_file( "wayland-egl" )
 	module:add_library_file( "wayland-client" )
+	module:add_library_file( "xkbcommon" )
 	
-	module:set_define( "_POSIX_C_SOURCE", "200112L" )
+	module:set_define( "GLEW_EGL" )
+	--module:set_define( "_POSIX_C_SOURCE", "200112L" )
+	module:set_define( "_XOPEN_SOURCE", "500" )
 end
