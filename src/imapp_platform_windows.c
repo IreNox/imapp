@@ -974,7 +974,7 @@ void ImAppPlatformWindowClose( ImAppWindow* window )
 	SendMessage( window->hwnd, WM_CLOSE, 0, 0 );
 }
 
-static const s_controllerButtonsXInput[] =
+static const WORD s_controllerButtonsXInput[] =
 {
 	XINPUT_GAMEPAD_DPAD_UP,
 	XINPUT_GAMEPAD_DPAD_DOWN,
@@ -992,7 +992,7 @@ static const s_controllerButtonsXInput[] =
 	XINPUT_GAMEPAD_Y
 };
 
-static const s_controllerButtonsImUi[] =
+static const ImUiInputKey s_controllerButtonsImUi[] =
 {
 	ImUiInputKey_Gamepad_Dpad_Up,
 	ImUiInputKey_Gamepad_Dpad_Down,
