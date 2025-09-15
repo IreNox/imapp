@@ -220,8 +220,9 @@ Options:
 					uintsize startIndex = list.getBeginIndex();
 					if( startIndex == 0u )
 					{
-						ImUiWidget* item = list.nextItem();
-						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
+						UiWidget item;
+						list.nextItem( &item );
+						item.setPadding( UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
 						uiWindow.label( "Package" );
 
@@ -232,8 +233,9 @@ Options:
 					{
 						const Resource& resource = m_package.getResource( i - 1u );
 
-						ImUiWidget* item = list.nextItem();
-						ImUiWidgetSetPadding( item, UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
+						UiWidget item;
+						list.nextItem( &item );
+						item.setPadding( UiBorder( 0.0f, 4.0f, 0.0f, 0.0f ) );
 
 						uiWindow.label( resource.getName() );
 					}

@@ -37,6 +37,7 @@ if tiki.target_platform == Platforms.Windows then
 	module:set_define( "WIN32_LEAN_AND_MEAN" )
 
 	module:add_library_file( "opengl32" )
+	module:add_library_file( "xinput" )
 	
 	module.import_func = function( project, solution )
 		project:set_flag( "MultiProcessorCompile" )
