@@ -891,7 +891,7 @@ ImAppResState ImAppResPakGetState( const ImAppResPak* pak )
 	return pak->state;
 }
 
-ImAppResState ImAppResPakLoadResourceIndex( ImAppResPak* pak, uint16 resIndex )
+ImAppResState ImAppResPakLoadResourceIndex( ImAppResPak* pak, uint16_t resIndex )
 {
 	if( resIndex >= pak->resourceCount )
 	{
@@ -1118,10 +1118,19 @@ ImAppImage* ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageDat
 {
 	ImAppImage* image = IMUI_MEMORY_NEW_ZERO( ressys->allocator, ImAppImage );
 
+	void* imageDataCopy = ImUiMemoryAlloc( ressys->allocator, imageDataSize );
+	if( !imageDataCopy )
+	{
+		ImUiMemoryFree( ressys->allocator, image );
+		return NULL;
+	}
+
+	memcpy( imageDataCopy, imageData, imageDataSize );
+
 	ImAppResEvent decodeEvent;
 	decodeEvent.type						= ImAppResEventType_DecodePng;
 	decodeEvent.data.decode.image			= image;
-	decodeEvent.data.decode.sourceData.data	= imageData;
+	decodeEvent.data.decode.sourceData.data	= imageDataCopy;
 	decodeEvent.data.decode.sourceData.size	= imageDataSize;
 
 	if( !ImAppResEventQueuePush( ressys, &ressys->sendQueue, &decodeEvent ) )
