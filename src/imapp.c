@@ -339,7 +339,7 @@ static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* paramet
 			style = ImAppWindowStyle_Custom;
 		}
 
-		ImAppWindow* window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, 0, 0, parameters->windowWidth, parameters->windowHeight, style, state, ImAppDefaultWindowDoUi );
+		ImAppWindow* window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, parameters->windowX, parameters->windowY, parameters->windowWidth, parameters->windowHeight, style, state, ImAppDefaultWindowDoUi );
 		if( !window )
 		{
 			ImAppPlatformShowError( imapp->platform, "Failed to create Window." );
@@ -562,6 +562,11 @@ void ImAppWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, in
 bool ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
 	return ImAppPlatformWindowPopDropData( window, outData );
+}
+
+ImUiContext* ImAppGetUi( ImAppContext* imapp )
+{
+	return imapp->imui;
 }
 
 void ImAppQuit( ImAppContext* imapp, int exitCode )

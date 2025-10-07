@@ -53,6 +53,8 @@ typedef struct ImAppParameters
 	// Only for windowed Platforms:
 	ImAppDefaultWindow		windowMode;			// Opens a default Window. Default: Linux/Windows: Resizable, Android: Fullscreen
 	const char*				windowTitle;		// Default: "I'm App"
+	int						windowX;			// Default: TBD
+	int						windowY;			// Default: TBD
 	int						windowWidth;		// Default: 1280
 	int						windowHeight;		// Default: 720
 	ImUiColor				windowClearColor;	// Default: #1144AAFF
@@ -88,6 +90,11 @@ typedef struct ImAppDropData
 	const char*		pathOrText;
 } ImAppDropData;
 
+ImUiContext*				ImAppGetUi( ImAppContext* imapp );
+
+void						ImAppTrace( const char* format, ... );
+void						ImAppQuit( ImAppContext* imapp, int exitCode );
+
 // TODO:
 // Create a Window at given coordinates. uiFunc callback will be called every frame to build UI.
 //ImAppWindow*				ImAppWindowCreate( ImAppContext* imapp, ImUiStringView title, uint32_t x, uint32_t y, uint32_t width, uint32_t height, ImAppWindowDoUiFunc uiFunc );
@@ -99,9 +106,6 @@ void						ImAppWindowSetPosition( ImAppWindow* window, int x, int y );
 void						ImAppWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
 
 bool						ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );	// data freed after tick
-
-void						ImAppTrace( const char* format, ... );
-void						ImAppQuit( ImAppContext* imapp, int exitCode );
 
 //////////////////////////////////////////////////////////////////////////
 // Theme
