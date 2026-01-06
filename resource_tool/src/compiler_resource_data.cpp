@@ -3,8 +3,10 @@
 #include "compiler_output.h"
 #include "resource.h"
 
-#include <msdf-atlas-gen.h>
-#include <glyph-generators.h>
+#if TIKI_ENABLED( IMAPP_RESOURCE_TOOL_MSDF )
+#	include <msdf-atlas-gen.h>
+#	include <glyph-generators.h>
+#endif
 
 // debug
 #include <spng/spng.h>
@@ -212,6 +214,10 @@ namespace imapp
 
 	const CompilerFontData* CompilerResourceData::compileFontSdf( CompilerOutput& output )
 	{
+#if TIKI_DISABLED( IMAPP_RESOURCE_TOOL_MSDF )
+		output.pushMessage( CompilerErrorLevel::Error, m_data.name, "SDF Font supported is disabled. Please compile the resource tool with `use_msdf=on`." );
+		return nullptr;
+#else
 		using namespace msdfgen;
 
 		static constexpr uintsize CharSize = 32u;
@@ -387,6 +393,7 @@ namespace imapp
 
 		//m_fontSdfRevision = m_revision;
 		return &m_fontSdfData;
+#endif
 	}
 
 	void CompilerResourceData::convertSdfBitmapLine( ArrayView< uint32 > targetLine, const float* sourceLine, uintsize charSize )
