@@ -1237,10 +1237,10 @@ Options:
 	{
 		const ConstArrayView< const char* > resourceNames = m_resourceNamesByType[ (uintsize)type ];
 
-		uintsize selectedIndex = -1;
+		uintsize selectedIndex = 0u;
 		if( selectedResourceName.isSet() )
 		{
-			for( uintsize i = 0u; i < resourceNames.getLength(); ++i )
+			for( uintsize i = 1u; i < resourceNames.getLength(); ++i )
 			{
 				const char* resourceName = resourceNames[ i ];
 				if( selectedResourceName == resourceName )
@@ -1255,16 +1255,20 @@ Options:
 		resourceSelect.setHStretch( 1.0f );
 
 		const uintsize newSelectedIndex = resourceSelect.getSelectedIndex();
-		if( newSelectedIndex < resourceNames.getLength() )
+		if( newSelectedIndex > 0u )
 		{
-			return (StringView)resourceNames[ newSelectedIndex ];
-		}
-		else
-		{
-			resourceSelect.setSelectedIndex( selectedIndex );
+			if( newSelectedIndex < resourceNames.getLength() )
+			{
+				return (StringView)resourceNames[ newSelectedIndex ];
+			}
+			else
+			{
+				resourceSelect.setSelectedIndex( selectedIndex );
+				return selectedResourceName;
+			}
 		}
 
-		return selectedResourceName;
+		return "";
 	}
 
 	void ResourceTool::handleDrop( const char* dropData )
@@ -1327,6 +1331,7 @@ Options:
 		for( DynamicArray< const char* >& array : m_resourceNamesByType )
 		{
 			array.clear();
+			array.pushBack( "- None -" );
 		}
 
 		for( const Resource* resource : m_package.getResources() )
