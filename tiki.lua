@@ -38,10 +38,6 @@ if tiki.target_platform == Platforms.Windows then
 
 	module:add_library_file( "opengl32" )
 	module:add_library_file( "xinput" )
-	
-	module.import_func = function( project, solution )
-		project:set_flag( "MultiProcessorCompile" )
-	end
 elseif tiki.target_platform == Platforms.Android then
 	module:add_library_file( "m" )
 	module:add_library_file( "EGL" )
