@@ -2,7 +2,17 @@
 
 newoption {
 	trigger     = "use_sdl",
-	description = "Choose a if useSDL or not",
+	description = "Choose a if SDL used or not",
+	default     = "off",
+	allowed = {
+		{ "off",	"Disabled" },
+		{ "on",		"Enabled" }
+	}
+}
+
+newoption {
+	trigger     = "use_livepp",
+	description = "Choose to enable Live++ or not",
 	default     = "off",
 	allowed = {
 		{ "off",	"Disabled" },
@@ -12,7 +22,8 @@ newoption {
 
 local imapp_path = module.config.base_path
 
-tiki.use_sdl = _OPTIONS[ "use_sdl" ] == "on" and (tiki.target_platform == Platforms.Windows or tiki.target_platform == Platforms.Linux)
+tiki.use_sdl	= _OPTIONS[ "use_sdl" ] == "on" and (tiki.target_platform == Platforms.Windows or tiki.target_platform == Platforms.Linux)
+tiki.use_livepp	= _OPTIONS[ "use_livepp" ] == "on" and tiki.target_platform == Platforms.Windows
 --tiki.use_lib = false
 
 module:add_include_dir( "include" )
@@ -23,6 +34,12 @@ module:add_files( "src/*.c" )
 
 module:add_external( "local://submodules/imui" )
 module:add_external( "local://submodules/libspng" )
+
+module:set_define( "IMAPP_LIVEPP", iff( tiki.use_livepp, "TIKI_ON", "TIKI_OFF" ) );
+
+if tiki.use_livepp then
+	module:add_external( "https://liveplusplus.tech@2.11.1" )
+end
 
 if tiki.use_sdl then
 	module:set_define( "IMAPP_PLATFORM_SDL", "TIKI_ON" );

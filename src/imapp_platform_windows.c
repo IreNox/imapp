@@ -22,6 +22,8 @@
 
 typedef struct ImAppFileWatcherPath ImAppFileWatcherPath;
 
+static void					imappPlatformSetupKeyboard( ImAppPlatform* platform );
+
 static void					ImAppPlatformWindowUpdateController( ImAppWindow* window );
 static LRESULT CALLBACK		ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 static ImUiInputKey			ImAppPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam );
@@ -186,132 +188,16 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	_controlfp_s( 0, ~newControl, newControl );
 #endif
 
+#if IMAPP_ENABLED( IMAPP_LIVEPP )
+	imappLivePlusPlusEnable( L"../../externals/https/liveplusplus.tech/LPP_2_11_1/LivePP" );
+#endif
+
 #if WINVER >= 0x0605
 	SetProcessDpiAwarenessContext( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
 #endif
 
 	ImAppPlatform platform = { 0 };
-
-#if IMAPP_ENABLED( IMAPP_DEBUG )
-	uintsize maxScanCode = 0u;
-#endif
-	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
-	{
-		const ImUiInputKey keyValue = (ImUiInputKey)i;
-
-		uint8 scanCode = 0u;
-		switch( keyValue )
-		{
-		case ImUiInputKey_None:				break;
-		case ImUiInputKey_A:				scanCode = 0x41; break;
-		case ImUiInputKey_B:				scanCode = 0x42; break;
-		case ImUiInputKey_C:				scanCode = 0x43; break;
-		case ImUiInputKey_D:				scanCode = 0x44; break;
-		case ImUiInputKey_E:				scanCode = 0x45; break;
-		case ImUiInputKey_F:				scanCode = 0x46; break;
-		case ImUiInputKey_G:				scanCode = 0x47; break;
-		case ImUiInputKey_H:				scanCode = 0x48; break;
-		case ImUiInputKey_I:				scanCode = 0x49; break;
-		case ImUiInputKey_J:				scanCode = 0x4a; break;
-		case ImUiInputKey_K:				scanCode = 0x4b; break;
-		case ImUiInputKey_L:				scanCode = 0x4c; break;
-		case ImUiInputKey_M:				scanCode = 0x4d; break;
-		case ImUiInputKey_N:				scanCode = 0x4e; break;
-		case ImUiInputKey_O:				scanCode = 0x4f; break;
-		case ImUiInputKey_P:				scanCode = 0x50; break;
-		case ImUiInputKey_Q:				scanCode = 0x51; break;
-		case ImUiInputKey_R:				scanCode = 0x52; break;
-		case ImUiInputKey_S:				scanCode = 0x53; break;
-		case ImUiInputKey_T:				scanCode = 0x54; break;
-		case ImUiInputKey_U:				scanCode = 0x55; break;
-		case ImUiInputKey_V:				scanCode = 0x56; break;
-		case ImUiInputKey_W:				scanCode = 0x57; break;
-		case ImUiInputKey_X:				scanCode = 0x58; break;
-		case ImUiInputKey_Y:				scanCode = 0x59; break;
-		case ImUiInputKey_Z:				scanCode = 0x5a; break;
-		case ImUiInputKey_1:				scanCode = 0x31; break;
-		case ImUiInputKey_2:				scanCode = 0x32; break;
-		case ImUiInputKey_3:				scanCode = 0x33; break;
-		case ImUiInputKey_4:				scanCode = 0x34; break;
-		case ImUiInputKey_5:				scanCode = 0x35; break;
-		case ImUiInputKey_6:				scanCode = 0x36; break;
-		case ImUiInputKey_7:				scanCode = 0x37; break;
-		case ImUiInputKey_8:				scanCode = 0x38; break;
-		case ImUiInputKey_9:				scanCode = 0x39; break;
-		case ImUiInputKey_0:				scanCode = 0x30; break;
-		case ImUiInputKey_Enter:			scanCode = VK_RETURN; break;
-		case ImUiInputKey_Escape:			scanCode = VK_ESCAPE; break;
-		case ImUiInputKey_Backspace:		scanCode = VK_BACK; break;
-		case ImUiInputKey_Tab:				scanCode = VK_TAB; break;
-		case ImUiInputKey_Space:			scanCode = VK_SPACE; break;
-		case ImUiInputKey_LeftShift:		scanCode = VK_LSHIFT; break;
-		case ImUiInputKey_RightShift:		scanCode = VK_RSHIFT; break;
-		case ImUiInputKey_LeftControl:		scanCode = VK_LCONTROL; break;
-		case ImUiInputKey_RightControl:		scanCode = VK_RCONTROL; break;
-		case ImUiInputKey_LeftAlt:			scanCode = VK_LMENU; break;
-		case ImUiInputKey_RightAlt:			scanCode = VK_RMENU; break;
-		case ImUiInputKey_Minus:			scanCode = VK_OEM_MINUS; break;
-		case ImUiInputKey_Equals:			scanCode = VK_OEM_PLUS; break;
-		case ImUiInputKey_LeftBracket:		scanCode = VK_OEM_4; break;
-		case ImUiInputKey_RightBracket:		scanCode = VK_OEM_6; break;
-		case ImUiInputKey_Backslash:		scanCode = VK_OEM_5; break;
-		case ImUiInputKey_Semicolon:		scanCode = VK_OEM_1; break;
-		case ImUiInputKey_Apostrophe:		scanCode = VK_OEM_7; break;
-		case ImUiInputKey_Grave:			scanCode = VK_OEM_3; break;
-		case ImUiInputKey_Comma:			scanCode = VK_OEM_COMMA; break;
-		case ImUiInputKey_Period:			scanCode = VK_OEM_PERIOD; break;
-		case ImUiInputKey_Slash:			scanCode = VK_OEM_2; break;
-		case ImUiInputKey_F1:				scanCode = VK_F1; break;
-		case ImUiInputKey_F2:				scanCode = VK_F2; break;
-		case ImUiInputKey_F3:				scanCode = VK_F3; break;
-		case ImUiInputKey_F4:				scanCode = VK_F4; break;
-		case ImUiInputKey_F5:				scanCode = VK_F5; break;
-		case ImUiInputKey_F6:				scanCode = VK_F6; break;
-		case ImUiInputKey_F7:				scanCode = VK_F7; break;
-		case ImUiInputKey_F8:				scanCode = VK_F8; break;
-		case ImUiInputKey_F9:				scanCode = VK_F9; break;
-		case ImUiInputKey_F10:				scanCode = VK_F10; break;
-		case ImUiInputKey_F11:				scanCode = VK_F11; break;
-		case ImUiInputKey_F12:				scanCode = VK_F12; break;
-		case ImUiInputKey_Print:			scanCode = VK_PRINT; break;
-		case ImUiInputKey_Pause:			scanCode = VK_PAUSE; break;
-		case ImUiInputKey_Insert:			scanCode = VK_INSERT; break;
-		case ImUiInputKey_Delete:			scanCode = VK_DELETE; break;
-		case ImUiInputKey_Home:				scanCode = VK_HOME; break;
-		case ImUiInputKey_End:				scanCode = VK_END; break;
-		case ImUiInputKey_PageUp:			scanCode = VK_PRIOR; break;
-		case ImUiInputKey_PageDown:			scanCode = VK_NEXT; break;
-		case ImUiInputKey_Up:				scanCode = VK_UP; break;
-		case ImUiInputKey_Left:				scanCode = VK_LEFT; break;
-		case ImUiInputKey_Down:				scanCode = VK_DOWN; break;
-		case ImUiInputKey_Right:			scanCode = VK_RIGHT; break;
-		case ImUiInputKey_Numpad_Divide:	scanCode = VK_DIVIDE; break;
-		case ImUiInputKey_Numpad_Multiply:	scanCode = VK_MULTIPLY; break;
-		case ImUiInputKey_Numpad_Minus:		scanCode = VK_SUBTRACT; break;
-		case ImUiInputKey_Numpad_Plus:		scanCode = VK_ADD; break;
-		case ImUiInputKey_Numpad_Enter:		break;
-		case ImUiInputKey_Numpad_1:			scanCode = VK_NUMPAD1; break;
-		case ImUiInputKey_Numpad_2:			scanCode = VK_NUMPAD2; break;
-		case ImUiInputKey_Numpad_3:			scanCode = VK_NUMPAD3; break;
-		case ImUiInputKey_Numpad_4:			scanCode = VK_NUMPAD4; break;
-		case ImUiInputKey_Numpad_5:			scanCode = VK_NUMPAD5; break;
-		case ImUiInputKey_Numpad_6:			scanCode = VK_NUMPAD6; break;
-		case ImUiInputKey_Numpad_7:			scanCode = VK_NUMPAD7; break;
-		case ImUiInputKey_Numpad_8:			scanCode = VK_NUMPAD8; break;
-		case ImUiInputKey_Numpad_9:			scanCode = VK_NUMPAD9; break;
-		case ImUiInputKey_Numpad_0:			scanCode = VK_NUMPAD0; break;
-		case ImUiInputKey_Numpad_Period:	scanCode = VK_SEPARATOR; break;
-		case ImUiInputKey_MAX:				break;
-		}
-
-#if IMAPP_ENABLED( IMAPP_DEBUG )
-		maxScanCode = scanCode > maxScanCode ? scanCode : maxScanCode;
-#endif
-
-		IMAPP_ASSERT( scanCode < IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
-		platform.inputKeyMapping[ scanCode ] = keyValue;
-	}
-	IMAPP_ASSERT( maxScanCode + 1u == IMAPP_ARRAY_COUNT( platform.inputKeyMapping ) );
+	imappPlatformSetupKeyboard( &platform );
 
 	int argc;
 	char** argv = NULL;
@@ -438,6 +324,10 @@ sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 {
 	IMAPP_USE( platform );
 
+#if IMAPP_ENABLED( IMAPP_LIVEPP )
+	imappLivePlusPlusUpdate();
+#endif
+
 	LARGE_INTEGER currentPerformanceCounterValue;
 	QueryPerformanceCounter( &currentPerformanceCounterValue );
 
@@ -555,13 +445,132 @@ void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 	CloseClipboard();
 }
 
-static void
-set_menu_item_state(
-	HMENU menu,
-	MENUITEMINFO* menuItemInfo,
-	UINT item,
-	bool enabled
-) {
+static void imappPlatformSetupKeyboard( ImAppPlatform* platform )
+{
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	uintsize maxScanCode = 0u;
+#endif
+	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
+	{
+		const ImUiInputKey keyValue = (ImUiInputKey)i;
+
+		uint8 scanCode = 0u;
+		switch( keyValue )
+		{
+		case ImUiInputKey_None:				break;
+		case ImUiInputKey_A:				scanCode = 0x41; break;
+		case ImUiInputKey_B:				scanCode = 0x42; break;
+		case ImUiInputKey_C:				scanCode = 0x43; break;
+		case ImUiInputKey_D:				scanCode = 0x44; break;
+		case ImUiInputKey_E:				scanCode = 0x45; break;
+		case ImUiInputKey_F:				scanCode = 0x46; break;
+		case ImUiInputKey_G:				scanCode = 0x47; break;
+		case ImUiInputKey_H:				scanCode = 0x48; break;
+		case ImUiInputKey_I:				scanCode = 0x49; break;
+		case ImUiInputKey_J:				scanCode = 0x4a; break;
+		case ImUiInputKey_K:				scanCode = 0x4b; break;
+		case ImUiInputKey_L:				scanCode = 0x4c; break;
+		case ImUiInputKey_M:				scanCode = 0x4d; break;
+		case ImUiInputKey_N:				scanCode = 0x4e; break;
+		case ImUiInputKey_O:				scanCode = 0x4f; break;
+		case ImUiInputKey_P:				scanCode = 0x50; break;
+		case ImUiInputKey_Q:				scanCode = 0x51; break;
+		case ImUiInputKey_R:				scanCode = 0x52; break;
+		case ImUiInputKey_S:				scanCode = 0x53; break;
+		case ImUiInputKey_T:				scanCode = 0x54; break;
+		case ImUiInputKey_U:				scanCode = 0x55; break;
+		case ImUiInputKey_V:				scanCode = 0x56; break;
+		case ImUiInputKey_W:				scanCode = 0x57; break;
+		case ImUiInputKey_X:				scanCode = 0x58; break;
+		case ImUiInputKey_Y:				scanCode = 0x59; break;
+		case ImUiInputKey_Z:				scanCode = 0x5a; break;
+		case ImUiInputKey_1:				scanCode = 0x31; break;
+		case ImUiInputKey_2:				scanCode = 0x32; break;
+		case ImUiInputKey_3:				scanCode = 0x33; break;
+		case ImUiInputKey_4:				scanCode = 0x34; break;
+		case ImUiInputKey_5:				scanCode = 0x35; break;
+		case ImUiInputKey_6:				scanCode = 0x36; break;
+		case ImUiInputKey_7:				scanCode = 0x37; break;
+		case ImUiInputKey_8:				scanCode = 0x38; break;
+		case ImUiInputKey_9:				scanCode = 0x39; break;
+		case ImUiInputKey_0:				scanCode = 0x30; break;
+		case ImUiInputKey_Enter:			scanCode = VK_RETURN; break;
+		case ImUiInputKey_Escape:			scanCode = VK_ESCAPE; break;
+		case ImUiInputKey_Backspace:		scanCode = VK_BACK; break;
+		case ImUiInputKey_Tab:				scanCode = VK_TAB; break;
+		case ImUiInputKey_Space:			scanCode = VK_SPACE; break;
+		case ImUiInputKey_LeftShift:		scanCode = VK_LSHIFT; break;
+		case ImUiInputKey_RightShift:		scanCode = VK_RSHIFT; break;
+		case ImUiInputKey_LeftControl:		scanCode = VK_LCONTROL; break;
+		case ImUiInputKey_RightControl:		scanCode = VK_RCONTROL; break;
+		case ImUiInputKey_LeftAlt:			scanCode = VK_LMENU; break;
+		case ImUiInputKey_RightAlt:			scanCode = VK_RMENU; break;
+		case ImUiInputKey_Minus:			scanCode = VK_OEM_MINUS; break;
+		case ImUiInputKey_Equals:			scanCode = VK_OEM_PLUS; break;
+		case ImUiInputKey_LeftBracket:		scanCode = VK_OEM_4; break;
+		case ImUiInputKey_RightBracket:		scanCode = VK_OEM_6; break;
+		case ImUiInputKey_Backslash:		scanCode = VK_OEM_5; break;
+		case ImUiInputKey_Semicolon:		scanCode = VK_OEM_1; break;
+		case ImUiInputKey_Apostrophe:		scanCode = VK_OEM_7; break;
+		case ImUiInputKey_Grave:			scanCode = VK_OEM_3; break;
+		case ImUiInputKey_Comma:			scanCode = VK_OEM_COMMA; break;
+		case ImUiInputKey_Period:			scanCode = VK_OEM_PERIOD; break;
+		case ImUiInputKey_Slash:			scanCode = VK_OEM_2; break;
+		case ImUiInputKey_F1:				scanCode = VK_F1; break;
+		case ImUiInputKey_F2:				scanCode = VK_F2; break;
+		case ImUiInputKey_F3:				scanCode = VK_F3; break;
+		case ImUiInputKey_F4:				scanCode = VK_F4; break;
+		case ImUiInputKey_F5:				scanCode = VK_F5; break;
+		case ImUiInputKey_F6:				scanCode = VK_F6; break;
+		case ImUiInputKey_F7:				scanCode = VK_F7; break;
+		case ImUiInputKey_F8:				scanCode = VK_F8; break;
+		case ImUiInputKey_F9:				scanCode = VK_F9; break;
+		case ImUiInputKey_F10:				scanCode = VK_F10; break;
+		case ImUiInputKey_F11:				scanCode = VK_F11; break;
+		case ImUiInputKey_F12:				scanCode = VK_F12; break;
+		case ImUiInputKey_Print:			scanCode = VK_PRINT; break;
+		case ImUiInputKey_Pause:			scanCode = VK_PAUSE; break;
+		case ImUiInputKey_Insert:			scanCode = VK_INSERT; break;
+		case ImUiInputKey_Delete:			scanCode = VK_DELETE; break;
+		case ImUiInputKey_Home:				scanCode = VK_HOME; break;
+		case ImUiInputKey_End:				scanCode = VK_END; break;
+		case ImUiInputKey_PageUp:			scanCode = VK_PRIOR; break;
+		case ImUiInputKey_PageDown:			scanCode = VK_NEXT; break;
+		case ImUiInputKey_Up:				scanCode = VK_UP; break;
+		case ImUiInputKey_Left:				scanCode = VK_LEFT; break;
+		case ImUiInputKey_Down:				scanCode = VK_DOWN; break;
+		case ImUiInputKey_Right:			scanCode = VK_RIGHT; break;
+		case ImUiInputKey_Numpad_Divide:	scanCode = VK_DIVIDE; break;
+		case ImUiInputKey_Numpad_Multiply:	scanCode = VK_MULTIPLY; break;
+		case ImUiInputKey_Numpad_Minus:		scanCode = VK_SUBTRACT; break;
+		case ImUiInputKey_Numpad_Plus:		scanCode = VK_ADD; break;
+		case ImUiInputKey_Numpad_Enter:		break;
+		case ImUiInputKey_Numpad_1:			scanCode = VK_NUMPAD1; break;
+		case ImUiInputKey_Numpad_2:			scanCode = VK_NUMPAD2; break;
+		case ImUiInputKey_Numpad_3:			scanCode = VK_NUMPAD3; break;
+		case ImUiInputKey_Numpad_4:			scanCode = VK_NUMPAD4; break;
+		case ImUiInputKey_Numpad_5:			scanCode = VK_NUMPAD5; break;
+		case ImUiInputKey_Numpad_6:			scanCode = VK_NUMPAD6; break;
+		case ImUiInputKey_Numpad_7:			scanCode = VK_NUMPAD7; break;
+		case ImUiInputKey_Numpad_8:			scanCode = VK_NUMPAD8; break;
+		case ImUiInputKey_Numpad_9:			scanCode = VK_NUMPAD9; break;
+		case ImUiInputKey_Numpad_0:			scanCode = VK_NUMPAD0; break;
+		case ImUiInputKey_Numpad_Period:	scanCode = VK_SEPARATOR; break;
+		case ImUiInputKey_MAX:				break;
+		}
+
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+		maxScanCode = scanCode > maxScanCode ? scanCode : maxScanCode;
+#endif
+
+		IMAPP_ASSERT( scanCode < IMAPP_ARRAY_COUNT( platform->inputKeyMapping ) );
+		platform->inputKeyMapping[ scanCode ] = keyValue;
+	}
+	IMAPP_ASSERT( maxScanCode + 1u == IMAPP_ARRAY_COUNT( platform->inputKeyMapping ) );
+}
+
+static void imappPlatformWindowSetMenuItemState( HMENU menu, MENUITEMINFO* menuItemInfo, UINT item, bool enabled )
+{
 	menuItemInfo->fState = enabled ? MF_ENABLED : MF_DISABLED;
 	SetMenuItemInfo( menu, item, false, menuItemInfo );
 }
@@ -1479,18 +1488,18 @@ static LRESULT CALLBACK ImAppPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				wParam == HTCAPTION )
 			{
 				const BOOL isMaximized = window->state == ImAppWindowState_Maximized;
-				MENUITEMINFO menu_item_info = {
-					.cbSize = sizeof( menu_item_info ),
+				MENUITEMINFO menuItemInfo = {
+					.cbSize = sizeof( menuItemInfo ),
 					.fMask = MIIM_STATE
 				};
 
 				const HMENU sysMenu = GetSystemMenu( window->hwnd, false );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_RESTORE, isMaximized );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_MOVE, !isMaximized );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_SIZE, !isMaximized );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_MINIMIZE, true );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_MAXIMIZE, !isMaximized );
-				set_menu_item_state( sysMenu, &menu_item_info, SC_CLOSE, true );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_RESTORE, isMaximized );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_MOVE, !isMaximized );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_SIZE, !isMaximized );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_MINIMIZE, true );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_MAXIMIZE, !isMaximized );
+				imappPlatformWindowSetMenuItemState( sysMenu, &menuItemInfo, SC_CLOSE, true );
 
 				const BOOL result = TrackPopupMenu( sysMenu, TPM_RETURNCMD, GET_X_LPARAM( lParam ), GET_Y_LPARAM( lParam ), 0, window->hwnd, NULL );
 				if( result != 0 )
