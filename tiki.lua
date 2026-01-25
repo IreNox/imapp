@@ -53,6 +53,7 @@ if tiki.target_platform == Platforms.Windows then
 	module:set_define( "NOMINMAX" )
 	module:set_define( "WIN32_LEAN_AND_MEAN" )
 
+	module:add_library_file( "dwmapi" )
 	module:add_library_file( "opengl32" )
 	module:add_library_file( "xinput" )
 elseif tiki.target_platform == Platforms.Android then
