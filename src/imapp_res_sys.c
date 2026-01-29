@@ -69,7 +69,7 @@ static const ImAppResPakResource*	ImAppResPakResourceGet( const void* base, uint
 static ImUiStringView				ImAppResPakResourceGetName( const void* base, const ImAppResPakResource* res );
 static const void*					ImAppResPakResourceGetHeader( const void* base, const ImAppResPakResource* res );
 
-ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui )
+ImAppResSys* imappResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui )
 {
 	ImAppResSys* ressys = IMUI_MEMORY_NEW_ZERO( allocator, ImAppResSys );
 
@@ -77,37 +77,37 @@ ImAppResSys* ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platfor
 	ressys->platform	= platform;
 	ressys->imui		= imui;
 	ressys->renderer	= renderer;
-	ressys->watcher		= ImAppPlatformFileWatcherCreate( platform );
+	ressys->watcher		= imappPlatformFileWatcherCreate( platform );
 
 	if( !ImUiHashMapConstructSize( &ressys->nameMap, allocator, sizeof( ImAppRes* ), ImAppResSysNameMapHash, ImAppResSysNameMapIsKeyEquals, 64u ) ||
 		!ImUiHashMapConstructSize( &ressys->imageMap, allocator, sizeof( ImAppRes* ), ImAppResSysImageMapHash, ImAppResSysImageMapIsKeyEquals, 64u ) ||
 		!ImAppResEventQueueConstruct( ressys, &ressys->sendQueue, 16u ) ||
 		!ImAppResEventQueueConstruct( ressys, &ressys->receiveQueue, 16u ) )
 	{
-		ImAppResSysDestroy( ressys );
+		imappResSysDestroy( ressys );
 		return NULL;
 	}
 
-	ressys->thread = ImAppPlatformThreadCreate( platform, "res sys", ImAppResThreadEntry, ressys );
+	ressys->thread = imappPlatformThreadCreate( platform, "res sys", ImAppResThreadEntry, ressys );
 
 	return ressys;
 }
 
-void ImAppResSysDestroy( ImAppResSys* ressys )
+void imappResSysDestroy( ImAppResSys* ressys )
 {
 	if( ressys->thread )
 	{
 		const ImAppResEvent resEvent = { .type = ImAppResEventType_Quit };
 		ImAppResEventQueuePush( ressys, &ressys->sendQueue, &resEvent );
 
-		ImAppPlatformThreadDestroy( ressys->thread );
+		imappPlatformThreadDestroy( ressys->thread );
 		ressys->thread = NULL;
 	}
 
 	for( uintsize i = ImUiHashMapFindFirstIndex( &ressys->imageMap ); i != IMUI_SIZE_MAX; i = ImUiHashMapFindNextIndex( &ressys->imageMap, i ) )
 	{
 		ImAppImage* image = *(ImAppImage**)ImUiHashMapGetEntry( &ressys->imageMap, i );
-		ImAppResSysImageFree( ressys, image );
+		imappResSysImageFree( ressys, image );
 	}
 
 	ImAppResEventQueueDestruct( ressys, &ressys->sendQueue );
@@ -116,17 +116,17 @@ void ImAppResSysDestroy( ImAppResSys* ressys )
 	ImUiHashMapDestruct( &ressys->imageMap );
 	ImUiHashMapDestruct( &ressys->nameMap );
 
-	ImAppPlatformFileWatcherDestroy( ressys->platform, ressys->watcher );
+	imappPlatformFileWatcherDestroy( ressys->platform, ressys->watcher );
 
 	ImUiMemoryFree( ressys->allocator, ressys );
 }
 
-void ImAppResSysUpdate( ImAppResSys* ressys, bool wait )
+void imappResSysUpdate( ImAppResSys* ressys, bool wait )
 {
 	if( ressys->watcher )
 	{
 		ImAppFileWatchEvent watchEvent;
-		if( ImAppPlatformFileWatcherPopEvent( ressys->watcher, &watchEvent ) )
+		if( imappPlatformFileWatcherPopEvent( ressys->watcher, &watchEvent ) )
 		{
 			ImAppResPak* pak;
 			for( pak = ressys->firstResPak; pak; pak = pak->nextResPak )
@@ -227,9 +227,9 @@ static void ImAppResSysHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* res
 			pak->memoryData == NULL )
 		{
 			char pakPath[ 1024u ];
-			ImAppPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
+			imappPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
 
-			ImAppPlatformFileWatcherAddPath( ressys->watcher, pakPath );
+			imappPlatformFileWatcherAddPath( ressys->watcher, pakPath );
 		}
 	}
 
@@ -264,13 +264,13 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 			case ImAppResPakTextureFormat_RGBA8:	format = ImAppRendererFormat_RGBA8; break;
 			}
 
-			res->data.texture.texture	= ImAppRendererTextureCreateFromMemory( ressys->renderer, resEvent->result.loadRes.data.data, header->width, header->height, format, header->flags );
+			res->data.texture.texture	= imappRendererTextureCreateFromMemory( ressys->renderer, resEvent->result.loadRes.data.data, header->width, header->height, format, header->flags );
 			res->data.texture.width		= header->width;
 			res->data.texture.height	= header->height;
 
 			if( res->key.pak->memoryData == NULL )
 			{
-				ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+				imappPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
 			}
 
 			if( !res->data.texture.texture )
@@ -306,7 +306,7 @@ static void ImAppResSysHandleLoadResData( ImAppResSys* ressys, ImAppResEvent* re
 
 			if( res->key.pak->memoryData == NULL )
 			{
-				ImAppPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
+				imappPlatformResourceFree( ressys->platform, resEvent->result.loadRes.data );
 			}
 		}
 		break;
@@ -337,7 +337,7 @@ static void ImAppResSysHandleImage( ImAppResSys* ressys, ImAppResEvent* resEvent
 	}
 
 	const ImAppResEventResultImageData* result = &resEvent->result.image;
-	image->uiImage.textureHandle	= (uint64)ImAppRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
+	image->uiImage.textureHandle	= (uint64)imappRendererTextureCreateFromMemory( ressys->renderer, result->data.data, result->width, result->height, result->format, 0u );
 	image->uiImage.width			= result->width;
 	image->uiImage.height			= result->height;
 	image->uiImage.uv.u0			= 0.0f;
@@ -751,7 +751,7 @@ static ImAppRes* ImAppResSysLoad( ImAppResPak* pak, uint16 resIndex )
 	return res;
 }
 
-void ImAppResSysDestroyDeviceResources( ImAppResSys* ressys )
+void imappResSysDestroyDeviceResources( ImAppResSys* ressys )
 {
 	for( ImAppResPak* pak = ressys->firstResPak; pak != NULL; pak = pak->nextResPak )
 	{
@@ -764,11 +764,11 @@ void ImAppResSysDestroyDeviceResources( ImAppResSys* ressys )
 
 	for( ImAppFont* font = ressys->firstFont; font != NULL; font = font->nextFont )
 	{
-		ImAppRendererTextureDestroyData( ressys->renderer, font->texture );
+		imappRendererTextureDestroyData( ressys->renderer, font->texture );
 	}
 }
 
-void ImAppResSysCreateDeviceResources( ImAppResSys* ressys )
+void imappResSysCreateDeviceResources( ImAppResSys* ressys )
 {
 	for( ImAppFont* font = ressys->firstFont; font != NULL; font = font->nextFont )
 	{
@@ -776,7 +776,7 @@ void ImAppResSysCreateDeviceResources( ImAppResSys* ressys )
 	}
 }
 
-ImAppResPak* ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength )
+ImAppResPak* imappResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength )
 {
 	ImAppResPak* pak = (ImAppResPak*)ImUiMemoryAllocZero( ressys->allocator, sizeof( ImAppResPak ) );
 	pak->ressys			= ressys;
@@ -804,7 +804,7 @@ ImAppResPak* ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize 
 	return pak;
 }
 
-ImAppResPak* ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName )
+ImAppResPak* imappResSysOpen( ImAppResSys* ressys, const char* resourceName )
 {
 	const uintsize nameLength = strlen( resourceName );
 
@@ -847,7 +847,7 @@ static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 		ImAppBlob metadataBlob;
 		metadataBlob.data = pak->metadata;
 		metadataBlob.size = pak->metadataSize;
-		ImAppPlatformResourceFree( ressys->platform, metadataBlob );
+		imappPlatformResourceFree( ressys->platform, metadataBlob );
 	}
 
 	ImUiMemoryFree( ressys->allocator, pak->resources );
@@ -858,14 +858,14 @@ static void ImAppResSysCloseInternal( ImAppResSys* ressys, ImAppResPak* pak )
 	ImUiToolboxThemeSet( &config );
 }
 
-void ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* pak )
+void imappResSysClose( ImAppResSys* ressys, ImAppResPak* pak )
 {
 	if( ressys->watcher )
 	{
 		char pakPath[ 1024u ];
-		ImAppPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
+		imappPlatformResourceGetPath( ressys->platform, pakPath, IMAPP_ARRAY_COUNT( pakPath ), pak->resourceName );
 
-		ImAppPlatformFileWatcherRemovePath( ressys->watcher, pakPath );
+		imappPlatformFileWatcherRemovePath( ressys->watcher, pakPath );
 	}
 
 	if( pak->nextResPak )
@@ -1057,11 +1057,11 @@ ImAppBlob ImAppResPakGetBlobIndex( ImAppResPak* pak, uint16_t resIndex )
 	return res->data.blob.blob;
 }
 
-ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height )
+ImAppImage* imappResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW( ressys->allocator, ImAppImage );
 	image->resourceName			= ImUiStringViewCreateEmpty();
-	image->uiImage.textureHandle	= (uint64)ImAppRendererTextureCreateFromMemory( ressys->renderer, pixelData, (uint32)width, (uint32)height, ImAppRendererFormat_RGBA8, 0u );
+	image->uiImage.textureHandle	= (uint64)imappRendererTextureCreateFromMemory( ressys->renderer, pixelData, (uint32)width, (uint32)height, ImAppRendererFormat_RGBA8, 0u );
 	image->uiImage.width			= (uint32)width;
 	image->uiImage.height			= (uint32)height;
 	image->uiImage.uv.u0			= 0.0f;
@@ -1079,7 +1079,7 @@ ImAppImage* ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelDat
 	return image;
 }
 
-ImAppImage* ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName )
+ImAppImage* imappResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName )
 {
 	const ImUiStringView resourceNameView = ImUiStringViewCreate( resourceName );
 	const ImUiStringView* resourceNameViewEntry = &resourceNameView;
@@ -1114,7 +1114,7 @@ ImAppImage* ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* resou
 	return *imageEntry;
 }
 
-ImAppImage* ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize )
+ImAppImage* imappResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW_ZERO( ressys->allocator, ImAppImage );
 
@@ -1142,7 +1142,7 @@ ImAppImage* ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageDat
 	return image;
 }
 
-ImAppImage* ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize )
+ImAppImage* imappResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize )
 {
 	ImAppImage* image = IMUI_MEMORY_NEW_ZERO( ressys->allocator, ImAppImage );
 
@@ -1161,24 +1161,24 @@ ImAppImage* ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageDa
 	return image;
 }
 
-ImAppResState ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
+ImAppResState imappResSysImageGetState( ImAppResSys* ressys, ImAppImage* image )
 {
 	IMAPP_USE( ressys );
 
 	return image->state;
 }
 
-void ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image )
+void imappResSysImageFree( ImAppResSys* ressys, ImAppImage* image )
 {
 	if( image->uiImage.textureHandle != IMUI_TEXTURE_HANDLE_INVALID )
 	{
-		ImAppRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->uiImage.textureHandle );
+		imappRendererTextureDestroy( ressys->renderer, (ImAppRendererTexture*)image->uiImage.textureHandle );
 	}
 
 	ImUiMemoryFree( ressys->allocator, image );
 }
 
-ImAppFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize )
+ImAppFont* imappResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize )
 {
 	const uintsize fontNameLength = strlen( fontName );
 	ImAppFont* font = (ImAppFont*)ImUiMemoryAllocZero( ressys->allocator, sizeof( ImAppFont ) + fontNameLength + 1 );
@@ -1192,7 +1192,7 @@ ImAppFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontNam
 	font->name.data		= (const char*)&font[ 1 ];
 	font->name.length	= fontNameLength;
 	font->size			= fontSize;
-	font->texture		= ImAppRendererTextureCreate( ressys->renderer );
+	font->texture		= imappRendererTextureCreate( ressys->renderer );
 
 	if( !font->texture )
 	{
@@ -1202,7 +1202,7 @@ ImAppFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontNam
 
 	if( !ImAppResSysFontInitialize( ressys, font ) )
 	{
-		ImAppRendererTextureDestroy( ressys->renderer, font->texture );
+		imappRendererTextureDestroy( ressys->renderer, font->texture );
 		ImUiMemoryFree( ressys->allocator, font );
 		return NULL;
 	}
@@ -1221,7 +1221,7 @@ ImAppFont* ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontNam
 
 static bool ImAppResSysFontInitialize( ImAppResSys* ressys, ImAppFont* font )
 {
-	const ImAppBlob fontBlob = ImAppPlatformResourceLoadSystemFont( ressys->platform, font->name.data );
+	const ImAppBlob fontBlob = imappPlatformResourceLoadSystemFont( ressys->platform, font->name.data );
 	if( fontBlob.data == NULL )
 	{
 		return false;
@@ -1262,7 +1262,7 @@ static bool ImAppResSysFontInitialize( ImAppResSys* ressys, ImAppFont* font )
 		return false;
 	}
 
-	const bool textureOk = ImAppRendererTextureInitializeDataFromMemory( ressys->renderer, font->texture, textureData, width, height, ImAppRendererFormat_R8, ImAppResPakTextureFlags_Font );
+	const bool textureOk = imappRendererTextureInitializeDataFromMemory( ressys->renderer, font->texture, textureData, width, height, ImAppRendererFormat_R8, ImAppResPakTextureFlags_Font );
 	free( textureData );
 
 	if( !textureOk )
@@ -1294,7 +1294,7 @@ static bool ImAppResSysFontInitialize( ImAppResSys* ressys, ImAppFont* font )
 	return true;
 }
 
-void ImAppResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font )
+void imappResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font )
 {
 	if( !font )
 	{
@@ -1317,7 +1317,7 @@ void ImAppResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font )
 	}
 
 	ImUiFontDestroy( ressys->imui, font->uiFont );
-	ImAppRendererTextureDestroy( ressys->renderer, font->texture );
+	imappRendererTextureDestroy( ressys->renderer, font->texture );
 
 	ImUiMemoryFree( ressys->allocator, font );
 }
@@ -1378,7 +1378,7 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 		{
 			if( res->data.texture.texture )
 			{
-				ImAppRendererTextureDestroy( ressys->renderer, res->data.texture.texture );
+				imappRendererTextureDestroy( ressys->renderer, res->data.texture.texture );
 				res->data.texture.texture	= NULL;
 				res->data.texture.width		= 0u;
 				res->data.texture.height	= 0u;
@@ -1411,7 +1411,7 @@ static void ImAppResSysUnload( ImAppResPak* pak, ImAppRes* res )
 		{
 			if( pak->memoryData == NULL )
 			{
-				ImAppPlatformResourceFree( ressys->platform, res->data.blob.blob );
+				imappPlatformResourceFree( ressys->platform, res->data.blob.blob );
 			}
 			res->data.blob.blob.data	= NULL;
 			res->data.blob.blob.size	= 0u;
@@ -1436,17 +1436,17 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 	ImAppResPakHeader header;
 	if( pak->memoryData == NULL )
 	{
-		ImAppFile* file = ImAppPlatformResourceOpen( ressys->platform, pak->resourceName );
+		ImAppFile* file = imappPlatformResourceOpen( ressys->platform, pak->resourceName );
 		if( !file )
 		{
 			IMAPP_DEBUG_LOGE( "Failed to open '%s' ResPak.", pak->resourceName );
 			return;
 		}
 
-		if( ImAppPlatformResourceRead( file, &header, sizeof( header ), 0u ) != sizeof( header ) )
+		if( imappPlatformResourceRead( file, &header, sizeof( header ), 0u ) != sizeof( header ) )
 		{
 			IMAPP_DEBUG_LOGE( "Failed to read ResPak header." );
-			ImAppPlatformResourceClose( ressys->platform, file );
+			imappPlatformResourceClose( ressys->platform, file );
 			return;
 		}
 
@@ -1468,8 +1468,8 @@ static void ImAppResThreadHandleOpenResPak( ImAppResSys* ressys, ImAppResEvent* 
 			return;
 		}
 
-		const uintsize metadataReadResult = ImAppPlatformResourceRead( file, metadata, pak->metadataSize, 0u );
-		ImAppPlatformResourceClose( ressys->platform, file );
+		const uintsize metadataReadResult = imappPlatformResourceRead( file, metadata, pak->metadataSize, 0u );
+		imappPlatformResourceClose( ressys->platform, file );
 
 		if( metadataReadResult != pak->metadataSize )
 		{
@@ -1532,7 +1532,7 @@ static void ImAppResThreadHandleLoadResData( ImAppResSys* ressys, ImAppResEvent*
 	ImAppBlob resData;
 	if( pak->memoryData == NULL )
 	{
-		resData = ImAppPlatformResourceLoadRange( ressys->platform, pak->resourceName, sourceRes->dataOffset, sourceRes->dataSize );
+		resData = imappPlatformResourceLoadRange( ressys->platform, pak->resourceName, sourceRes->dataOffset, sourceRes->dataSize );
 		if( !resData.data )
 		{
 #if IMAPP_ENABLED( IMAPP_DEBUG )
@@ -1569,7 +1569,7 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 {
 	ImAppImage* image = resEvent->data.image.image;
 
-	const ImAppBlob data = ImAppPlatformResourceLoad( ressys->platform, image->resourceName.data );
+	const ImAppBlob data = imappPlatformResourceLoad( ressys->platform, image->resourceName.data );
 	if( !data.data )
 	{
 		IMAPP_DEBUG_LOGE( "Failed to load image '%s'.", image->resourceName.data );
@@ -1595,7 +1595,7 @@ static void ImAppResThreadHandleImageLoad( ImAppResSys* ressys, ImAppResEvent* r
 			ImAppResThreadHandleDecodeJpeg( ressys, &decodeEvent );
 		}
 
-		ImAppPlatformResourceFree( ressys->platform, data );
+		imappPlatformResourceFree( ressys->platform, data );
 
 		if( !decodeEvent.success )
 		{
@@ -1701,8 +1701,8 @@ static void ImAppResThreadHandleDecodeJpeg( ImAppResSys* ressys, ImAppResEvent* 
 
 static bool ImAppResEventQueueConstruct( ImAppResSys* ressys, ImAppResEventQueue* queue, uintsize initSize )
 {
-	queue->semaphore	= ImAppPlatformSemaphoreCreate( ressys->platform );
-	queue->mutex		= ImAppPlatformMutexCreate( ressys->platform );
+	queue->semaphore	= imappPlatformSemaphoreCreate( ressys->platform );
+	queue->mutex		= imappPlatformMutexCreate( ressys->platform );
 	queue->events		= IMUI_MEMORY_ARRAY_NEW( ressys->allocator, ImAppResEvent, initSize );
 	queue->top			= 0u;
 	queue->bottom		= 0u;
@@ -1731,20 +1731,20 @@ static void ImAppResEventQueueDestruct( ImAppResSys* ressys, ImAppResEventQueue*
 
 	if( queue->mutex )
 	{
-		ImAppPlatformMutexDestroy( ressys->platform, queue->mutex );
+		imappPlatformMutexDestroy( ressys->platform, queue->mutex );
 		queue->mutex = NULL;
 	}
 
 	if( queue->semaphore )
 	{
-		ImAppPlatformSemaphoreDestroy( ressys->platform, queue->semaphore );
+		imappPlatformSemaphoreDestroy( ressys->platform, queue->semaphore );
 		queue->semaphore = NULL;
 	}
 }
 
 static bool ImAppResEventQueuePush( ImAppResSys* ressys, ImAppResEventQueue* queue, const ImAppResEvent* resEvent )
 {
-	ImAppPlatformMutexLock( queue->mutex );
+	imappPlatformMutexLock( queue->mutex );
 
 	if( queue->count + 1u > queue->capacity )
 	{
@@ -1754,7 +1754,7 @@ static bool ImAppResEventQueuePush( ImAppResSys* ressys, ImAppResEventQueue* que
 		ImAppResEvent* newEvents = (ImAppResEvent*)ImUiMemoryAlloc( ressys->allocator, newSize );
 		if( !newEvents )
 		{
-			ImAppPlatformMutexUnlock( queue->mutex );
+			imappPlatformMutexUnlock( queue->mutex );
 			return false;
 		}
 
@@ -1778,24 +1778,24 @@ static bool ImAppResEventQueuePush( ImAppResSys* ressys, ImAppResEventQueue* que
 
 	queue->events[ index ] = *resEvent;
 
-	ImAppPlatformMutexUnlock( queue->mutex );
+	imappPlatformMutexUnlock( queue->mutex );
 
-	ImAppPlatformSemaphoreInc( queue->semaphore );
+	imappPlatformSemaphoreInc( queue->semaphore );
 	return true;
 }
 
 static bool ImAppResEventQueuePop( ImAppResEventQueue* queue, ImAppResEvent* outEvent, bool wait )
 {
-	if( !ImAppPlatformSemaphoreDec( queue->semaphore, wait ) )
+	if( !imappPlatformSemaphoreDec( queue->semaphore, wait ) )
 	{
 		return false;
 	}
 
-	ImAppPlatformMutexLock( queue->mutex );
+	imappPlatformMutexLock( queue->mutex );
 
 	if( queue->count == 0u )
 	{
-		ImAppPlatformMutexUnlock( queue->mutex );
+		imappPlatformMutexUnlock( queue->mutex );
 		return false;
 	}
 
@@ -1804,7 +1804,7 @@ static bool ImAppResEventQueuePop( ImAppResEventQueue* queue, ImAppResEvent* out
 	queue->top = (queue->top + 1u) % queue->capacity;
 	queue->count--;
 
-	ImAppPlatformMutexUnlock( queue->mutex );
+	imappPlatformMutexUnlock( queue->mutex );
 	return true;
 }
 

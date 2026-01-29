@@ -35,24 +35,24 @@ struct ImAppFont
 	ImAppRendererTexture*	texture;
 };
 
-ImAppResSys*	ImAppResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
-void			ImAppResSysDestroy( ImAppResSys* ressys );
+ImAppResSys*	imappResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
+void			imappResSysDestroy( ImAppResSys* ressys );
 
-void			ImAppResSysUpdate( ImAppResSys* ressys, bool wait );
+void			imappResSysUpdate( ImAppResSys* ressys, bool wait );
 
-void			ImAppResSysDestroyDeviceResources( ImAppResSys* ressys );
-void			ImAppResSysCreateDeviceResources( ImAppResSys* ressys );
+void			imappResSysDestroyDeviceResources( ImAppResSys* ressys );
+void			imappResSysCreateDeviceResources( ImAppResSys* ressys );
 
-ImAppResPak*	ImAppResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
-ImAppResPak*	ImAppResSysOpen( ImAppResSys* ressys, const char* resourceName );
-void			ImAppResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
+ImAppResPak*	imappResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
+ImAppResPak*	imappResSysOpen( ImAppResSys* ressys, const char* resourceName );
+void			imappResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
 
-ImAppImage*		ImAppResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height );
-ImAppImage*		ImAppResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
-ImAppImage*		ImAppResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
-ImAppImage*		ImAppResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName );
-ImAppResState	ImAppResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
-void			ImAppResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
+ImAppImage*		imappResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height );
+ImAppImage*		imappResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImAppImage*		imappResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImAppImage*		imappResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName );
+ImAppResState	imappResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
+void			imappResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
 
-ImAppFont*		ImAppResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );
-void			ImAppResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font );
+ImAppFont*		imappResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );
+void			imappResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font );

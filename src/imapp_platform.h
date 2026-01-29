@@ -10,38 +10,23 @@
 
 typedef struct ImAppPlatform ImAppPlatform;
 
-bool					ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
-void					ImAppPlatformShutdown( ImAppPlatform* platform );
+bool					imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath );
+void					imappPlatformShutdown( ImAppPlatform* platform );
 
-sint64					ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs );
-double					ImAppPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue );
+sint64					imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs );
+double					imappPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue );
 
-void					ImAppPlatformShowError( ImAppPlatform* platform, const char* message );
+void					imappPlatformShowError( ImAppPlatform* platform, const char* message );
 
-void					ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor );
-void					ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text );
-
-void					ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui );
+void					imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor );
+void					imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text );
+void					imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui );
 
 //////////////////////////////////////////////////////////////////////////
 // Window
 
 typedef struct ImAppEventQueue ImAppEventQueue;
 typedef struct ImAppWindow ImAppWindow;
-
-typedef enum ImAppWindowStyle
-{
-	ImAppWindowStyle_Resizable,
-	ImAppWindowStyle_Borderless,
-	ImAppWindowStyle_Custom
-} ImAppWindowStyle;
-
-typedef enum ImAppWindowState
-{
-	ImAppWindowState_Default,
-	ImAppWindowState_Maximized,
-	ImAppWindowState_Minimized
-} ImAppWindowState;
 
 typedef enum ImAppWindowDeviceState
 {
@@ -53,34 +38,33 @@ typedef enum ImAppWindowDeviceState
 
 typedef void(*ImAppPlatformWindowUpdateCallback)( ImAppWindow* window, void* arg );
 
-ImAppWindow*			ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc );
-void					ImAppPlatformWindowDestroy( ImAppWindow* window );
+ImAppWindow*			imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWindowParameters* parameters );
+void					imappPlatformWindowDestroy( ImAppWindow* window );
 
-bool					ImAppPlatformWindowCreateGlContext( ImAppWindow* window );
-void					ImAppPlatformWindowDestroyGlContext( ImAppWindow* window );
-ImAppWindowDeviceState	ImAppPlatformWindowGetGlContextState( const ImAppWindow* window );
+ImAppWindowDeviceState	imappPlatformWindowGetGlContextState( const ImAppWindow* window );
 
-void					ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg );
-bool					ImAppPlatformWindowPresent( ImAppWindow* window );
+void					imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg );
+bool					imappPlatformWindowBeginRender( ImAppWindow* window );
+bool					imappPlatformWindowEndRender( ImAppWindow* window );
 
-ImAppEventQueue*		ImAppPlatformWindowGetEventQueue( ImAppWindow* window );
-ImAppWindowDoUiFunc		ImAppPlatformWindowGetUiFunc( ImAppWindow* window );
+ImAppEventQueue*		imappPlatformWindowGetEventQueue( ImAppWindow* window );
 
-bool					ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );
+bool					imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );
 
-void					ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
-bool					ImAppPlatformWindowHasFocus( const ImAppWindow* window );
-void					ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
-void					ImAppPlatformWindowSetSize( ImAppWindow* window, int width, int height );
-void					ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
-void					ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y );
-ImAppWindowState		ImAppPlatformWindowGetState( const ImAppWindow* window );
-void					ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state );
-const char*				ImAppPlatformWindowGetTitle( const ImAppWindow* window );
-void					ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title );
-void					ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX );
-float					ImAppPlatformWindowGetDpiScale( const ImAppWindow* window );
-void					ImAppPlatformWindowClose( ImAppWindow* window );
+void					imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
+bool					imappPlatformWindowHasFocus( const ImAppWindow* window );
+void					imappPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight );
+void					imappPlatformWindowSetSize( ImAppWindow* window, int width, int height );
+void					imappPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
+void					imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y );
+ImAppWindowStyle		imappPlatformWindowGetStyle( const ImAppWindow* window );
+ImAppWindowState		imappPlatformWindowGetState( const ImAppWindow* window );
+void					imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state );
+const char*				imappPlatformWindowGetTitle( const ImAppWindow* window );
+void					imappPlatformWindowSetTitle( ImAppWindow* window, const char* title );
+void					imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX );
+float					imappPlatformWindowGetDpiScale( const ImAppWindow* window );
+void					imappPlatformWindowClose( ImAppWindow* window );
 
 //////////////////////////////////////////////////////////////////////////
 // Files/Resources
@@ -94,20 +78,20 @@ typedef struct ImAppFileWatchEvent
 	const char*			path;
 } ImAppFileWatchEvent;
 
-void					ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName );
-ImAppBlob				ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName );
-ImAppBlob				ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length );
-ImAppFile*				ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName );
-uintsize				ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset );
-void					ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file );
-ImAppBlob				ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName );
-void					ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob );
+void					imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName );
+ImAppBlob				imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName );
+ImAppBlob				imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length );
+ImAppFile*				imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName );
+uintsize				imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset );
+void					imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file );
+ImAppBlob				imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName );
+void					imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob );
 
-ImAppFileWatcher*		ImAppPlatformFileWatcherCreate( ImAppPlatform* platform );
-void					ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher );
-void					ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path );
-void					ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path );
-bool					ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent );
+ImAppFileWatcher*		imappPlatformFileWatcherCreate( ImAppPlatform* platform );
+void					imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher );
+void					imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path );
+void					imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path );
+bool					imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent );
 
 //////////////////////////////////////////////////////////////////////////
 // Threading
@@ -118,17 +102,17 @@ typedef struct ImAppSemaphore ImAppSemaphore;
 
 typedef void (*ImAppThreadFunc)( void* arg );
 
-ImAppThread*			ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg );
-void					ImAppPlatformThreadDestroy( ImAppThread* thread );
-bool					ImAppPlatformThreadIsRunning( const ImAppThread* thread );
+ImAppThread*			imappPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg );
+void					imappPlatformThreadDestroy( ImAppThread* thread );
+bool					imappPlatformThreadIsRunning( const ImAppThread* thread );
 
-ImAppMutex*				ImAppPlatformMutexCreate( ImAppPlatform* platform );
-void					ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex );
-void					ImAppPlatformMutexLock( ImAppMutex* mutex );
-void					ImAppPlatformMutexUnlock( ImAppMutex* mutex );
+ImAppMutex*				imappPlatformMutexCreate( ImAppPlatform* platform );
+void					imappPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex );
+void					imappPlatformMutexLock( ImAppMutex* mutex );
+void					imappPlatformMutexUnlock( ImAppMutex* mutex );
 
-ImAppSemaphore*			ImAppPlatformSemaphoreCreate( ImAppPlatform* platform );
-void					ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore );
-void					ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore );
-bool					ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait );
+ImAppSemaphore*			imappPlatformSemaphoreCreate( ImAppPlatform* platform );
+void					imappPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore );
+void					imappPlatformSemaphoreInc( ImAppSemaphore* semaphore );
+bool					imappPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait );
 

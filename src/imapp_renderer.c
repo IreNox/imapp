@@ -30,9 +30,6 @@ typedef struct ImAppRendererShader
 struct ImAppRenderer
 {
 	ImUiAllocator*				allocator;
-	ImAppWindow*				window;
-
-	float						clearColor[ 4u ];
 
 	GLuint						vertexShader;
 	ImAppRendererShader			shaderTexture;
@@ -41,14 +38,6 @@ struct ImAppRenderer
 	ImAppRendererShader			shaderFontSdf;
 	GLint						programUniformProjection;
 	GLint						programUniformTexture;
-
-	GLuint						vertexArray;
-	GLuint						vertexBuffer;
-	uintsize					vertexBufferSize;
-	void*						vertexBufferData;
-	GLuint						elementBuffer;
-	uintsize					elementBufferSize;
-	void*						elementBufferData;
 };
 
 struct ImAppRendererTexture
@@ -148,15 +137,15 @@ static bool		ImAppRendererCompileShader( GLuint shader, const char* shaderCode )
 static bool		ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
 static void		ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
 
-static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height );
+static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height );
 
-ImUiVertexFormat ImAppRendererGetVertexFormat()
+ImUiVertexFormat imappRendererGetVertexFormat()
 {
 	const ImUiVertexFormat result = { s_vertexLayout, IMAPP_ARRAY_COUNT( s_vertexLayout ) };
 	return result;
 }
 
-ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppWindow* window, ImUiColor clearColor )
+ImAppRenderer* imappRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform )
 {
 	IMAPP_ASSERT( platform != NULL );
 
@@ -166,44 +155,29 @@ ImAppRenderer* ImAppRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 		return NULL;
 	}
 
-	renderer->allocator			= allocator;
-	renderer->window			= window;
-	renderer->clearColor[ 0u ]	= (float)clearColor.red / 255.0f;
-	renderer->clearColor[ 1u ]	= (float)clearColor.green / 255.0f;
-	renderer->clearColor[ 2u ]	= (float)clearColor.blue / 255.0f;
-	renderer->clearColor[ 3u ]	= (float)clearColor.alpha / 255.0f;
-
-	if( !ImAppPlatformWindowCreateGlContext( window ) )
-	{
-		ImAppRendererDestroy( renderer );
-		return NULL;
-	}
+	renderer->allocator = allocator;
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB ) || IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 	if( glewInit() != GLEW_OK )
 	{
-		ImAppPlatformShowError( platform, "Failed to initialize GLEW.\n" );
-		ImAppRendererDestroy( renderer );
+		imappPlatformShowError( platform, "Failed to initialize GLEW.\n" );
+		imappRendererDestroy( renderer );
 		return NULL;
 	}
 #endif
 
-	if( !ImAppRendererCreateResources( renderer ) )
+	if( !imappRendererCreateResources( renderer ) )
 	{
-		ImAppRendererDestroy( renderer );
+		imappRendererDestroy( renderer );
 		return NULL;
 	}
 
 	return renderer;
 }
 
-void ImAppRendererDestroy( ImAppRenderer* renderer )
+void imappRendererDestroy( ImAppRenderer* renderer )
 {
-	ImAppRendererDestroyResources( renderer );
-	ImAppPlatformWindowDestroyGlContext( renderer->window );
-
-	ImUiMemoryFree( renderer->allocator, renderer->vertexBufferData );
-	ImUiMemoryFree( renderer->allocator, renderer->elementBufferData );
+	imappRendererDestroyResources( renderer );
 
 	ImUiMemoryFree( renderer->allocator, renderer );
 }
@@ -286,7 +260,7 @@ static void ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRen
 	}
 }
 
-bool ImAppRendererCreateResources( ImAppRenderer* renderer )
+bool imappRendererCreateResources( ImAppRenderer* renderer )
 {
 	// Shader
 	renderer->vertexShader = glCreateShader( GL_VERTEX_SHADER );
@@ -309,54 +283,11 @@ bool ImAppRendererCreateResources( ImAppRenderer* renderer )
 	renderer->programUniformProjection	= glGetUniformLocation( renderer->shaderTexture.program, "ProjectionMatrix" );
 	renderer->programUniformTexture		= glGetUniformLocation( renderer->shaderTexture.program, "Texture" );
 
-	// Buffer
-	const GLuint attributePosition	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Position" );
-	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "TexCoord" );
-	const GLuint attributeColor		= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Color" );
-
-	glGenBuffers( 1, &renderer->vertexBuffer );
-	glGenBuffers( 1, &renderer->elementBuffer );
-	glGenVertexArrays( 1, &renderer->vertexArray );
-
-	glBindVertexArray( renderer->vertexArray );
-	glBindBuffer( GL_ARRAY_BUFFER, renderer->vertexBuffer );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->elementBuffer );
-
-	glEnableVertexAttribArray( attributePosition );
-	glEnableVertexAttribArray( attributeTexCoord );
-	glEnableVertexAttribArray( attributeColor );
-
-	const GLsizei vertexSize	= 20u;
-	size_t vertexPositionOffset	= 0u;
-	size_t vertexUvOffset		= 8u;
-	size_t vertexColorOffset	= 16u;
-	glVertexAttribPointer( attributePosition, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexPositionOffset );
-	glVertexAttribPointer( attributeTexCoord, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexUvOffset );
-	glVertexAttribPointer( attributeColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertexSize, (void*)vertexColorOffset );
-
 	return true;
 }
 
-void ImAppRendererDestroyResources( ImAppRenderer* renderer )
+void imappRendererDestroyResources( ImAppRenderer* renderer )
 {
-	if( renderer->vertexArray != 0u )
-	{
-		glDeleteVertexArrays( 1, &renderer->vertexArray );
-		renderer->vertexArray = 0u;
-	}
-
-	if( renderer->elementBuffer != 0u )
-	{
-		glDeleteBuffers( 1, &renderer->elementBuffer );
-		renderer->elementBuffer = 0u;
-	}
-
-	if( renderer->vertexBuffer != 0u )
-	{
-		glDeleteBuffers( 1, &renderer->vertexBuffer );
-		renderer->vertexBuffer = 0u;
-	}
-
 	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderTexture );
 	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderColor );
 	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderFont );
@@ -369,29 +300,79 @@ void ImAppRendererDestroyResources( ImAppRenderer* renderer )
 	}
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreate( ImAppRenderer* renderer )
+void imappRendererConstructWindow( ImAppRenderer* renderer, ImAppRendererWindow* window )
+{
+	glGenBuffers( 1, &window->vertexBuffer );
+	glGenBuffers( 1, &window->elementBuffer );
+	glGenVertexArrays( 1, &window->vertexArray );
+
+	glBindVertexArray( window->vertexArray );
+	glBindBuffer( GL_ARRAY_BUFFER, window->vertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, window->elementBuffer );
+
+	const GLuint attributePosition	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Position" );
+	const GLuint attributeTexCoord	= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "TexCoord" );
+	const GLuint attributeColor		= (GLuint)glGetAttribLocation( renderer->shaderTexture.program, "Color" );
+	glEnableVertexAttribArray( attributePosition );
+	glEnableVertexAttribArray( attributeTexCoord );
+	glEnableVertexAttribArray( attributeColor );
+
+	const GLsizei vertexSize	= 20u;
+	size_t vertexPositionOffset	= 0u;
+	size_t vertexUvOffset		= 8u;
+	size_t vertexColorOffset	= 16u;
+	glVertexAttribPointer( attributePosition, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexPositionOffset );
+	glVertexAttribPointer( attributeTexCoord, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)vertexUvOffset );
+	glVertexAttribPointer( attributeColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertexSize, (void*)vertexColorOffset );
+}
+
+void imappRendererDestructWindow( ImAppRenderer* renderer, ImAppRendererWindow* window )
+{
+	if( window->vertexArray != 0u )
+	{
+		glDeleteVertexArrays( 1, &window->vertexArray );
+		window->vertexArray = 0u;
+	}
+
+	if( window->elementBuffer != 0u )
+	{
+		glDeleteBuffers( 1, &window->elementBuffer );
+		window->elementBuffer = 0u;
+	}
+
+	if( window->vertexBuffer != 0u )
+	{
+		glDeleteBuffers( 1, &window->vertexBuffer );
+		window->vertexBuffer = 0u;
+	}
+
+	ImUiMemoryFree( renderer->allocator, window->vertexBufferData );
+	ImUiMemoryFree( renderer->allocator, window->elementBufferData );
+}
+
+ImAppRendererTexture* imappRendererTextureCreate( ImAppRenderer* renderer )
 {
 	return IMUI_MEMORY_NEW_ZERO( renderer->allocator, ImAppRendererTexture );
 }
 
-ImAppRendererTexture* ImAppRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
+ImAppRendererTexture* imappRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
-	ImAppRendererTexture* texture = ImAppRendererTextureCreate( renderer );
+	ImAppRendererTexture* texture = imappRendererTextureCreate( renderer );
 	if( !texture )
 	{
 		return NULL;
 	}
 
-	if( !ImAppRendererTextureInitializeDataFromMemory( renderer, texture, data, width, height, format, flags ) )
+	if( !imappRendererTextureInitializeDataFromMemory( renderer, texture, data, width, height, format, flags ) )
 	{
-		ImAppRendererTextureDestroy( renderer, texture );
+		imappRendererTextureDestroy( renderer, texture );
 		return NULL;
 	}
 
 	return texture;
 }
 
-bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
+bool imappRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags )
 {
 	IMAPP_USE( renderer );
 
@@ -438,7 +419,7 @@ bool ImAppRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAp
 	return true;
 }
 
-void ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture )
+void imappRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture )
 {
 	IMAPP_USE( renderer );
 
@@ -449,27 +430,23 @@ void ImAppRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererText
 	}
 }
 
-void ImAppRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture )
+void imappRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture )
 {
 	if( texture == NULL )
 	{
 		return;
 	}
 
-	ImAppRendererTextureDestroyData( renderer, texture );
+	imappRendererTextureDestroyData( renderer, texture );
 
 	ImUiMemoryFree( renderer->allocator, texture );
 }
 
-void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurface* surface )
+void imappRendererDraw( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height, float clearColor[ 4 ] )
 {
-	int width;
-	int height;
-	ImAppPlatformWindowGetSize( window, &width, &height );
-
 	glViewport( 0, 0, width, height );
 
-	glClearColor( renderer->clearColor[ 0u ], renderer->clearColor[ 1u ], renderer->clearColor[ 2u ], renderer->clearColor[ 3u ] );
+	glClearColor( clearColor[ 0 ], clearColor[ 1 ], clearColor[ 2 ], clearColor[ 3 ] );
 	glClear( GL_COLOR_BUFFER_BIT );
 
 	glEnable( GL_BLEND );
@@ -483,7 +460,7 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurfac
 	glUseProgram( renderer->shaderTexture.program );
 	glUniform1i( renderer->programUniformTexture, 0 );
 
-	ImAppRendererDrawCommands( renderer, surface, width, height );
+	ImAppRendererDrawCommands( renderer, window, surface, width, height );
 
 	// reset OpenGL state
 	glUseProgram( 0 );
@@ -494,39 +471,39 @@ void ImAppRendererDraw( ImAppRenderer* renderer, ImAppWindow* window, ImUiSurfac
 	glDisable( GL_SCISSOR_TEST );
 }
 
-static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImUiSurface* surface, int width, int height )
+static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height )
 {
 	width = width <= 0 ? 1 : width;
 	height = height <= 0 ? 1 : height;
 
 	// bind buffers
-	glBindVertexArray( renderer->vertexArray );
-	glBindBuffer( GL_ARRAY_BUFFER, renderer->vertexBuffer );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->elementBuffer );
+	glBindVertexArray( window->vertexArray );
+	glBindBuffer( GL_ARRAY_BUFFER, window->vertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, window->elementBuffer );
 
 	uintsize vertexDataSize = 0u;
 	uintsize indexDataSize = 0u;
 	ImUiSurfaceGetMaxBufferSizes( surface, &vertexDataSize, &indexDataSize );
 
-	if( vertexDataSize > renderer->vertexBufferSize ||
-		renderer->vertexBufferSize > vertexDataSize * 2 )
+	if( vertexDataSize > window->vertexBufferSize ||
+		window->vertexBufferSize > vertexDataSize * 2 )
 	{
 		vertexDataSize = IMUI_NEXT_POWER_OF_TWO( vertexDataSize );
-		renderer->vertexBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->vertexBufferData, renderer->vertexBufferSize, vertexDataSize );
-		renderer->vertexBufferSize = vertexDataSize;
+		window->vertexBufferData = ImUiMemoryRealloc( renderer->allocator, window->vertexBufferData, window->vertexBufferSize, vertexDataSize );
+		window->vertexBufferSize = vertexDataSize;
 	}
 
-	if( indexDataSize > renderer->elementBufferSize ||
-		renderer->elementBufferSize > indexDataSize * 2 )
+	if( indexDataSize > window->elementBufferSize ||
+		window->elementBufferSize > indexDataSize * 2 )
 	{
 		indexDataSize = IMUI_NEXT_POWER_OF_TWO( indexDataSize );
-		renderer->elementBufferData = ImUiMemoryRealloc( renderer->allocator, renderer->elementBufferData, renderer->elementBufferSize, indexDataSize );
-		renderer->elementBufferSize = indexDataSize;
+		window->elementBufferData = ImUiMemoryRealloc( renderer->allocator, window->elementBufferData, window->elementBufferSize, indexDataSize );
+		window->elementBufferSize = indexDataSize;
 	}
 
-	const ImUiDrawData* drawData = ImUiSurfaceGenerateDrawData( surface, renderer->vertexBufferData, &vertexDataSize, renderer->elementBufferData, &indexDataSize );
-	glBufferData( GL_ARRAY_BUFFER, (GLsizeiptr)vertexDataSize, renderer->vertexBufferData, GL_STREAM_DRAW );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)indexDataSize, renderer->elementBufferData, GL_STREAM_DRAW );
+	const ImUiDrawData* drawData = ImUiSurfaceGenerateDrawData( surface, window->vertexBufferData, &vertexDataSize, window->elementBufferData, &indexDataSize );
+	glBufferData( GL_ARRAY_BUFFER, (GLsizeiptr)vertexDataSize, window->vertexBufferData, GL_DYNAMIC_DRAW );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)indexDataSize, window->elementBufferData, GL_DYNAMIC_DRAW );
 
 	const GLfloat projectionMatrix[ 4 ][ 4 ] = {
 		{  2.0f / (float)width,	0.0f,					 0.0f,	0.0f },

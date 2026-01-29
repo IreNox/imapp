@@ -15,21 +15,21 @@
 #include <stdio.h>
 #include <string.h>
 
-static void		ImAppFillDefaultParameters( ImAppParameters* parameters );
-static bool		ImAppInitialize( ImAppContext* imapp, const ImAppParameters* parameters );
-static void		ImAppCleanup( ImAppContext* imapp );
-static void		ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window );
-static void		ImAppTick( void* arg );
-static void		ImAppTickUi( ImAppWindow* appWindow, void* arg );
-static void		ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow );
+static void		imappFillDefaultParameters( ImAppParameters* parameters );
+static bool		imappInitialize( ImAppContext* imapp, const ImAppParameters* parameters );
+static void		imappCleanup( ImAppContext* imapp );
+static bool		imappHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window, ImUiInput* input );
+static void		imappTick( void* arg );
+static void		imappTickUi( ImAppWindow* appWindow, void* arg );
+static void		imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* windowInfo );
 
-int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
+int imappMain( ImAppPlatform* platform, int argc, char* argv[] )
 {
 	ImAppContext* imapp = NULL;
 	{
 		void* programContext = NULL;
 		ImAppParameters parameters;
-		ImAppFillDefaultParameters( &parameters );
+		imappFillDefaultParameters( &parameters );
 
 		programContext = ImAppProgramInitialize( &parameters, argc, argv );
 		if( parameters.shutdownAfterInit )
@@ -38,7 +38,7 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 		}
 		else if( programContext == NULL )
 		{
-			ImAppPlatformShowError( platform, "Failed to initialize Program." );
+			imappPlatformShowError( platform, "Failed to initialize Program." );
 			return 1;
 		}
 
@@ -48,28 +48,26 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 		imapp = IMUI_MEMORY_NEW_ZERO( &allocator, ImAppContext );
 		if( !imapp )
 		{
-			ImAppPlatformShowError( platform, "Failed to create ImApp." );
+			imappPlatformShowError( platform, "Failed to create ImApp." );
 			return 1;
 		}
 
 		ImUiMemoryAllocatorFinalize( &imapp->allocator, &allocator );
 
 		imapp->running			= true;
-		imapp->isFullscrene		= parameters.windowMode == ImAppDefaultWindow_Fullscreen;
-		imapp->useWindowStyle	= parameters.useWindowStyle;
 		imapp->platform			= platform;
 		imapp->programContext	= programContext;
 
-		if( !ImAppPlatformInitialize( platform, &imapp->allocator, parameters.resPath ) )
+		if( !imappPlatformInitialize( platform, &imapp->allocator, parameters.resPath ) )
 		{
-			ImAppPlatformShowError( imapp->platform, "Failed to initialize Platform." );
-			ImAppCleanup( imapp );
+			imappPlatformShowError( imapp->platform, "Failed to initialize Platform." );
+			imappCleanup( imapp );
 			return 1;
 		}
 
-		if( !ImAppInitialize( imapp, &parameters ) )
+		if( !imappInitialize( imapp, &parameters ) )
 		{
-			ImAppCleanup( imapp );
+			imappCleanup( imapp );
 			return 1;
 		}
 
@@ -79,7 +77,7 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 			uint16_t themeResIndex = IMAPP_RES_PAK_INVALID_INDEX;
 			while( true )
 			{
-				ImAppResSysUpdate( imapp->ressys, true );
+				imappResSysUpdate( imapp->ressys, true );
 
 				const ImAppResState pakState = ImAppResPakGetState( imapp->defaultResPak );
 				if( pakState == ImAppResState_Loading )
@@ -128,76 +126,103 @@ int ImAppMain( ImAppPlatform* platform, int argc, char* argv[] )
 	}
 
 #if IMAPP_ENABLED(  IMAPP_PLATFORM_WEB )
-	emscripten_set_main_loop_arg( ImAppTick, imapp, 0, 1 );
+	emscripten_set_main_loop_arg( imappTick, imapp, 0, 1 );
 #else
 	while( imapp->running )
 	{
-		ImAppTick( imapp );
+		imappTick( imapp );
 	}
 #endif
 
-	ImAppCleanup( imapp );
+	imappCleanup( imapp );
 	return 0;
 }
 
-static void ImAppTick( void* arg )
+static void imappTick( void* arg )
 {
 	ImAppContext* imapp = (ImAppContext*)arg;
 
-	imapp->lastTickValue = ImAppPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
+	imapp->lastTickValue = imappPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
 
-	ImAppResSysUpdate( imapp->ressys, false );
+	imappResSysUpdate( imapp->ressys, false );
 
+	ImUiInput* input = ImUiInputBegin( imapp->imui );
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 	{
-		ImAppWindow* window = imapp->windows[ i ];
-		ImAppPlatformWindowUpdate( window, ImAppTickUi, imapp );
-	}
+		ImAppContextWindowInfo* windowInfo = &imapp->windows[ i ];
 
-	ImAppTickUi( NULL, arg );
+		if( windowInfo->isDestroyed )
+		{
+			imappRendererDestructWindow( imapp->renderer, &windowInfo->rendererWindow );
+			imappPlatformWindowDestroy( windowInfo->window );
+
+			IMUI_MEMORY_ARRAY_REMOVE_UNSORTED_ZERO( imapp->windows, imapp->windowsCount, i );
+
+			if( imapp->windowsCount == 0 )
+			{
+				imapp->running = false;
+			}
+
+			i--;
+			continue;
+		}
+
+		imappPlatformWindowUpdate( windowInfo->window, imappTickUi, imapp );
+
+		if( !imappHandleWindowEvents( imapp, windowInfo->window, input ) )
+		{
+			ImAppWindowDestroy( imapp, windowInfo->window );
+			i--;
+		}
+	}
+	ImUiInputEnd( imapp->imui );
+
+	imappTickUi( NULL, arg );
 }
 
-static void ImAppTickUi( ImAppWindow* appWindow, void* arg )
+static void imappTickUi( ImAppWindow* appWindow, void* arg )
 {
 	IMAPP_USE( appWindow );
 
 	ImAppContext* imapp = (ImAppContext*)arg;
 
-	const double time = ImAppPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
+	const double time = imappPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
 	imapp->frame = ImUiBegin( imapp->imui, time );
 
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 	{
-		ImAppWindow* window = imapp->windows[ i ];
-		ImAppTickWindowUi( imapp, window );
+		ImAppContextWindowInfo* windowInfo = &imapp->windows[ i ];
+		imappTickWindowUi( imapp, windowInfo );
 	}
 
 	ImUiEnd( imapp->frame );
 	imapp->frame = NULL;
 }
 
-static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
+static void imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* windowInfo )
 {
-	ImAppHandleWindowEvents( imapp, appWindow );
+	ImAppWindow* appWindow = windowInfo->window;
 
 	if( ImUiInputGetShortcut( imapp->imui ) == ImUiInputShortcut_Paste )
 	{
-		ImAppPlatformGetClipboardText( imapp->platform, imapp->imui );
+		imappPlatformGetClipboardText( imapp->platform, imapp->imui );
 	}
 
-	const ImAppWindowDeviceState deviceState = ImAppPlatformWindowGetGlContextState( appWindow );
+	const ImAppWindowDeviceState deviceState = imappPlatformWindowGetGlContextState( appWindow );
 	if( deviceState == ImAppWindowDeviceState_DeviceLost )
 	{
-		ImAppResSysDestroyDeviceResources( imapp->ressys );
-		ImAppRendererDestroyResources( imapp->renderer );
+		imappResSysDestroyDeviceResources( imapp->ressys );
+		imappRendererDestroyResources( imapp->renderer );
 
-		ImAppPlatformWindowPresent( appWindow );
+		// ???
+		imappPlatformWindowBeginRender( appWindow );
+		imappPlatformWindowEndRender( appWindow );
 		return;
 	}
 	else if( deviceState == ImAppWindowDeviceState_NewDevice )
 	{
-		ImAppRendererCreateResources( imapp->renderer );
-		ImAppResSysCreateDeviceResources( imapp->ressys );
+		imappRendererCreateResources( imapp->renderer );
+		imappResSysCreateDeviceResources( imapp->ressys );
 	}
 	else if( deviceState == ImAppWindowDeviceState_NoDevice )
 	{
@@ -206,16 +231,24 @@ static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
 
 	int width;
 	int height;
-	ImAppPlatformWindowGetSize( appWindow, &width, &height );
+	imappPlatformWindowGetSize( appWindow, &width, &height );
+
+	imappPlatformWindowBeginRender( appWindow );
+
+	if( !windowInfo->isRendererCreated )
+	{
+		imappRendererConstructWindow( imapp->renderer, &windowInfo->rendererWindow );
+		windowInfo->isRendererCreated = true;
+	}
 
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)width, (float)height );
-		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, "default", size, ImAppPlatformWindowGetDpiScale( appWindow ) );
+		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, imappPlatformWindowGetTitle( appWindow ), size, imappPlatformWindowGetDpiScale( appWindow ) );
 
 		ImUiRect windowRect;
-		if( !imapp->isFullscrene && imapp->useWindowStyle )
+		if( imappPlatformWindowGetStyle( appWindow ) == ImAppWindowStyle_Custom )
 		{
-			windowRect = ImAppWindowThemeDoUi( appWindow, surface );
+			windowRect = imappWindowThemeDoUi( appWindow, surface );
 		}
 		else
 		{
@@ -225,57 +258,60 @@ static void ImAppTickWindowUi( ImAppContext* imapp, ImAppWindow* appWindow )
 		{
 			ImUiWindow* uiWindow = ImUiWindowBegin( surface, "main", windowRect, 2 );
 
-			ImAppWindowDoUiFunc uiFunc = ImAppPlatformWindowGetUiFunc( appWindow );
-			uiFunc( imapp, imapp->programContext, appWindow, uiWindow );
+			windowInfo->uiFunc( imapp, imapp->programContext, appWindow, uiWindow, windowInfo->uiContext );
 
 			ImUiWindowEnd( uiWindow );
 		}
 
 		ImUiSurfaceEnd( surface );
 
-		ImAppRendererDraw( imapp->renderer, appWindow, surface );
+		imappRendererDraw( imapp->renderer, &windowInfo->rendererWindow, surface, width, height, windowInfo->clearColor );
 	}
 
 	const ImUiInputMouseCursor cursor = ImUiInputGetMouseCursor( imapp->imui );
 	if( cursor != imapp->lastCursor )
 	{
-		ImAppPlatformSetMouseCursor( imapp->platform, cursor );
+		imappPlatformSetMouseCursor( imapp->platform, cursor );
 		imapp->lastCursor = cursor;
 	}
 
 	const char* copyText = ImUiInputGetCopyText( imapp->imui );
 	if( copyText )
 	{
-		ImAppPlatformSetClipboardText( imapp->platform, copyText );
+		imappPlatformSetClipboardText( imapp->platform, copyText );
 		ImUiInputSetCopyText( imapp->imui, NULL, 0u );
 	}
 
-	ImAppPlatformWindowPresent( appWindow );
+	imappPlatformWindowEndRender( appWindow );
 }
 
-static void ImAppFillDefaultParameters( ImAppParameters* parameters )
+static void imappFillDefaultParameters( ImAppParameters* parameters )
 {
 	memset( parameters, 0, sizeof( *parameters ) );
 
-	parameters->resPath				= "./assets";
+	parameters->resPath						= "./assets";
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-    parameters->defaultFontName		= "Roboto-Regular.ttf";
+    parameters->defaultFontName				= "Roboto-Regular.ttf";
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
-    parameters->defaultFontName		= "NotoSans[wdth,wght].ttf";
+    parameters->defaultFontName				= "NotoSans[wdth,wght].ttf";
 #else
-    parameters->defaultFontName		= "Arial.ttf";
+    parameters->defaultFontName				= "Arial.ttf";
 #endif
-	parameters->defaultFontSize		= 16.0f;
+	parameters->defaultFontSize				= 16.0f;
+
+	parameters->useDefaultWindow			= true;
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
+	parameters->window.style				= ImAppWindowStyle_Borderless;
+	parameters->window.state				= ImAppWindowState_Maximized;
 #else
-	parameters->windowMode			= ImAppDefaultWindow_Resizable;
+	parameters->defaultWindow.style			= ImAppWindowStyle_Resizable;
+	parameters->defaultWindow.state			= ImAppWindowState_Default;
 #endif
-	parameters->windowTitle			= "I'm App";
-	parameters->windowWidth			= 1280;
-	parameters->windowHeight		= 720;
-	parameters->windowClearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
+	parameters->defaultWindow.title			= "I'm App";
+	parameters->defaultWindow.width			= 1280;
+	parameters->defaultWindow.height		= 720;
+	parameters->defaultWindow.clearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
 
 	static const ImUiInputShortcutConfig s_inputShortcuts[] =
 	{
@@ -309,60 +345,30 @@ static void ImAppFillDefaultParameters( ImAppParameters* parameters )
 	parameters->shortcutCount		= IMAPP_ARRAY_COUNT( s_inputShortcuts );
 }
 
-void ImAppDefaultWindowDoUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
+void ImAppDefaultWindowDoUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow, void* uiContext )
 {
+	IMAPP_USE( uiContext );
+
 	ImAppProgramDoDefaultWindowUi( imapp, programContext, appWindow, uiWindow );
 }
 
-static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* parameters )
+static bool imappInitialize( ImAppContext* imapp, const ImAppParameters* parameters )
 {
-	if( parameters->windowMode != ImAppDefaultWindow_Disabled )
-	{
-		ImAppWindowStyle style = ImAppWindowStyle_Resizable;
-		ImAppWindowState state = ImAppWindowState_Default;
-		switch( parameters->windowMode )
-		{
-		case ImAppDefaultWindow_Resizable:
-			break;
-
-		case ImAppDefaultWindow_Fullscreen:
-			style = ImAppWindowStyle_Borderless;
-			state = ImAppWindowState_Maximized;
-			break;
-
-		case ImAppDefaultWindow_Disabled:
-			break;
-		}
-
-		if( parameters->useWindowStyle )
-		{
-			style = ImAppWindowStyle_Custom;
-		}
-
-		ImAppWindow* window = ImAppPlatformWindowCreate( imapp->platform, parameters->windowTitle, parameters->windowX, parameters->windowY, parameters->windowWidth, parameters->windowHeight, style, state, ImAppDefaultWindowDoUi );
-		if( !window )
-		{
-			ImAppPlatformShowError( imapp->platform, "Failed to create Window." );
-			ImAppCleanup( imapp );
-			return false;
-		}
-
-		if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( &imapp->allocator, imapp->windows, imapp->windowsCapacity, imapp->windowsCount + 1u ) )
-		{
-			ImAppCleanup( imapp );
-			return false;
-		}
-
-		imapp->windows[ imapp->windowsCount ] = window;
-		imapp->windowsCount++;
-	}
-
-	// TODO: don't use window to create renderer
-	imapp->renderer = ImAppRendererCreate( &imapp->allocator, imapp->platform, imapp->windows[ 0u ], parameters->windowClearColor );
+	imapp->renderer = imappRendererCreate( &imapp->allocator, imapp->platform );
 	if( imapp->renderer == NULL )
 	{
-		ImAppPlatformShowError( imapp->platform, "Failed to create Renderer." );
+		imappPlatformShowError( imapp->platform, "Failed to create Renderer." );
 		return false;
+	}
+
+	if( parameters->useDefaultWindow )
+	{
+		ImAppWindow* window = ImAppWindowCreate( imapp, &parameters->defaultWindow, ImAppDefaultWindowDoUi, NULL );
+		if( !window )
+		{
+			imappPlatformShowError( imapp->platform, "Failed to create Window." );
+			return false;
+		}
 	}
 
 	ImUiParameters uiParameters;
@@ -370,27 +376,27 @@ static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* paramet
 
 	uiParameters.allocator		= parameters->allocator;
 	uiParameters.vertexType		= ImUiVertexType_IndexedVertexList;
-	uiParameters.vertexFormat	= ImAppRendererGetVertexFormat();
+	uiParameters.vertexFormat	= imappRendererGetVertexFormat();
 	uiParameters.shortcuts		= parameters->shortcuts;
 	uiParameters.shortcutCount	= parameters->shortcutCount;
 
 	imapp->imui = ImUiCreate( &uiParameters );
 	if( !imapp->imui )
 	{
-		ImAppPlatformShowError( imapp->platform, "Failed to create ImUi." );
+		imappPlatformShowError( imapp->platform, "Failed to create ImUi." );
 		return false;
 	}
 
-	imapp->ressys = ImAppResSysCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->imui );
+	imapp->ressys = imappResSysCreate( &imapp->allocator, imapp->platform, imapp->renderer, imapp->imui );
 	if( imapp->ressys == NULL )
 	{
-		ImAppPlatformShowError( imapp->platform, "Failed to create Resource System." );
+		imappPlatformShowError( imapp->platform, "Failed to create Resource System." );
 		return false;
 	}
 
 	if( parameters->defaultFontName )
 	{
-		imapp->defaultFont = ImAppResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize );
+		imapp->defaultFont = imappResSysFontCreateSystem( imapp->ressys, parameters->defaultFontName, parameters->defaultFontSize );
 	}
 
 	{
@@ -400,20 +406,20 @@ static bool ImAppInitialize( ImAppContext* imapp, const ImAppParameters* paramet
 
 	if( parameters->defaultResPakData.data && parameters->defaultResPakData.size )
 	{
-		imapp->defaultResPak = ImAppResSysAdd( imapp->ressys, parameters->defaultResPakData.data, parameters->defaultResPakData.size );
+		imapp->defaultResPak = imappResSysAdd( imapp->ressys, parameters->defaultResPakData.data, parameters->defaultResPakData.size );
 	}
 	else if( parameters->defaultResPakName )
 	{
 		char buffer[ 256u ];
 		snprintf( buffer, IMAPP_ARRAY_COUNT( buffer ), "%s.iarespak", parameters->defaultResPakName );
 
-		imapp->defaultResPak = ImAppResSysOpen( imapp->ressys, buffer );
+		imapp->defaultResPak = imappResSysOpen( imapp->ressys, buffer );
 	}
 
 	return true;
 }
 
-static void ImAppCleanup( ImAppContext* imapp )
+static void imappCleanup( ImAppContext* imapp )
 {
 	if( imapp->programContext != NULL )
 	{
@@ -423,19 +429,19 @@ static void ImAppCleanup( ImAppContext* imapp )
 
 	if( imapp->defaultFont )
 	{
-		ImAppResSysFontDestroy( imapp->ressys, imapp->defaultFont );
+		imappResSysFontDestroy( imapp->ressys, imapp->defaultFont );
 		imapp->defaultFont = NULL;
 	}
 
 	if( imapp->defaultResPak )
 	{
-		ImAppResSysClose( imapp->ressys, imapp->defaultResPak );
+		imappResSysClose( imapp->ressys, imapp->defaultResPak );
 		imapp->defaultResPak = NULL;
 	}
 
 	if( imapp->ressys != NULL )
 	{
-		ImAppResSysDestroy( imapp->ressys );
+		imappResSysDestroy( imapp->ressys );
 		imapp->ressys = NULL;
 	}
 
@@ -445,37 +451,35 @@ static void ImAppCleanup( ImAppContext* imapp )
 		imapp->imui = NULL;
 	}
 
-	if( imapp->renderer != NULL )
+	while( imapp->windowsCount > 0 )
 	{
-		ImAppRendererDestroy( imapp->renderer );
-		imapp->renderer = NULL;
-	}
-
-	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
-	{
-		ImAppPlatformWindowDestroy( imapp->windows[ i ] );
+		ImAppWindowDestroy( imapp, imapp->windows[ 0 ].window );
 	}
 	ImUiMemoryFree( &imapp->allocator, imapp->windows );
 	imapp->windows = NULL;
 
-	ImAppPlatformShutdown( imapp->platform );
+	if( imapp->renderer != NULL )
+	{
+		imappRendererDestroy( imapp->renderer );
+		imapp->renderer = NULL;
+	}
+
+	imappPlatformShutdown( imapp->platform );
 
 	ImUiMemoryFree( &imapp->allocator, imapp );
 }
 
-static void ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window )
+static bool imappHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window, ImUiInput* input )
 {
-	ImAppEventQueue* pEventQueue = ImAppPlatformWindowGetEventQueue( window );
-	ImUiInput* input = ImUiInputBegin( imapp->imui );
+	ImAppEventQueue* pEventQueue = imappPlatformWindowGetEventQueue( window );
 
 	ImAppEvent windowEvent;
-	while( ImAppEventQueuePop( pEventQueue, &windowEvent ) )
+	while( imappEventQueuePop( pEventQueue, &windowEvent ) )
 	{
 		switch( windowEvent.type )
 		{
 		case ImAppEventType_WindowClose:
-			imapp->running = false;
-			break;
+			return false;
 
 		case ImAppEventType_KeyDown:
 			ImUiInputPushKeyDown( input, windowEvent.key.key );
@@ -523,7 +527,7 @@ static void ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window )
 	const ImUiPos focusDirection = ImUiInputGetDirection( imapp->imui );
 	if( focusDirection.x != 0.0f || focusDirection.y != 0.0f )
 	{
-		const double time = ImAppPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
+		const double time = imappPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );
 		if( (time - imapp->lastFocusExecuteTime) > 0.5 )
 		{
 			ImUiInputPushFocusExecute( input );
@@ -535,33 +539,109 @@ static void ImAppHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window )
 		imapp->lastFocusExecuteTime = 0.0f;
 	}
 
+	return true;
+}
 
-	ImUiInputEnd( imapp->imui );
+ImAppWindow* ImAppWindowCreate( ImAppContext* imapp, const ImAppWindowParameters* parameters, ImAppWindowDoUiFunc uiFunc, void* uiContext )
+{
+	if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY_ZERO( &imapp->allocator, imapp->windows, imapp->windowsCapacity, imapp->windowsCount + 1 ) )
+	{
+		return NULL;
+	}
+
+	ImAppWindow* window = imappPlatformWindowCreate( imapp->platform, parameters );
+	if( !window )
+	{
+		return NULL;
+	}
+
+	ImAppContextWindowInfo* windowInfo = &imapp->windows[ imapp->windowsCount++ ];
+	windowInfo->window		= window;
+	windowInfo->uiFunc		= uiFunc;
+	windowInfo->uiContext	= uiContext;
+
+	windowInfo->clearColor[ 0 ]	= (float)parameters->clearColor.red / 255.0f;
+	windowInfo->clearColor[ 1 ]	= (float)parameters->clearColor.green / 255.0f;
+	windowInfo->clearColor[ 2 ]	= (float)parameters->clearColor.blue / 255.0f;
+	windowInfo->clearColor[ 3 ]	= (float)parameters->clearColor.alpha / 255.0f;
+
+	return window;
+}
+
+void ImAppWindowDestroy( ImAppContext* imapp, ImAppWindow* window )
+{
+	ImAppContextWindowInfo* windowInfo = NULL;
+	for( uintsize i = 0; i < imapp->windowsCount; ++i )
+	{
+		if( imapp->windows[ i ].window != window )
+		{
+			continue;
+		}
+
+		windowInfo = &imapp->windows[ i ];
+		break;
+	}
+
+	if( !windowInfo )
+	{
+		return;
+	}
+
+	windowInfo->isDestroyed = true;
+}
+
+bool ImAppWindowIsOpen( const ImAppContext* imapp, const ImAppWindow* window )
+{
+	for( uintsize i = 0; i < imapp->windowsCount; ++i )
+	{
+		if( imapp->windows[ i ].window == window &&
+			!imapp->windows[ i ].isDestroyed )
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool ImAppWindowHasFocus( const ImAppWindow* window )
 {
-	return ImAppPlatformWindowHasFocus( window );
+	return imappPlatformWindowHasFocus( window );
 }
 
 void ImAppWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
 {
-	ImAppPlatformWindowGetPosition( window, outX, outY );
+	imappPlatformWindowGetPosition( window, outX, outY );
 }
 
 void ImAppWindowSetPosition( ImAppWindow* window, int x, int y )
 {
-	ImAppPlatformWindowSetPosition( window, x, y );
+	imappPlatformWindowSetPosition( window, x, y );
 }
 
 void ImAppWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
-	ImAppPlatformWindowGetViewRect( window, outX, outY, outWidth, outHeight );
+	imappPlatformWindowGetViewRect( window, outX, outY, outWidth, outHeight );
+}
+
+ImAppWindowStyle ImAppWindowGetStyle( const ImAppWindow* window )
+{
+	return imappPlatformWindowGetStyle( window );
+}
+
+ImAppWindowState ImAppWindowGetState( const ImAppWindow* window )
+{
+	return imappPlatformWindowGetState( window );
+}
+
+void ImAppWindowSetState( ImAppWindow* window, ImAppWindowState state )
+{
+	imappPlatformWindowSetState( window, state );
 }
 
 bool ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
-	return ImAppPlatformWindowPopDropData( window, outData );
+	return imappPlatformWindowPopDropData( window, outData );
 }
 
 ImUiContext* ImAppGetUi( ImAppContext* imapp )
@@ -585,17 +665,17 @@ ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )
 
 ImAppResPak* ImAppResourceAddMemoryPak( ImAppContext* imapp, const void* pakData, size_t dataLength )
 {
-	return ImAppResSysAdd( imapp->ressys, pakData, dataLength );
+	return imappResSysAdd( imapp->ressys, pakData, dataLength );
 }
 
 ImAppResPak* ImAppResourceOpenPak( ImAppContext* imapp, const char* resourcePath )
 {
-	return ImAppResSysOpen( imapp->ressys, resourcePath );
+	return imappResSysOpen( imapp->ressys, resourcePath );
 }
 
 void ImAppResourceClosePak( ImAppContext* imapp, ImAppResPak* pak )
 {
-	ImAppResSysClose( imapp->ressys, pak );
+	imappResSysClose( imapp->ressys, pak );
 }
 
 void ImAppResPakActivateTheme( ImAppContext* imapp, ImAppResPak* pak, const char* name )
@@ -618,7 +698,7 @@ void ImAppResPakActivateTheme( ImAppContext* imapp, ImAppResPak* pak, const char
 
 ImAppImage* ImAppImageLoadResource( ImAppContext* imapp, const char* resourceName )
 {
-	ImAppImage* pImage = ImAppResSysImageLoadResource( imapp->ressys, resourceName );
+	ImAppImage* pImage = imappResSysImageLoadResource( imapp->ressys, resourceName );
 	if( pImage == NULL )
 	{
 		return NULL;
@@ -635,27 +715,27 @@ ImAppImage* ImAppImageCreateRaw( ImAppContext* imapp, const void* imageData, siz
 		return NULL;
 	}
 
-	return ImAppResSysImageCreateRaw( imapp->ressys, imageData, width, height );
+	return imappResSysImageCreateRaw( imapp->ressys, imageData, width, height );
 }
 
 ImAppImage* ImAppImageCreatePng( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
-	return ImAppResSysImageCreatePng( imapp->ressys, imageData, imageDataSize );
+	return imappResSysImageCreatePng( imapp->ressys, imageData, imageDataSize );
 }
 
 ImAppImage* ImAppImageCreateJpeg( ImAppContext* imapp, const void* imageData, size_t imageDataSize )
 {
-	return ImAppResSysImageCreateJpeg( imapp->ressys, imageData, imageDataSize );
+	return imappResSysImageCreateJpeg( imapp->ressys, imageData, imageDataSize );
 }
 
 ImAppResState ImAppImageGetState( ImAppContext* imapp, ImAppImage* image )
 {
-	return ImAppResSysImageGetState( imapp->ressys, image );
+	return imappResSysImageGetState( imapp->ressys, image );
 }
 
 void ImAppImageFree( ImAppContext* imapp, ImAppImage* image )
 {
-	ImAppResSysImageFree( imapp->ressys, image );
+	imappResSysImageFree( imapp->ressys, image );
 }
 
 ImUiImage ImAppImageGetImage( const ImAppImage* image )

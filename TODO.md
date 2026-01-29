@@ -1,5 +1,7 @@
 - CMake build
 - tiki_build resource build action
 - different themes for dpi scales
-- compress resource data. use zstd?
+- compress resource data. use zstd?, png?
 - resource locking to prevent unload
+- settings for window state and position
+- multiple windows

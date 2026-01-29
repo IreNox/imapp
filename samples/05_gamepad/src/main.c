@@ -31,10 +31,7 @@ static void ImAppControllerSampleCredits( ImUiWindow* window );
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
 	parameters->tickIntervalMs		= 15;
-	parameters->windowTitle			= "I'm App - Controller";
-	parameters->windowWidth			= 1280;
-	parameters->windowHeight		= 720;
-	parameters->windowMode			= ImAppDefaultWindow_Resizable;
+	parameters->defaultWindow.title	= "I'm App - Controller";
 
 	ImAppControllerSampleContext* context = (ImAppControllerSampleContext*)malloc( sizeof( ImAppControllerSampleContext ) );
 	context->state = ImAppControllerSampleState_Options;

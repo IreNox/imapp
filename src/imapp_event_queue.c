@@ -15,13 +15,13 @@ struct ImAppEventQueueChunk
 	size_t					length;
 };
 
-void ImAppEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator )
+void imappEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator )
 {
 	queue->allocator	= allocator;
 	queue->currentChunk	= NULL;
 }
 
-void ImAppEventQueueDestruct( ImAppEventQueue* queue )
+void imappEventQueueDestruct( ImAppEventQueue* queue )
 {
 	ImAppEventQueueChunk* chunk = queue->currentChunk;
 	while( chunk != NULL )
@@ -32,7 +32,7 @@ void ImAppEventQueueDestruct( ImAppEventQueue* queue )
 	}
 }
 
-void ImAppEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 )
+void imappEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 )
 {
 	if( queue->currentChunk == NULL ||
 		queue->currentChunk->length == IMAPP_EVENT_QUEUE_CHUNK_SIZE )
@@ -50,7 +50,7 @@ void ImAppEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 )
 	chunk->length++;
 }
 
-bool ImAppEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent )
+bool imappEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent )
 {
 	if( queue->currentChunk == NULL ||
 		queue->currentChunk->length == 0u )

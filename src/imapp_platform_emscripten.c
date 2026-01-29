@@ -44,12 +44,12 @@ int main()
 {
 	ImAppPlatform platform = { 0 };
 
-	const int result = ImAppMain( &platform, 0, NULL );
+	const int result = imappMain( &platform, 0, NULL );
 
 	return result;
 }
 
-bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
@@ -63,7 +63,7 @@ bool ImAppPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
-void ImAppPlatformShutdown( ImAppPlatform* platform )
+void imappPlatformShutdown( ImAppPlatform* platform )
 {
 	if( platform->xDisplay )
 	{
@@ -74,34 +74,34 @@ void ImAppPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-sint64 ImAppPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
+sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
 	return 1;
 }
 
-void ImAppPlatformShowError( ImAppPlatform* platform, const char* message )
+void imappPlatformShowError( ImAppPlatform* platform, const char* message )
 {
 	EM_ASM( {
 		alert(UTF8ToString($0));
 	}, message );
 }
 
-void ImAppPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
 {
 		// TODO
 }
 
-void ImAppPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 {
 	// TODO
 }
 
-void ImAppPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 {
 	// TODO
 }
 
-ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
+ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
 {
 	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
 
@@ -168,7 +168,7 @@ ImAppWindow* ImAppPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	return window;
 }
 
-void ImAppPlatformWindowDestroy( ImAppWindow* window )
+void imappPlatformWindowDestroy( ImAppWindow* window )
 {
 
 }
@@ -266,7 +266,7 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->eglDisplay = EGL_NO_DISPLAY;
 }
 
-ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* window )
+ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
 {
 	if( window->eglContext == EGL_NO_CONTEXT )
 	{
@@ -276,7 +276,7 @@ ImAppWindowDeviceState ImAppPlatformWindowGetGlContextState( const ImAppWindow* 
 	return ImAppWindowDeviceState_Ok;
 }
 
-void ImAppPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
+void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
 {
 	// TODO
 }
@@ -296,7 +296,7 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 	return true;
 }
 
-ImAppEventQueue* ImAppPlatformWindowGetEventQueue( ImAppWindow* window )
+ImAppEventQueue* imappPlatformWindowGetEventQueue( ImAppWindow* window )
 {
 	return &window->eventQueue;
 }
@@ -306,148 +306,148 @@ ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
 	return window->uiFunc;
 }
 
-bool ImAppPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
 {
 	return false;
 }
 
-void ImAppPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
+void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
-	ImAppPlatformWindowGetPosition( window, outX, outY );
-	ImAppPlatformWindowGetSize( window, outWidth, outHeight );
+	imappPlatformWindowGetPosition( window, outX, outY );
+	imappPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-bool ImAppPlatformWindowHasFocus( const ImAppWindow* window )
+bool imappPlatformWindowHasFocus( const ImAppWindow* window )
 {
 	return true;
 }
 
-void ImAppPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
+void imappPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
 {
 	*outWidth	= window->width;
 	*outHeight	= window->height;
 }
 
-void ImAppPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+void imappPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
 {
 	//XEvent resizeEvent;
 	//resizeEvent.xresizerequest
 	// not supported
 }
 
-void ImAppPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
+void imappPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
 {
 	*outX = 0;
 	*outY = 0;
 }
 
-void ImAppPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+void imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
 {
 	// not supported
 }
 
-ImAppWindowState ImAppPlatformWindowGetState( const ImAppWindow* window )
+ImAppWindowState imappPlatformWindowGetState( const ImAppWindow* window )
 {
 	return ImAppWindowState_Maximized;
 }
 
-void ImAppPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
 {
 	// not supported
 }
 
-const char* ImAppPlatformWindowGetTitle( const ImAppWindow* window )
+const char* imappPlatformWindowGetTitle( const ImAppWindow* window )
 {
 	return NULL;
 }
 
-void ImAppPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
 {
 	// not supported
 }
 
-void ImAppPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+void imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
 {
 	// not supported
 }
 
-float ImAppPlatformWindowGetDpiScale( const ImAppWindow* window )
+float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
 {
 	return 1.0f;
 }
 
-void ImAppPlatformWindowClose( ImAppWindow* window )
+void imappPlatformWindowClose( ImAppWindow* window )
 {
 	// TODO
 }
 
-void ImAppPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
 	// TODO
 	outPath[ 0 ] = '\0';
 }
 
-ImAppBlob ImAppPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
 {
 	// TODO
 	const ImAppBlob result = { NULL, 0 };
 	return result;
 }
 
-ImAppBlob ImAppPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
 	// TODO
 	const ImAppBlob result = { NULL, 0 };
 	return result;
 }
 
-ImAppFile* ImAppPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
 {
 	// TODO
 	return NULL;
 }
 
-uintsize ImAppPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
 {
 	// TODO
 	return 0;
 }
 
-void ImAppPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 {
 	// TODO
 }
 
-ImAppBlob ImAppPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
 {
 	// TODO
 	const ImAppBlob result = { NULL, 0 };
 	return result;
 }
 
-void ImAppPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+void imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
 {
 	// TODO
 }
 
-ImAppFileWatcher* ImAppPlatformFileWatcherCreate( ImAppPlatform* platform )
+ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
 {
 	return NULL;
 }
 
-void ImAppPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
 {
 }
 
-void ImAppPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
 {
 }
 
-void ImAppPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
 {
 }
 
-bool ImAppPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
 {
 	return false;
 }

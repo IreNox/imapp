@@ -13,8 +13,8 @@ typedef struct ImAppEventQueue
 	ImAppEventQueueChunk*	currentChunk;
 } ImAppEventQueue;
 
-void	ImAppEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator );
-void	ImAppEventQueueDestruct( ImAppEventQueue* queue );
+void	imappEventQueueConstruct( ImAppEventQueue* queue, ImUiAllocator* allocator );
+void	imappEventQueueDestruct( ImAppEventQueue* queue );
 
-void	ImAppEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 );
-bool	ImAppEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent );
+void	imappEventQueuePush( ImAppEventQueue* queue, const ImAppEvent* event2 );
+bool	imappEventQueuePop( ImAppEventQueue* queue, ImAppEvent* outEvent );

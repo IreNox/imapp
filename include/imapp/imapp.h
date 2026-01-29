@@ -22,45 +22,59 @@ typedef struct ImAppBlob
 	size_t				size;
 } ImAppBlob;
 
-typedef enum ImAppDefaultWindow
+typedef enum ImAppWindowStyle
 {
-	ImAppDefaultWindow_Resizable,
-	ImAppDefaultWindow_Fullscreen,
-	ImAppDefaultWindow_Disabled
-} ImAppDefaultWindow;
+	ImAppWindowStyle_Resizable,
+	ImAppWindowStyle_Borderless,
+	ImAppWindowStyle_Custom			// Use the ResPak window style
+} ImAppWindowStyle;
+
+typedef enum ImAppWindowState
+{
+	ImAppWindowState_Default,
+	ImAppWindowState_Maximized,
+	ImAppWindowState_Minimized
+} ImAppWindowState;
+
+typedef struct ImAppWindowParameters
+{
+	const char*				title;
+	int						x;
+	int						y;
+	int						width;
+	int						height;
+	ImAppWindowStyle		style;
+	ImAppWindowState		state;
+	ImUiColor				clearColor;
+} ImAppWindowParameters;
 
 typedef struct ImAppParameters
 {
-	ImUiAllocator			allocator;			// Override memory Allocator. Default: malloc/free
+	ImUiAllocator			allocator;				// Override memory Allocator. Default: malloc/free
 
-	int						tickIntervalMs;		// Tick interval. Use 0 to disable. Default: 0
+	int						tickIntervalMs;			// Tick interval. Use 0 to disable. Default: 0
 
-	const char*				resPath;			// Path where resources loaded from. Use ./ for relative to executable. default: {exe_dir}/assets
+	const char*				resPath;				// Path where resources loaded from. Use ./ for relative to executable. default: {exe_dir}/assets
 	const char*				defaultResPakName;
 	ImAppBlob				defaultResPakData;
 	const char*				defaultThemeName;
-	bool					useWindowStyle;
 
-	const char*				defaultFontName;	// Default: arial.ttf;
-	float					defaultFontSize;	// Default: 16
+	const char*				defaultFontName;		// Default: arial.ttf;
+	float					defaultFontSize;		// Default: 16
 
 	const ImUiInputShortcutConfig*	shortcuts;
 	size_t							shortcutCount;
 
-	bool					shutdownAfterInit;	// Shutdown after initialization call. ImAppProgramShutdown will not be called.
-	int						exitCode;			// Set exit code for shutdown after initialization
+	bool					shutdownAfterInit;		// Shutdown after initialization call. ImAppProgramShutdown will not be called.
+	int						exitCode;				// Set exit code for shutdown after initialization
 
 	// Only for windowed Platforms:
-	ImAppDefaultWindow		windowMode;			// Opens a default Window. Default: Linux/Windows: Resizable, Android: Fullscreen
-	const char*				windowTitle;		// Default: "I'm App"
-	int						windowX;			// Default: TBD
-	int						windowY;			// Default: TBD
-	int						windowWidth;		// Default: 1280
-	int						windowHeight;		// Default: 720
-	ImUiColor				windowClearColor;	// Default: #1144AAFF
+	//ImAppDefaultWindow		windowMode;				// Opens a default Window. Default: Linux/Windows: Resizable, Android: Fullscreen
+	bool					useDefaultWindow;		// Default: true
+	ImAppWindowParameters	defaultWindow;			// Default: title: "I'm App", width: 1280, height: 720, style: Linux/Windows: Resizable, Android: Fullscreen, state: clear color: #1144AAFF
 } ImAppParameters;
 
-typedef void (*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow );
+typedef void (*ImAppWindowDoUiFunc)( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow, void* uiContext );
 
 //////////////////////////////////////////////////////////////////////////
 // Program entry points
@@ -95,15 +109,20 @@ ImUiContext*				ImAppGetUi( ImAppContext* imapp );
 void						ImAppTrace( const char* format, ... );
 void						ImAppQuit( ImAppContext* imapp, int exitCode );
 
-// TODO:
 // Create a Window at given coordinates. uiFunc callback will be called every frame to build UI.
-//ImAppWindow*				ImAppWindowCreate( ImAppContext* imapp, ImUiStringView title, uint32_t x, uint32_t y, uint32_t width, uint32_t height, ImAppWindowDoUiFunc uiFunc );
-//void						ImAppWindowDestroy( ImAppWindow* window );
+ImAppWindow*				ImAppWindowCreate( ImAppContext* imapp, const ImAppWindowParameters* parameters, ImAppWindowDoUiFunc uiFunc, void* uiContext );
+void						ImAppWindowDestroy( ImAppContext* imapp, ImAppWindow* window );
+
+bool						ImAppWindowIsOpen( const ImAppContext* imapp, const ImAppWindow* window );
 
 bool						ImAppWindowHasFocus( const ImAppWindow* window );
 void						ImAppWindowGetPosition( const ImAppWindow* window, int* outX, int* outY );
 void						ImAppWindowSetPosition( ImAppWindow* window, int x, int y );
 void						ImAppWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight );
+
+ImAppWindowStyle			ImAppWindowGetStyle( const ImAppWindow* window );
+ImAppWindowState			ImAppWindowGetState( const ImAppWindow* window );
+void						ImAppWindowSetState( ImAppWindow* window, ImAppWindowState state );
 
 bool						ImAppWindowPopDropData( ImAppWindow* window, ImAppDropData* outData );	// data freed after tick
 

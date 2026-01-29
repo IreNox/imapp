@@ -3,6 +3,7 @@
 #include "imapp/imapp.h"
 
 #include "imapp_defines.h"
+#include "imapp_renderer.h"
 
 #include "imui/../../src/imui_internal.h"
 #include "imui/../../src/imui_memory.h"
@@ -11,19 +12,32 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef struct ImAppFont ImAppFont;
 typedef struct ImAppPlatform ImAppPlatform;
 typedef struct ImAppRenderer ImAppRenderer;
+typedef struct ImAppRendererWindow ImAppRendererWindow;
 typedef struct ImAppResSys ImAppResSys;
 typedef struct ImAppWindow ImAppWindow;
-typedef struct ImAppFont ImAppFont;
+
+typedef struct ImAppContextWindowInfo
+{
+	ImAppWindow*			window;
+
+	ImAppWindowDoUiFunc		uiFunc;
+	void*					uiContext;
+
+	ImAppRendererWindow		rendererWindow;
+	float					clearColor[ 4u ];
+
+	bool					isRendererCreated;
+	bool					isDestroyed;
+} ImAppContextWindowInfo;
 
 struct ImAppContext
 {
 	ImUiAllocator			allocator;
 
 	bool					running;
-	bool					isFullscrene;
-	bool					useWindowStyle;
 	int						exitCode;
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
@@ -35,7 +49,7 @@ struct ImAppContext
 	ImAppRenderer*			renderer;
 	ImAppResSys*			ressys;
 
-	ImAppWindow**			windows;
+	ImAppContextWindowInfo*	windows;
 	uintsize				windowsCount;
 	uintsize				windowsCapacity;
 

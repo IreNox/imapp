@@ -207,10 +207,10 @@ bool ImAppWindowThemeTitleButtonUi( ImUiWindow* window, const ImAppWindowThemeTi
 	return inputState.wasPressed && inputState.hasMouseReleased;
 }
 
-ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
+ImUiRect imappWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 {
 	const bool hasFocus = ImAppWindowHasFocus( appWindow );
-	const bool isMaximized = ImAppPlatformWindowGetState( appWindow ) == ImAppWindowState_Maximized;
+	const bool isMaximized = imappPlatformWindowGetState( appWindow ) == ImAppWindowState_Maximized;
 
 	ImUiWindow* window = ImUiWindowBegin( surface, "window", ImUiSurfaceGetRect( surface ), 1 );
 
@@ -259,12 +259,12 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 		if( inputState.isMouseOver &&
 			ImUiInputHasMouseButtonDoubleClicked( ImUiWidgetGetContext( title ), ImUiInputMouseButton_Left ) )
 		{
-			ImAppPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
+			imappPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
 		}
 
 		// title text
 		{
-			const char* windowTitle = ImAppPlatformWindowGetTitle( appWindow );
+			const char* windowTitle = imappPlatformWindowGetTitle( appWindow );
 
 			ImUiWidget* titleText = ImUiToolboxLabelBeginColor( window, windowTitle, titleTheme->textColor );
 			ImUiWidgetSetVAlign( titleText, 0.5f );
@@ -284,7 +284,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 			const ImAppWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleMinimizeButton;
 			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "_") )
 			{
-				ImAppPlatformWindowSetState( appWindow, ImAppWindowState_Minimized );
+				imappPlatformWindowSetState( appWindow, ImAppWindowState_Minimized );
 			}
 		}
 
@@ -294,7 +294,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 			const char* alternativeText = isMaximized ? "[]" : "^";
 			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, alternativeText ) )
 			{
-				ImAppPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
+				imappPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
 			}
 		}
 
@@ -303,7 +303,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 			const ImAppWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleCloseButton;
 			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "X" ) )
 			{
-				ImAppPlatformWindowClose( appWindow );
+				imappPlatformWindowClose( appWindow );
 			}
 		}
 
@@ -330,7 +330,7 @@ ImUiRect ImAppWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 	ImUiWidgetEnd( root );
 	ImUiWindowEnd( window );
 
-	ImAppPlatformWindowSetTitleBounds( appWindow, titleHeight, buttonsX );
+	imappPlatformWindowSetTitleBounds( appWindow, titleHeight, buttonsX );
 
 	return result;
 }

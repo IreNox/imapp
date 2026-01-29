@@ -2,4 +2,4 @@
 
 typedef struct ImAppPlatform ImAppPlatform;
 
-int ImAppMain( ImAppPlatform* pPlatform, int argc, char* argv[] );
+int imappMain( ImAppPlatform* pPlatform, int argc, char* argv[] );

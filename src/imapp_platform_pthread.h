@@ -17,9 +17,9 @@ struct ImAppThread
 	uint8						hasExit;
 };
 
-static void*	ImAppPlatformThreadEntry( void* voidThread );
+static void*	imappPlatformThreadEntry( void* voidThread );
 
-ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+ImAppThread* imappPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
 {
 	pthread_attr_t attr;
 	if( pthread_attr_init( &attr ) < 0 )
@@ -43,7 +43,7 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 	thread->func		= func;
 	thread->arg			= arg;
 
-	const int result = pthread_create( &thread->handle, &attr, ImAppPlatformThreadEntry, thread );
+	const int result = pthread_create( &thread->handle, &attr, imappPlatformThreadEntry, thread );
 	pthread_attr_destroy( &attr );
 
 	if( result < 0 )
@@ -55,19 +55,19 @@ ImAppThread* ImAppPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 	return thread;
 }
 
-void ImAppPlatformThreadDestroy( ImAppThread* thread )
+void imappPlatformThreadDestroy( ImAppThread* thread )
 {
 	pthread_join( thread->handle, NULL );
 
 	ImUiMemoryFree( thread->platform->allocator, thread );
 }
 
-bool ImAppPlatformThreadIsRunning( const ImAppThread* thread )
+bool imappPlatformThreadIsRunning( const ImAppThread* thread )
 {
 	return __atomic_load_n( &thread->hasExit, __ATOMIC_RELAXED ) == 0;
 }
 
-static void* ImAppPlatformThreadEntry( void* voidThread )
+static void* imappPlatformThreadEntry( void* voidThread )
 {
 	ImAppThread* thread = (ImAppThread*)voidThread;
 
@@ -78,7 +78,7 @@ static void* ImAppPlatformThreadEntry( void* voidThread )
 	return NULL;
 }
 
-ImAppMutex* ImAppPlatformMutexCreate( ImAppPlatform* platform )
+ImAppMutex* imappPlatformMutexCreate( ImAppPlatform* platform )
 {
 	pthread_mutex_t* mutex = IMUI_MEMORY_NEW_ZERO( platform->allocator, pthread_mutex_t );
 	if( pthread_mutex_init( mutex, NULL ) < 0 )
@@ -90,23 +90,23 @@ ImAppMutex* ImAppPlatformMutexCreate( ImAppPlatform* platform )
 	return (ImAppMutex*)mutex;
 }
 
-void ImAppPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+void imappPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
 {
 	pthread_mutex_destroy( (pthread_mutex_t*)mutex );
 	ImUiMemoryFree( platform->allocator, mutex );
 }
 
-void ImAppPlatformMutexLock( ImAppMutex* mutex )
+void imappPlatformMutexLock( ImAppMutex* mutex )
 {
 	pthread_mutex_lock( (pthread_mutex_t*)mutex );
 }
 
-void ImAppPlatformMutexUnlock( ImAppMutex* mutex )
+void imappPlatformMutexUnlock( ImAppMutex* mutex )
 {
 	pthread_mutex_unlock( (pthread_mutex_t*)mutex );
 }
 
-ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
+ImAppSemaphore* imappPlatformSemaphoreCreate( ImAppPlatform* platform )
 {
 	sem_t* semaphore = IMUI_MEMORY_NEW_ZERO( platform->allocator, sem_t );
 	if( sem_init( semaphore, 0, 0 ) < 0 )
@@ -118,18 +118,18 @@ ImAppSemaphore* ImAppPlatformSemaphoreCreate( ImAppPlatform* platform )
 	return (ImAppSemaphore*)semaphore;
 }
 
-void ImAppPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
 {
 	sem_destroy( (sem_t*)semaphore );
 	ImUiMemoryFree( platform->allocator, semaphore );
 }
 
-void ImAppPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreInc( ImAppSemaphore* semaphore )
 {
 	sem_post( (sem_t*)semaphore );
 }
 
-bool ImAppPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+bool imappPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
 {
 	if( wait )
 	{
