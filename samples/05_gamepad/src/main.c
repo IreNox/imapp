@@ -23,10 +23,10 @@ typedef struct ImAppControllerSampleContext
 	char	nameBuffer[ 128u ];
 } ImAppControllerSampleContext;
 
-static void ImAppControllerSampleMainMenu( ImAppContext* imapp, ImAppControllerSampleContext* context, ImUiWindow* window );
-static void ImAppControllerSampleNewGame( ImAppControllerSampleContext* context, ImUiWindow* window );
-static void ImAppControllerSampleOptions( ImAppControllerSampleContext* context, ImUiWindow* window );
-static void ImAppControllerSampleCredits( ImUiWindow* window );
+static void imappControllerSampleMainMenu( ImAppContext* imapp, ImAppControllerSampleContext* context, ImUiWindow* window );
+static void imappControllerSampleNewGame( ImAppControllerSampleContext* context, ImUiWindow* window );
+static void imappControllerSampleOptions( ImAppControllerSampleContext* context, ImUiWindow* window );
+static void imappControllerSampleCredits( ImUiWindow* window );
 
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
@@ -60,19 +60,19 @@ void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, I
 	switch( context->state )
 	{
 	case ImAppControllerSampleState_MainMenu:
-		ImAppControllerSampleMainMenu( imapp, context, uiWindow );
+		imappControllerSampleMainMenu( imapp, context, uiWindow );
 		break;
 
 	case ImAppControllerSampleState_NewGame:
-		ImAppControllerSampleNewGame( context, uiWindow );
+		imappControllerSampleNewGame( context, uiWindow );
 		break;
 
 	case ImAppControllerSampleState_Options:
-		ImAppControllerSampleOptions( context, uiWindow );
+		imappControllerSampleOptions( context, uiWindow );
 		break;
 
 	case ImAppControllerSampleState_Credits:
-		ImAppControllerSampleCredits( uiWindow );
+		imappControllerSampleCredits( uiWindow );
 		break;
 	}
 
@@ -103,7 +103,7 @@ static const char* s_mainMenuButtons[] =
 	"Exit"
 };
 
-static void ImAppControllerSampleMainMenu( ImAppContext* imapp, ImAppControllerSampleContext* context, ImUiWindow* window )
+static void imappControllerSampleMainMenu( ImAppContext* imapp, ImAppControllerSampleContext* context, ImUiWindow* window )
 {
 	ImUiWidget* vLayout = ImUiWidgetBegin( window );
 	ImUiWidgetSetLayoutVerticalSpacing( vLayout, 8.0f );
@@ -135,7 +135,7 @@ static void ImAppControllerSampleMainMenu( ImAppContext* imapp, ImAppControllerS
 	ImUiWidgetEnd( vLayout );
 }
 
-static void ImAppControllerSampleNewGame( ImAppControllerSampleContext* context, ImUiWindow* window )
+static void imappControllerSampleNewGame( ImAppControllerSampleContext* context, ImUiWindow* window )
 {
 	ImUiWidget* vLayout = ImUiWidgetBegin( window );
 	ImUiWidgetSetLayoutVerticalSpacing( vLayout, 20.0f );
@@ -221,7 +221,7 @@ static ImAppControllerSampleOption s_options[] =
 	{ "Anti-aliasing",	ImAppControllerSampleOptionType_CheckBox }
 };
 
-static void ImAppControllerSampleOptions( ImAppControllerSampleContext* context, ImUiWindow* window )
+static void imappControllerSampleOptions( ImAppControllerSampleContext* context, ImUiWindow* window )
 {
 	ImUiToolboxListContext list;
 	ImUiWidget* listWidget = ImUiToolboxListBegin( &list, window, 24.0f, IMAPP_ARRAY_COUNT( s_options ), true );
@@ -283,7 +283,7 @@ typedef struct ImAppControllerSampleCreditsState
 	float	scrollOffset;
 } ImAppControllerSampleCreditsState;
 
-static void ImAppControllerSampleCredits( ImUiWindow* window )
+static void imappControllerSampleCredits( ImUiWindow* window )
 {
 	const double time = ImUiWindowGetTime( window );
 

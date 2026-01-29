@@ -698,7 +698,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 	{
 	case ImAppWindowStyle_Resizable:	break;
 	case ImAppWindowStyle_Borderless:	winStyle = WS_POPUP; break;
-	case ImAppWindowStyle_Custom:		winStyle = WS_POPUP | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
+	case ImAppWindowStyle_Custom:		winStyle = WS_OVERLAPPED | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
 	}
 
 	window->hwnd = CreateWindowExW(
@@ -1264,6 +1264,27 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		}
 		break;
 
+	case WM_NCACTIVATE:
+		if( window->style == ImAppWindowStyle_Custom )
+		{
+			return TRUE;
+		}
+		break;
+
+	//case WM_NCPAINT:
+	//	if( window->style == ImAppWindowStyle_Custom )
+	//	{
+	//		return 0;
+	//	}
+	//	break;
+
+	case WM_ERASEBKGND:
+		if( window->style == ImAppWindowStyle_Custom )
+		{
+			return 1;
+		}
+		break;
+
 	case WM_SETCURSOR:
 		{
 			if( LOWORD( lParam ) == 1 )
@@ -1464,7 +1485,6 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		}
 		return 0;
 
-
 	case WM_NCCALCSIZE:
 		if( window->style == ImAppWindowStyle_Custom )
 		{
@@ -1473,31 +1493,31 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				break;
 			}
 
-#if WINVER >= 0x0605
-			const UINT dpi		= GetDpiForWindow( window->hwnd );
-			//const int frame_x	= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
-			//const int frame_y	= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
-			const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
-#else
-			//const int frame_x	= GetSystemMetrics( SM_CXFRAME );
-			//const int frame_y	= GetSystemMetrics( SM_CYFRAME );
-			const int padding	= GetSystemMetrics( SM_CXPADDEDBORDER );
-#endif
-
-			NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
-			RECT* requestedClientRect = params->rgrc;
-
-			//requestedClientRect->right	-= frame_x + padding;
-			//requestedClientRect->left	+= frame_x + padding;
-			//requestedClientRect->bottom	-= frame_y + padding;
-
-			WINDOWPLACEMENT placement = { 0 };
-			placement.length = sizeof( WINDOWPLACEMENT );
-			if( GetWindowPlacement( window->hwnd, &placement ) &&
-				placement.showCmd == SW_SHOWMAXIMIZED )
-			{
-				requestedClientRect->top += padding;
-			}
+//#if WINVER >= 0x0605
+//			const UINT dpi		= GetDpiForWindow( window->hwnd );
+//			const int frame_x	= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
+//			const int frame_y	= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
+//			const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
+//#else
+//			const int frame_x	= GetSystemMetrics( SM_CXFRAME );
+//			const int frame_y	= GetSystemMetrics( SM_CYFRAME );
+//			const int padding	= GetSystemMetrics( SM_CXPADDEDBORDER );
+//#endif
+//
+//			NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
+//			RECT* requestedClientRect = params->rgrc;
+//
+//			requestedClientRect->right	-= frame_x + padding;
+//			requestedClientRect->left	+= frame_x + padding;
+//			requestedClientRect->bottom	-= frame_y + padding;
+//
+//			WINDOWPLACEMENT placement = { 0 };
+//			placement.length = sizeof( WINDOWPLACEMENT );
+//			if( GetWindowPlacement( window->hwnd, &placement ) &&
+//				placement.showCmd == SW_SHOWMAXIMIZED )
+//			{
+//				requestedClientRect->top += padding;
+//			}
 
 			return 0;
 		}

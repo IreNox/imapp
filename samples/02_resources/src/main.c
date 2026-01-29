@@ -15,16 +15,15 @@ void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[
 	IMAPP_USE( argc );
 	IMAPP_USE( argv );
 
-	parameters->tickIntervalMs		= 15;
-	parameters->windowTitle			= "I'm App - Resources";
-	parameters->windowWidth			= 960;
-	parameters->windowHeight		= 600;
-	parameters->windowClearColor	= ImUiColorCreate( 0xaau, 0xaau, 0xaau, 0xffu );
-	parameters->windowMode			= ImAppDefaultWindow_Resizable;
-	parameters->defaultResPakName	= "02_resources";
-	parameters->defaultThemeName	= "config";
-	parameters->useWindowStyle		= true;
-	parameters->resPath				= "./../../../../assets";
+	parameters->tickIntervalMs				= 15;
+	parameters->defaultWindow.title			= "I'm App - Resources";
+	parameters->defaultWindow.width			= 960;
+	parameters->defaultWindow.height		= 600;
+	parameters->defaultWindow.clearColor	= ImUiColorCreate( 0xaau, 0xaau, 0xaau, 0xffu );
+	parameters->defaultWindow.style			= ImAppWindowStyle_Custom;
+	parameters->defaultResPakName			= "02_resources";
+	parameters->defaultThemeName			= "config";
+	parameters->resPath						= "./../../../../assets";
 
 	return (void*)1;
 }
