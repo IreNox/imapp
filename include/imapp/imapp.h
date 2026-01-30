@@ -182,6 +182,8 @@ ImAppWindowTheme*			ImAppWindowThemeGet();
 void						ImAppWindowThemeSet( const ImAppWindowTheme* windowTheme );
 void						ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme );
 
+ImUiFont*					ImAppGetDefaultFont( const ImAppContext* imapp );
+
 //////////////////////////////////////////////////////////////////////////
 // Resources
 

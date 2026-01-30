@@ -4,6 +4,7 @@
 
 #include "imapp_debug.h"
 
+#include <Windows.h>
 #include <LivePP/API/x64/LPP_API_x64_CPP.h>
 
 static bool s_livePlusPlusAgentEnabled = false;

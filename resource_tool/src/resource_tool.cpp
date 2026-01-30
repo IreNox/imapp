@@ -1410,7 +1410,7 @@ Options:
 		UiWidgetLayoutHorizontal buttonsLayout( window, 5.0f );
 		buttonsLayout.setPadding( UiBorder( 4.0f ) );
 
-		buttonsLayout.drawColor( UiColor::CreateBlack( 0xa0u ) );
+		buttonsLayout.drawColor( UiColor::createBlack( 0xa0u ) );
 
 		{
 			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
@@ -1419,7 +1419,7 @@ Options:
 
 		doBackgroundButton( UiColor::TransparentBlack );
 		doBackgroundButton( UiColor::Black );
-		doBackgroundButton( UiColor::CreateGray( 128u ) );
+		doBackgroundButton( UiColor::createGray( 128u ) );
 		doBackgroundButton( UiColor::White );
 	}
 

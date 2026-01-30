@@ -38,6 +38,8 @@ ImUiVertexFormat		imappRendererGetVertexFormat();
 ImAppRenderer*			imappRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform );
 void					imappRendererDestroy( ImAppRenderer* renderer );
 
+void					imappRendererUpdate( ImAppRenderer* renderer );
+
 bool					imappRendererCreateResources( ImAppRenderer* renderer );
 void					imappRendererDestroyResources( ImAppRenderer* renderer );
 

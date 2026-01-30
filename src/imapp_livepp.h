@@ -1,6 +1,6 @@
 #pragma once
 
-#include "imapp_defines.h"
+#include "imapp_types.h"
 
 #if IMAPP_ENABLED( IMAPP_LIVEPP )
 

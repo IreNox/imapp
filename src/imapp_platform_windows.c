@@ -2,9 +2,10 @@
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS ) && IMAPP_DISABLED( IMAPP_PLATFORM_SDL )
 
-#include "imapp_internal.h"
 #include "imapp_debug.h"
 #include "imapp_event_queue.h"
+#include "imapp_internal.h"
+#include "imapp_livepp.h"
 #include "imapp_platform_windows_resources.h"
 
 #include <math.h>

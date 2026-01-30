@@ -31,6 +31,10 @@ struct ImAppRenderer
 {
 	ImUiAllocator*				allocator;
 
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	ImUiHash					shaderHash;
+#endif
+
 	GLuint						vertexShader;
 	ImAppRendererShader			shaderTexture;
 	ImAppRendererShader			shaderColor;
@@ -51,9 +55,9 @@ struct ImAppRendererTexture
 };
 
 #if IMAPP_ENABLED( IMAPP_PLATFORM_LINUX ) || IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-#	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n"
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 300 es\n#line " IMAPP_STRINGIZE( __LINE__ ) "\n"
 #else
-#	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n"
+#	define IMAPP_RENDERER_GLSL_VERSION "#version 330\n#line " IMAPP_STRINGIZE( (__LINE__ + 1) ) "\n"
 #endif
 
 static const char s_vertexShader[] =
@@ -133,11 +137,15 @@ static const struct ImUiVertexElement s_vertexLayout[] = {
 	{ 1u,	ImUiVertexElementType_UInt,		ImUiVertexElementSemantic_ColorABGR },
 };
 
-static bool		ImAppRendererCompileShader( GLuint shader, const char* shaderCode );
-static bool		ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
-static void		ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+static ImUiHash	imappRendererGetShaderHash();
+#endif
 
-static void		ImAppRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height );
+static bool		imappRendererCompileShader( GLuint shader, const char* shaderCode );
+static bool		imappRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode );
+static void		imappRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader );
+
+static void		imappRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height );
 
 ImUiVertexFormat imappRendererGetVertexFormat()
 {
@@ -166,6 +174,9 @@ ImAppRenderer* imappRendererCreate( ImUiAllocator* allocator, ImAppPlatform* pla
 	}
 #endif
 
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	renderer->shaderHash = imappRendererGetShaderHash();
+#endif
 	if( !imappRendererCreateResources( renderer ) )
 	{
 		imappRendererDestroy( renderer );
@@ -182,9 +193,38 @@ void imappRendererDestroy( ImAppRenderer* renderer )
 	ImUiMemoryFree( renderer->allocator, renderer );
 }
 
-static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+static ImUiHash imappRendererGetShaderHash()
+{
+	ImUiHash shaderHash = 0;
+	shaderHash = ImUiHashCreateSeed( s_vertexShader, sizeof( s_vertexShader ), shaderHash );
+	shaderHash = ImUiHashCreateSeed( s_fragmentShaderTexture, sizeof( s_fragmentShaderTexture ), shaderHash );
+	shaderHash = ImUiHashCreateSeed( s_fragmentShaderColor, sizeof( s_fragmentShaderColor ), shaderHash );
+	shaderHash = ImUiHashCreateSeed( s_fragmentShaderFont, sizeof( s_fragmentShaderFont ), shaderHash );
+	shaderHash = ImUiHashCreateSeed( s_fragmentShaderFontSdf, sizeof( s_fragmentShaderFontSdf ), shaderHash );
+
+	return shaderHash;
+}
+#endif
+
+void imappRendererUpdate( ImAppRenderer* renderer )
+{
+#if IMAPP_ENABLED( IMAPP_DEBUG )
+	const ImUiHash shaderHash = imappRendererGetShaderHash();
+	if( shaderHash != renderer->shaderHash )
+	{
+		imappRendererDestroyResources( renderer );
+		imappRendererCreateResources( renderer );
+
+		renderer->shaderHash = shaderHash;
+	}
+#endif
+}
+
+static bool imappRendererCompileShader( GLuint shader, const char* pShaderCode )
 {
 	glShaderSource( shader, 1, &pShaderCode, 0 );
+	glObjectLabel( GL_SHADER, shader, sizeof( __FILE__ ), __FILE__ );
 	glCompileShader( shader );
 
 	GLint shaderStatus;
@@ -197,15 +237,38 @@ static bool ImAppRendererCompileShader( GLuint shader, const char* pShaderCode )
 		glGetShaderInfoLog( shader, 2048, &infoLength, buffer );
 
 		ImAppTrace( "[renderer] Failed to compile Shader.\n" );
-		ImAppTrace( "Code:\n%s\n", pShaderCode );
-		ImAppTrace( "Error:\n%s\n", buffer );
+		ImAppTrace( "Code:\n" );
+
+		const char* errorLine = buffer;
+		const char* errorLineEnd = errorLine;
+		while( *errorLine )
+		{
+			errorLineEnd = strchr( errorLine, '\n' );
+			if( !errorLineEnd )
+			{
+				errorLineEnd = buffer + infoLength;
+			}
+
+			const uintsize errorLineLength = errorLineEnd - errorLine;
+			if( *errorLine != '0' )
+			{
+				ImAppTrace( "%.*s\n", errorLineLength, errorLine );
+			}
+			else if( errorLineLength > 0 )
+			{
+				ImAppTrace( "%s%.*s\n", __FILE__, errorLineLength - 1, errorLine + 1 );
+			}
+
+			errorLine = errorLineEnd + 1;
+		}
+
 		return false;
 	}
 
 	return true;
 }
 
-static bool ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode )
+static bool imappRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader, const char* shaderCode )
 {
 	shader->fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
 	if( !shader->fragmentShader )
@@ -214,7 +277,7 @@ static bool ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRend
 		return false;
 	}
 
-	if( !ImAppRendererCompileShader( shader->fragmentShader, shaderCode ) )
+	if( !imappRendererCompileShader( shader->fragmentShader, shaderCode ) )
 	{
 		ImAppTrace( "[renderer] Failed to compile GL Shader.\n" );
 		return false;
@@ -242,7 +305,7 @@ static bool ImAppRendererCreateShaderProgram( ImAppRenderer* renderer, ImAppRend
 	return true;
 }
 
-static void ImAppRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader )
+static void imappRendererDestroyShaderProgram( ImAppRenderer* renderer, ImAppRendererShader* shader )
 {
 	if( shader->program != 0u )
 	{
@@ -265,16 +328,16 @@ bool imappRendererCreateResources( ImAppRenderer* renderer )
 	// Shader
 	renderer->vertexShader = glCreateShader( GL_VERTEX_SHADER );
 	if( !renderer->vertexShader ||
-		!ImAppRendererCompileShader( renderer->vertexShader, s_vertexShader ) )
+		!imappRendererCompileShader( renderer->vertexShader, s_vertexShader ) )
 	{
 		ImAppTrace( "[renderer] Failed to create Vertex Shader.\n" );
 		return false;
 	}
 
-	if( !ImAppRendererCreateShaderProgram( renderer, &renderer->shaderTexture, s_fragmentShaderTexture ) ||
-		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderColor, s_fragmentShaderColor ) ||
-		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderFont, s_fragmentShaderFont ) ||
-		!ImAppRendererCreateShaderProgram( renderer, &renderer->shaderFontSdf, s_fragmentShaderFontSdf ) )
+	if( !imappRendererCreateShaderProgram( renderer, &renderer->shaderTexture, s_fragmentShaderTexture ) ||
+		!imappRendererCreateShaderProgram( renderer, &renderer->shaderColor, s_fragmentShaderColor ) ||
+		!imappRendererCreateShaderProgram( renderer, &renderer->shaderFont, s_fragmentShaderFont ) ||
+		!imappRendererCreateShaderProgram( renderer, &renderer->shaderFontSdf, s_fragmentShaderFontSdf ) )
 	{
 		ImAppTrace( "[renderer] Failed to compile programs.\n" );
 		return false;
@@ -288,10 +351,10 @@ bool imappRendererCreateResources( ImAppRenderer* renderer )
 
 void imappRendererDestroyResources( ImAppRenderer* renderer )
 {
-	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderTexture );
-	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderColor );
-	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderFont );
-	ImAppRendererDestroyShaderProgram( renderer, &renderer->shaderFontSdf );
+	imappRendererDestroyShaderProgram( renderer, &renderer->shaderTexture );
+	imappRendererDestroyShaderProgram( renderer, &renderer->shaderColor );
+	imappRendererDestroyShaderProgram( renderer, &renderer->shaderFont );
+	imappRendererDestroyShaderProgram( renderer, &renderer->shaderFontSdf );
 
 	if( renderer->vertexShader != 0u )
 	{
@@ -386,22 +449,22 @@ bool imappRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAp
 	texture->flags		= flags;
 
 	GLenum sourceFormat = GL_RGBA;
-	GLint targetFormat = GL_RGBA;
+	GLint targetFormat = GL_RGBA8;
 	switch( format )
 	{
 	case ImAppRendererFormat_R8:
 		sourceFormat	= GL_ALPHA;
-		targetFormat	= GL_ALPHA;
+		targetFormat	= GL_ALPHA8;
 		break;
 
 	case ImAppRendererFormat_RGB8:
 		sourceFormat	= GL_RGB;
-		targetFormat	= GL_RGB;
+		targetFormat	= GL_RGB8;
 		break;
 
 	case ImAppRendererFormat_RGBA8:
 		sourceFormat	= GL_RGBA;
-		targetFormat	= GL_RGBA;
+		targetFormat	= GL_RGBA8;
 		break;
 	}
 
@@ -460,7 +523,7 @@ void imappRendererDraw( ImAppRenderer* renderer, ImAppRendererWindow* window, Im
 	glUseProgram( renderer->shaderTexture.program );
 	glUniform1i( renderer->programUniformTexture, 0 );
 
-	ImAppRendererDrawCommands( renderer, window, surface, width, height );
+	imappRendererDrawCommands( renderer, window, surface, width, height );
 
 	// reset OpenGL state
 	glUseProgram( 0 );
@@ -471,7 +534,7 @@ void imappRendererDraw( ImAppRenderer* renderer, ImAppRendererWindow* window, Im
 	glDisable( GL_SCISSOR_TEST );
 }
 
-static void ImAppRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height )
+static void imappRendererDrawCommands( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height )
 {
 	width = width <= 0 ? 1 : width;
 	height = height <= 0 ? 1 : height;

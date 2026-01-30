@@ -1012,7 +1012,22 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 	return false;
 }
 
-bool ImAppPlatformWindowPresent( ImAppWindow* window )
+void imappPlatformWindowBeginRender( ImAppWindow* window )
+{
+	if( window->display == EGL_NO_DISPLAY )
+	{
+		return false;
+	}
+
+	if( eglMakeCurrent( window->display, window->surface, window->surface, window->context ) == EGL_FALSE )
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool imappPlatformWindowEndRender( ImAppWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{

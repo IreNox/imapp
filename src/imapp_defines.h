@@ -114,11 +114,12 @@
 #if !defined( IMAPP_POINTER_32 )
 #	define IMAPP_POINTER_32				TIKI_OFF
 #endif
+
 #if !defined( IMAPP_POINTER_64 )
 #	define IMAPP_POINTER_64				TIKI_OFF
 #endif
 
-#if defined( DEBUG ) || defined( _DEBUG ) || defined( __DEBUG__ )
+#if (defined( DEBUG ) || defined( _DEBUG ) || defined( __DEBUG__ )) && !defined( NDEBUG )
 #	define IMAPP_DEBUG					TIKI_ON
 #else
 #	define IMAPP_DEBUG					TIKI_OFF
@@ -126,12 +127,13 @@
 
 #if IMAPP_ENABLED( IMAPP_COMPILER_MSVC )
 #	define IMAPP_HAS_BREAK				TIKI_ON
-#	define IMAPP_BREAK __debugbreak()
+#	define IMAPP_BREAK					__debugbreak()
 #elif IMAPP_ENABLED( IMAPP_COMPILER_GCC ) || IMAPP_ENABLED( IMAPP_COMPILER_CLANG )
 #	define IMAPP_HAS_BREAK				TIKI_ON
-#	define IMAPP_BREAK __builtin_trap()
+#	define IMAPP_BREAK					__builtin_trap()
 #else
 #	define IMAPP_HAS_BREAK				TIKI_OFF
+#	define IMAPP_BREAK
 #endif
 
 #if IMAPP_ENABLED( IMAPP_DEBUG ) && IMAPP_ENABLED( IMAPP_HAS_BREAK )
@@ -185,3 +187,6 @@
 #define IMAPP_ARRAY_COUNT( arr ) ( sizeof( arr ) / sizeof( *arr ) )
 
 #define IMAPP_USE( var ) (void)var
+
+#define IMAPP_STRINGIZE(x) IMAPP_STRINGIZE2(x)
+#define IMAPP_STRINGIZE2(x) #x

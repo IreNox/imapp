@@ -145,6 +145,7 @@ static void imappTick( void* arg )
 	imapp->lastTickValue = imappPlatformTick( imapp->platform, imapp->lastTickValue, imapp->tickIntervalMs );
 
 	imappResSysUpdate( imapp->ressys, false );
+	imappRendererUpdate( imapp->renderer );
 
 	ImUiInput* input = ImUiInputBegin( imapp->imui );
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
@@ -211,6 +212,18 @@ static void imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* wind
 	const ImAppWindowDeviceState deviceState = imappPlatformWindowGetGlContextState( appWindow );
 	if( deviceState == ImAppWindowDeviceState_DeviceLost )
 	{
+		for( uintsize i = 0u; i < imapp->windowsCount; ++i )
+		{
+			ImAppContextWindowInfo* windowInfo = &imapp->windows[ i ];
+			if( !windowInfo->isRendererCreated )
+			{
+				continue;
+			}
+
+			imappRendererDestructWindow( imapp->renderer, &windowInfo->rendererWindow );
+			windowInfo->isRendererCreated = false;
+		}
+
 		imappResSysDestroyDeviceResources( imapp->ressys );
 		imappRendererDestroyResources( imapp->renderer );
 
@@ -656,6 +669,11 @@ void ImAppQuit( ImAppContext* imapp, int exitCode )
 #endif
 	imapp->running	= false;
 	imapp->exitCode	= exitCode;
+}
+
+ImUiFont* ImAppGetDefaultFont( const ImAppContext* imapp )
+{
+	return imapp->defaultFont ? imapp->defaultFont->uiFont : NULL;
 }
 
 ImAppResPak* ImAppResourceGetDefaultPak( ImAppContext* imapp )

@@ -25,7 +25,7 @@ msdf_module:add_files( "msdfgen/core/*.cpp" )
 msdf_module:add_files( "msdfgen/ext/*.h" )
 msdf_module:add_files( "msdfgen/ext/*.cpp" )
 
-msdf_module:set_define( "MSDFGEN_PUBLIC" )
+msdf_module:set_define( "MSDFGEN_PUBLIC=" )
 msdf_module:set_define( "MSDFGEN_USE_LIBPNG" )
 msdf_module:set_define( "MSDFGEN_USE_SKIA" )
 
