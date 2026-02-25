@@ -209,6 +209,8 @@ static ImUiHash imappRendererGetShaderHash()
 
 void imappRendererUpdate( ImAppRenderer* renderer )
 {
+	IMAPP_USE( renderer );
+
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	const ImUiHash shaderHash = imappRendererGetShaderHash();
 	if( shaderHash != renderer->shaderHash )
