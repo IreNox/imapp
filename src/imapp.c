@@ -214,14 +214,14 @@ static void imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* wind
 	{
 		for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 		{
-			ImAppContextWindowInfo* windowInfo = &imapp->windows[ i ];
-			if( !windowInfo->isRendererCreated )
+			ImAppContextWindowInfo* otherWindowInfo = &imapp->windows[ i ];
+			if( !otherWindowInfo->isRendererCreated )
 			{
 				continue;
 			}
 
-			imappRendererDestructWindow( imapp->renderer, &windowInfo->rendererWindow );
-			windowInfo->isRendererCreated = false;
+			imappRendererDestructWindow( imapp->renderer, &otherWindowInfo->rendererWindow );
+			otherWindowInfo->isRendererCreated = false;
 		}
 
 		imappResSysDestroyDeviceResources( imapp->ressys );

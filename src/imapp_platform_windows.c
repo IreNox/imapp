@@ -875,6 +875,7 @@ static HGLRC imappPlatformWindowCreateGlContext( HDC windowDc )
 
 ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
 {
+	IMAPP_USE( window );
 	return ImAppWindowDeviceState_Ok;
 }
 
@@ -903,14 +904,6 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	// prevent recursive calls
 	window->updateCallback		= NULL;
 	window->updateCallbackArg	= NULL;
-}
-
-#include <GL/glew.h>
-#include <GL/GL.h>
-
-void glTrace( GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam )
-{
-	IMAPP_DEBUG_LOGI( "%s", message );
 }
 
 bool imappPlatformWindowBeginRender( ImAppWindow* window )
