@@ -147,7 +147,6 @@ static void imappTick( void* arg )
 	imappResSysUpdate( imapp->ressys, false );
 	imappRendererUpdate( imapp->renderer );
 
-	ImUiInput* input = ImUiInputBegin( imapp->imui );
 	for( uintsize i = 0u; i < imapp->windowsCount; ++i )
 	{
 		ImAppContextWindowInfo* windowInfo = &imapp->windows[ i ];
@@ -170,13 +169,16 @@ static void imappTick( void* arg )
 
 		imappPlatformWindowUpdate( windowInfo->window, imappTickUi, imapp );
 
+		ImUiInput* input = ImUiInputBegin( imapp->imui, windowInfo->inputState );
+
 		if( !imappHandleWindowEvents( imapp, windowInfo->window, input ) )
 		{
 			ImAppWindowDestroy( imapp, windowInfo->window );
 			i--;
 		}
+
+		windowInfo->inputState = ImUiInputEnd( imapp->imui );
 	}
-	ImUiInputEnd( imapp->imui );
 
 	imappTickUi( NULL, arg );
 }
@@ -203,11 +205,6 @@ static void imappTickUi( ImAppWindow* appWindow, void* arg )
 static void imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* windowInfo )
 {
 	ImAppWindow* appWindow = windowInfo->window;
-
-	if( ImUiInputGetShortcut( imapp->imui ) == ImUiInputShortcut_Paste )
-	{
-		imappPlatformGetClipboardText( imapp->platform, imapp->imui );
-	}
 
 	const ImAppWindowDeviceState deviceState = imappPlatformWindowGetGlContextState( appWindow );
 	if( deviceState == ImAppWindowDeviceState_DeviceLost )
@@ -254,9 +251,15 @@ static void imappTickWindowUi( ImAppContext* imapp, ImAppContextWindowInfo* wind
 		windowInfo->isRendererCreated = true;
 	}
 
+	if( windowInfo->inputState )
 	{
 		const ImUiSize size		= ImUiSizeCreate( (float)width, (float)height );
-		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, imappPlatformWindowGetTitle( appWindow ), size, imappPlatformWindowGetDpiScale( appWindow ) );
+		ImUiSurface* surface	= ImUiSurfaceBegin( imapp->frame, imappPlatformWindowGetTitle( appWindow ), size, windowInfo->inputState, imappPlatformWindowGetDpiScale( appWindow ) );
+
+		if( ImUiInputGetShortcut( ImUiSurfaceGetInput( surface ) ) == ImUiInputShortcut_Paste )
+		{
+			imappPlatformGetClipboardText( imapp->platform, imapp->imui );
+		}
 
 		ImUiRect windowRect;
 		if( imappPlatformWindowGetStyle( appWindow ) == ImAppWindowStyle_Custom )
@@ -322,6 +325,8 @@ static void imappFillDefaultParameters( ImAppParameters* parameters )
 	parameters->defaultWindow.state			= ImAppWindowState_Default;
 #endif
 	parameters->defaultWindow.title			= "I'm App";
+	parameters->defaultWindow.x				= IMAPP_WINDOW_DEFAULT_POSITION;
+	parameters->defaultWindow.y				= IMAPP_WINDOW_DEFAULT_POSITION;
 	parameters->defaultWindow.width			= 1280;
 	parameters->defaultWindow.height		= 720;
 	parameters->defaultWindow.clearColor	= ImUiColorCreate( 0x11u, 0x44u, 0xaau, 0xffu );
@@ -537,7 +542,7 @@ static bool imappHandleWindowEvents( ImAppContext* imapp, ImAppWindow* window, I
 		}
 	}
 
-	const ImUiPos focusDirection = ImUiInputGetDirection( imapp->imui );
+	const ImUiPos focusDirection = ImUiInputGetDirection( ImUiInputGetPushState( input ) );
 	if( focusDirection.x != 0.0f || focusDirection.y != 0.0f )
 	{
 		const double time = imappPlatformTicksToSeconds( imapp->platform, imapp->lastTickValue );

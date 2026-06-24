@@ -702,13 +702,24 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 	case ImAppWindowStyle_Custom:		winStyle = WS_OVERLAPPED | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
 	}
 
+	int x = parameters->x;
+	int y = parameters->y;
+	if( x == IMAPP_WINDOW_DEFAULT_POSITION )
+	{
+		x = CW_USEDEFAULT;
+	}
+	if( y == IMAPP_WINDOW_DEFAULT_POSITION )
+	{
+		y = CW_USEDEFAULT;
+	}
+
 	window->hwnd = CreateWindowExW(
 		WS_EX_APPWINDOW,
 		s_pWindowClass,
 		wideWindowTitle,
 		winStyle,
-		parameters->x,
-		parameters->y,
+		x,
+		y,
 		0,
 		0,
 		NULL,
@@ -724,11 +735,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 		return NULL;
 	}
 
-#if WINVER >= 0x0605
 	window->dpiScale = GetDpiForWindow( window->hwnd ) / (float)USER_DEFAULT_SCREEN_DPI;
-#else
-	window->dpiScale = 1.0f;
-#endif
 	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, (int)ceil( parameters->width * window->dpiScale ), (int)ceil( parameters->height * window->dpiScale ), SWP_NOMOVE );
 
 	{
@@ -1487,32 +1494,6 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				break;
 			}
 
-//#if WINVER >= 0x0605
-//			const UINT dpi		= GetDpiForWindow( window->hwnd );
-//			const int frame_x	= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
-//			const int frame_y	= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
-//			const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
-//#else
-//			const int frame_x	= GetSystemMetrics( SM_CXFRAME );
-//			const int frame_y	= GetSystemMetrics( SM_CYFRAME );
-//			const int padding	= GetSystemMetrics( SM_CXPADDEDBORDER );
-//#endif
-//
-//			NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
-//			RECT* requestedClientRect = params->rgrc;
-//
-//			requestedClientRect->right	-= frame_x + padding;
-//			requestedClientRect->left	+= frame_x + padding;
-//			requestedClientRect->bottom	-= frame_y + padding;
-//
-//			WINDOWPLACEMENT placement = { 0 };
-//			placement.length = sizeof( WINDOWPLACEMENT );
-//			if( GetWindowPlacement( window->hwnd, &placement ) &&
-//				placement.showCmd == SW_SHOWMAXIMIZED )
-//			{
-//				requestedClientRect->top += padding;
-//			}
-
 			return 0;
 		}
 		break;
@@ -1535,16 +1516,10 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				return window->windowHitResult;
 			}
 
-#if WINVER >= 0x0605
 			const UINT dpi		= GetDpiForWindow( window->hwnd );
 			int frame_x			= GetSystemMetricsForDpi( SM_CXFRAME, dpi );
 			int frame_y			= GetSystemMetricsForDpi( SM_CYFRAME, dpi );
 			const int padding	= GetSystemMetricsForDpi( SM_CXPADDEDBORDER, dpi );
-#else
-			int frame_x			= GetSystemMetrics( SM_CXFRAME );
-			int frame_y			= GetSystemMetrics( SM_CYFRAME );
-			const int padding	= GetSystemMetrics( SM_CXPADDEDBORDER );
-#endif
 
 			frame_x += padding;
 			frame_y += padding;

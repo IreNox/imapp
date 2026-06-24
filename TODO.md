@@ -4,4 +4,4 @@
 - compress resource data. use zstd?, png?
 - resource locking to prevent unload
 - settings for window state and position
-- multiple windows
+- font super sampling

@@ -16,6 +16,8 @@ extern "C"
 typedef struct ImAppContext ImAppContext;
 typedef struct ImAppWindow ImAppWindow;
 
+#define IMAPP_WINDOW_DEFAULT_POSITION ((int)0x8fffffff)
+
 typedef struct ImAppBlob
 {
 	const void*			data;

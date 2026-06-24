@@ -22,6 +22,7 @@ typedef struct ImAppWindow ImAppWindow;
 typedef struct ImAppContextWindowInfo
 {
 	ImAppWindow*			window;
+	const ImUiInputState*	inputState;
 
 	ImAppWindowDoUiFunc		uiFunc;
 	void*					uiContext;

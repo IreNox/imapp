@@ -257,7 +257,7 @@ ImUiRect imappWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 		//}
 
 		if( inputState.isMouseOver &&
-			ImUiInputHasMouseButtonDoubleClicked( ImUiWidgetGetContext( title ), ImUiInputMouseButton_Left ) )
+			ImUiInputHasMouseButtonDoubleClicked( ImUiWidgetGetInput( title ), ImUiInputMouseButton_Left ) )
 		{
 			imappPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
 		}

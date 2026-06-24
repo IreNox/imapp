@@ -1376,7 +1376,7 @@ Options:
 
 		m_scrollContent.setAlign( 0.5f, 0.5f );
 
-		const UiInputState& inputState = m_scrollArea.getContext().getInput();
+		const UiInputState& inputState = m_scrollArea.getInput();
 		if( widgetInput.wasPressed )
 		{
 			const UiPos mousePos = inputState.getMousePos();

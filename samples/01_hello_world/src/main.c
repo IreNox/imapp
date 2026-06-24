@@ -15,11 +15,11 @@ struct ImAppTestProgramContext
 
 void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
 {
-	parameters->tickIntervalMs		= 15;
-	parameters->windowTitle			= "I'm App - Hello World";
-	parameters->windowWidth			= 400;
-	parameters->windowHeight		= 250;
-	parameters->windowMode			= ImAppDefaultWindow_Resizable;
+	parameters->tickIntervalMs			= 15;
+	parameters->defaultWindow.title		= "I'm App - Hello World";
+	parameters->defaultWindow.width		= 400;
+	parameters->defaultWindow.height	= 250;
+	parameters->defaultWindow.style		= ImAppWindowStyle_Resizable;
 
 	ImAppTestProgramContext* context = (ImAppTestProgramContext*)malloc( sizeof( ImAppTestProgramContext ) );
 	context->tickIndex = 0u;
