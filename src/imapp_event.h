@@ -1,79 +1,78 @@
 #pragma once
 
-typedef enum ImAppEventType ImAppEventType;
-enum ImAppEventType
+typedef enum ImappEventType ImappEventType;
+enum ImappEventType
 {
 	// Window
-	ImAppEventType_WindowClose,
+	ImappEventType_WindowClose,
 
 	// Input
-	ImAppEventType_KeyDown,
-	ImAppEventType_KeyUp,
-	ImAppEventType_Character,
-	ImAppEventType_Motion,
-	ImAppEventType_ButtonDown,
-	ImAppEventType_ButtonUp,
-	ImAppEventType_DoubleClick,
-	ImAppEventType_Scroll,
-	ImAppEventType_Direction
+	ImappEventType_KeyDown,
+	ImappEventType_KeyUp,
+	ImappEventType_Character,
+	ImappEventType_Motion,
+	ImappEventType_ButtonDown,
+	ImappEventType_ButtonUp,
+	ImappEventType_DoubleClick,
+	ImappEventType_Scroll,
+	ImappEventType_Direction
 };
 
-typedef struct ImAppWindowEvent
+typedef struct ImappWindowEvent
 {
-	ImAppEventType			type;
-} ImAppWindowEvent;
+	ImappEventType			type;
+} ImappWindowEvent;
 
-typedef struct ImAppInputKeyEvent
+typedef struct ImappInputKeyEvent
 {
-	ImAppEventType			type;
-	ImUiInputKey			key;
+	ImappEventType			type;
+	ImuiInputKey			key;
 	bool					repeat;
-} ImAppInputKeyEvent;
+} ImappInputKeyEvent;
 
-typedef struct ImAppInputCharacterEvent
+typedef struct ImappInputCharacterEvent
 {
-	ImAppEventType			type;
+	ImappEventType			type;
 	uint32_t				character;
-} ImAppInputCharacterEvent;
+} ImappInputCharacterEvent;
 
-typedef struct ImAppInputMotionEvent
+typedef struct ImappInputMotionEvent
 {
-	ImAppEventType			type;
+	ImappEventType			type;
 	int32_t					x;
 	int32_t					y;
-} ImAppInputMotionEvent;
+} ImappInputMotionEvent;
 
-typedef struct ImAppInputButtonEvent
+typedef struct ImappInputButtonEvent
 {
-	ImAppEventType			type;
-	ImUiInputMouseButton	button;
+	ImappEventType			type;
+	ImuiInputMouseButton	button;
 	uint8_t					repeateCount;
-} ImAppInputButtonEvent;
+} ImappInputButtonEvent;
 
-typedef struct ImAppInputScrollEvent
+typedef struct ImappInputScrollEvent
 {
-	ImAppEventType			type;
+	ImappEventType			type;
 	int32_t					x;
 	int32_t					y;
-} ImAppInputScrollEvent;
+} ImappInputScrollEvent;
 
-typedef struct ImAppInputDirectionEvent
+typedef struct ImappInputDirectionEvent
 {
-	ImAppEventType			type;
+	ImappEventType			type;
 	float					x;
 	float					y;
-} ImAppInputDirectionEvent;
+} ImappInputDirectionEvent;
 
-typedef union ImAppEvent ImAppEvent;
-union ImAppEvent
+typedef union ImappEvent
 {
-	ImAppEventType				type;
+	ImappEventType				type;
 
-	ImAppWindowEvent			window;
-	ImAppInputKeyEvent			key;
-	ImAppInputCharacterEvent	character;
-	ImAppInputMotionEvent		motion;
-	ImAppInputButtonEvent		button;
-	ImAppInputScrollEvent		scroll;
-	ImAppInputDirectionEvent	direction;
-};
+	ImappWindowEvent			window;
+	ImappInputKeyEvent			key;
+	ImappInputCharacterEvent	character;
+	ImappInputMotionEvent		motion;
+	ImappInputButtonEvent		button;
+	ImappInputScrollEvent		scroll;
+	ImappInputDirectionEvent	direction;
+} ImappEvent;

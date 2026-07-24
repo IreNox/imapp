@@ -4,127 +4,127 @@
 
 #include <assert.h>
 
-static ImAppWindowTheme s_windowTheme;
+static ImappWindowTheme s_windowTheme;
 
-typedef struct ImAppWindowThemeState
+typedef struct ImappWindowThemeState
 {
-	ImUiPos		clickPosition;
-	//ImUiPos		lastPosition;
-} ImAppWindowThemeState;
+	ImuiPos		clickPosition;
+	//ImuiPos		lastPosition;
+} ImappWindowThemeState;
 
-static const ImUiToolboxThemeReflectionField s_windowThemeReflectionFields[] =
+static const ImuiToolboxThemeReflectionField s_windowThemeReflectionFields[] =
 {
-	{ "Title/Active/Skin",									ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleActive.skin ) },
-	{ "Title/Active/Text Color",							ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleActive.textColor ) },
-	{ "Title/Active/Background Color",						ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleActive.backgroundColor ) },
+	{ "Title/Active/Skin",									ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleActive.skin ) },
+	{ "Title/Active/Text Color",							ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleActive.textColor ) },
+	{ "Title/Active/Background Color",						ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleActive.backgroundColor ) },
 
-	{ "Title/Inactive/Skin",								ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleInactive.skin ) },
-	{ "Title/Inactive/Text Color",							ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleInactive.textColor ) },
-	{ "Title/Inactive/Background Color",					ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleInactive.backgroundColor ) },
+	{ "Title/Inactive/Skin",								ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleInactive.skin ) },
+	{ "Title/Inactive/Text Color",							ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleInactive.textColor ) },
+	{ "Title/Inactive/Background Color",					ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleInactive.backgroundColor ) },
 
-	{ "Title/Buttons/Minimize/Skin",						ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleMinimizeButton.skin ) },
-	{ "Title/Buttons/Minimize/Size",						ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleMinimizeButton.size ) },
-	{ "Title/Buttons/Minimize/Background Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.backgroundColor ) },
-	{ "Title/Buttons/Minimize/Background Inactive Color",	ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.backgroundColorInactive ) },
-	{ "Title/Buttons/Minimize/Background Hover Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.backgroundColorHover ) },
-	{ "Title/Buttons/Minimize/Background Clicked Color",	ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.backgroundColorClicked ) },
-	{ "Title/Buttons/Minimize/Icon/Image",					ImUiToolboxThemeReflectionType_Image,	offsetof( ImAppWindowTheme, titleMinimizeButton.icon ) },
-	{ "Title/Buttons/Minimize/Icon/Size",					ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleMinimizeButton.iconSize ) },
-	{ "Title/Buttons/Minimize/Icon/Color",					ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.iconColor ) },
-	{ "Title/Buttons/Minimize/Icon/Inactive Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.iconColorInactive ) },
-	{ "Title/Buttons/Minimize/Icon/Hover Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.iconColorHover ) },
-	{ "Title/Buttons/Minimize/Icon/Clicked Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMinimizeButton.iconColorClicked ) },
+	{ "Title/Buttons/Minimize/Skin",						ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleMinimizeButton.skin ) },
+	{ "Title/Buttons/Minimize/Size",						ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleMinimizeButton.size ) },
+	{ "Title/Buttons/Minimize/Background Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.backgroundColor ) },
+	{ "Title/Buttons/Minimize/Background Inactive Color",	ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.backgroundColorInactive ) },
+	{ "Title/Buttons/Minimize/Background Hover Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.backgroundColorHover ) },
+	{ "Title/Buttons/Minimize/Background Clicked Color",	ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.backgroundColorClicked ) },
+	{ "Title/Buttons/Minimize/Icon/Image",					ImuiToolboxThemeReflectionType_Image,	offsetof( ImappWindowTheme, titleMinimizeButton.icon ) },
+	{ "Title/Buttons/Minimize/Icon/Size",					ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleMinimizeButton.iconSize ) },
+	{ "Title/Buttons/Minimize/Icon/Color",					ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.iconColor ) },
+	{ "Title/Buttons/Minimize/Icon/Inactive Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.iconColorInactive ) },
+	{ "Title/Buttons/Minimize/Icon/Hover Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.iconColorHover ) },
+	{ "Title/Buttons/Minimize/Icon/Clicked Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMinimizeButton.iconColorClicked ) },
 
-	{ "Title/Buttons/Restore/Skin",							ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleRestoreButton.skin ) },
-	{ "Title/Buttons/Restore/Size",							ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleRestoreButton.size ) },
-	{ "Title/Buttons/Restore/Background Color",				ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.backgroundColor ) },
-	{ "Title/Buttons/Restore/Background Inactive Color",	ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.backgroundColorInactive ) },
-	{ "Title/Buttons/Restore/Background Hover Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.backgroundColorHover ) },
-	{ "Title/Buttons/Restore/Background Clicked Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.backgroundColorClicked ) },
-	{ "Title/Buttons/Restore/Icon/Image",					ImUiToolboxThemeReflectionType_Image,	offsetof( ImAppWindowTheme, titleRestoreButton.icon ) },
-	{ "Title/Buttons/Restore/Icon/Size",					ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleRestoreButton.iconSize ) },
-	{ "Title/Buttons/Restore/Icon/Color",					ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.iconColor ) },
-	{ "Title/Buttons/Restore/Icon/Inactive Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.iconColorInactive ) },
-	{ "Title/Buttons/Restore/Icon/Hover Color",				ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.iconColorHover ) },
-	{ "Title/Buttons/Restore/Icon/Clicked Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleRestoreButton.iconColorClicked ) },
+	{ "Title/Buttons/Restore/Skin",							ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleRestoreButton.skin ) },
+	{ "Title/Buttons/Restore/Size",							ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleRestoreButton.size ) },
+	{ "Title/Buttons/Restore/Background Color",				ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.backgroundColor ) },
+	{ "Title/Buttons/Restore/Background Inactive Color",	ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.backgroundColorInactive ) },
+	{ "Title/Buttons/Restore/Background Hover Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.backgroundColorHover ) },
+	{ "Title/Buttons/Restore/Background Clicked Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.backgroundColorClicked ) },
+	{ "Title/Buttons/Restore/Icon/Image",					ImuiToolboxThemeReflectionType_Image,	offsetof( ImappWindowTheme, titleRestoreButton.icon ) },
+	{ "Title/Buttons/Restore/Icon/Size",					ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleRestoreButton.iconSize ) },
+	{ "Title/Buttons/Restore/Icon/Color",					ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.iconColor ) },
+	{ "Title/Buttons/Restore/Icon/Inactive Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.iconColorInactive ) },
+	{ "Title/Buttons/Restore/Icon/Hover Color",				ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.iconColorHover ) },
+	{ "Title/Buttons/Restore/Icon/Clicked Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleRestoreButton.iconColorClicked ) },
 
-	{ "Title/Buttons/Maximize/Skin",						ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleMaximizeButton.skin ) },
-	{ "Title/Buttons/Maximize/Size",						ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleMaximizeButton.size ) },
-	{ "Title/Buttons/Maximize/Background Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.backgroundColor ) },
-	{ "Title/Buttons/Maximize/Background Inactive Color",	ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.backgroundColorInactive ) },
-	{ "Title/Buttons/Maximize/Background Hover Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.backgroundColorHover ) },
-	{ "Title/Buttons/Maximize/Background Clicked Color",	ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.backgroundColorClicked ) },
-	{ "Title/Buttons/Maximize/Icon/Image",					ImUiToolboxThemeReflectionType_Image,	offsetof( ImAppWindowTheme, titleMaximizeButton.icon ) },
-	{ "Title/Buttons/Maximize/Icon/Size",					ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleMaximizeButton.iconSize ) },
-	{ "Title/Buttons/Maximize/Icon/Color",					ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.iconColor ) },
-	{ "Title/Buttons/Maximize/Icon/Inactive Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.iconColorInactive ) },
-	{ "Title/Buttons/Maximize/Icon/Hover Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.iconColorHover ) },
-	{ "Title/Buttons/Maximize/Icon/Clicked Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleMaximizeButton.iconColorClicked ) },
+	{ "Title/Buttons/Maximize/Skin",						ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleMaximizeButton.skin ) },
+	{ "Title/Buttons/Maximize/Size",						ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleMaximizeButton.size ) },
+	{ "Title/Buttons/Maximize/Background Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.backgroundColor ) },
+	{ "Title/Buttons/Maximize/Background Inactive Color",	ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.backgroundColorInactive ) },
+	{ "Title/Buttons/Maximize/Background Hover Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.backgroundColorHover ) },
+	{ "Title/Buttons/Maximize/Background Clicked Color",	ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.backgroundColorClicked ) },
+	{ "Title/Buttons/Maximize/Icon/Image",					ImuiToolboxThemeReflectionType_Image,	offsetof( ImappWindowTheme, titleMaximizeButton.icon ) },
+	{ "Title/Buttons/Maximize/Icon/Size",					ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleMaximizeButton.iconSize ) },
+	{ "Title/Buttons/Maximize/Icon/Color",					ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.iconColor ) },
+	{ "Title/Buttons/Maximize/Icon/Inactive Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.iconColorInactive ) },
+	{ "Title/Buttons/Maximize/Icon/Hover Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.iconColorHover ) },
+	{ "Title/Buttons/Maximize/Icon/Clicked Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleMaximizeButton.iconColorClicked ) },
 
-	{ "Title/Buttons/Close/Skin",							ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, titleCloseButton.skin ) },
-	{ "Title/Buttons/Close/Size",							ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleCloseButton.size ) },
-	{ "Title/Buttons/Close/Background Color",				ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.backgroundColor ) },
-	{ "Title/Buttons/Close/Background Inactive Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.backgroundColorInactive ) },
-	{ "Title/Buttons/Close/Background Hover Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.backgroundColorHover ) },
-	{ "Title/Buttons/Close/Background Clicked Color",		ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.backgroundColorClicked ) },
-	{ "Title/Buttons/Close/Icon/Image",						ImUiToolboxThemeReflectionType_Image,	offsetof( ImAppWindowTheme, titleCloseButton.icon ) },
-	{ "Title/Buttons/Close/Icon/Size",						ImUiToolboxThemeReflectionType_Size,	offsetof( ImAppWindowTheme, titleCloseButton.iconSize ) },
-	{ "Title/Buttons/Close/Icon/Color",						ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.iconColor ) },
-	{ "Title/Buttons/Close/Icon/Inactive Color",			ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.iconColorInactive ) },
-	{ "Title/Buttons/Close/Icon/Hover Color",				ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.iconColorHover ) },
-	{ "Title/Buttons/Close/Icon/Clicked Color",				ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, titleCloseButton.iconColorClicked ) },
+	{ "Title/Buttons/Close/Skin",							ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, titleCloseButton.skin ) },
+	{ "Title/Buttons/Close/Size",							ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleCloseButton.size ) },
+	{ "Title/Buttons/Close/Background Color",				ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.backgroundColor ) },
+	{ "Title/Buttons/Close/Background Inactive Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.backgroundColorInactive ) },
+	{ "Title/Buttons/Close/Background Hover Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.backgroundColorHover ) },
+	{ "Title/Buttons/Close/Background Clicked Color",		ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.backgroundColorClicked ) },
+	{ "Title/Buttons/Close/Icon/Image",						ImuiToolboxThemeReflectionType_Image,	offsetof( ImappWindowTheme, titleCloseButton.icon ) },
+	{ "Title/Buttons/Close/Icon/Size",						ImuiToolboxThemeReflectionType_Size,	offsetof( ImappWindowTheme, titleCloseButton.iconSize ) },
+	{ "Title/Buttons/Close/Icon/Color",						ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.iconColor ) },
+	{ "Title/Buttons/Close/Icon/Inactive Color",			ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.iconColorInactive ) },
+	{ "Title/Buttons/Close/Icon/Hover Color",				ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.iconColorHover ) },
+	{ "Title/Buttons/Close/Icon/Clicked Color",				ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, titleCloseButton.iconColorClicked ) },
 
-	{ "Title/Padding",										ImUiToolboxThemeReflectionType_Border,	offsetof( ImAppWindowTheme, titlePadding ) },
-	{ "Title/Height",										ImUiToolboxThemeReflectionType_Float,	offsetof( ImAppWindowTheme, titleHeight ) },
-	{ "Title/Spacing",										ImUiToolboxThemeReflectionType_Float,	offsetof( ImAppWindowTheme, titleSpacing ) },
+	{ "Title/Padding",										ImuiToolboxThemeReflectionType_Border,	offsetof( ImappWindowTheme, titlePadding ) },
+	{ "Title/Height",										ImuiToolboxThemeReflectionType_Float,	offsetof( ImappWindowTheme, titleHeight ) },
+	{ "Title/Spacing",										ImuiToolboxThemeReflectionType_Float,	offsetof( ImappWindowTheme, titleSpacing ) },
 
-	{ "Body/Active/Skin",									ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, bodyActive.skin ) },
-	{ "Body/Active/Color",									ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, bodyActive.color ) },
+	{ "Body/Active/Skin",									ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, bodyActive.skin ) },
+	{ "Body/Active/Color",									ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, bodyActive.color ) },
 
-	{ "Body/Inactive/Skin",									ImUiToolboxThemeReflectionType_Skin,	offsetof( ImAppWindowTheme, bodyInactive.skin ) },
-	{ "Body/Inactive/Color",								ImUiToolboxThemeReflectionType_Color,	offsetof( ImAppWindowTheme, bodyInactive.color ) },
+	{ "Body/Inactive/Skin",									ImuiToolboxThemeReflectionType_Skin,	offsetof( ImappWindowTheme, bodyInactive.skin ) },
+	{ "Body/Inactive/Color",								ImuiToolboxThemeReflectionType_Color,	offsetof( ImappWindowTheme, bodyInactive.color ) },
 
-	{ "Body/Padding",										ImUiToolboxThemeReflectionType_Border,	offsetof( ImAppWindowTheme, bodyPadding ) },
+	{ "Body/Padding",										ImuiToolboxThemeReflectionType_Border,	offsetof( ImappWindowTheme, bodyPadding ) },
 };
-static_assert( sizeof( ImAppWindowTheme ) == 776u, "window theme changed" );
+static_assert( sizeof( ImappWindowTheme ) == 776u, "window theme changed" );
 
-ImUiToolboxThemeReflection ImAppWindowThemeReflectionGet()
+ImuiToolboxThemeReflection imappWindowThemeReflectionGet()
 {
-	ImUiToolboxThemeReflection reflection;
+	ImuiToolboxThemeReflection reflection;
 	reflection.fields	= s_windowThemeReflectionFields;
 	reflection.count	= IMAPP_ARRAY_COUNT( s_windowThemeReflectionFields );
 
 	return reflection;
 }
 
-ImAppWindowTheme* ImAppWindowThemeGet()
+ImappWindowTheme* imappWindowThemeGet()
 {
 	return &s_windowTheme;
 }
 
-void ImAppWindowThemeSet( const ImAppWindowTheme* windowTheme )
+void imappWindowThemeSet( const ImappWindowTheme* windowTheme )
 {
 	s_windowTheme = *windowTheme;
 }
 
-void ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme )
+void imappWindowThemeFillDefault( ImappWindowTheme* windowTheme )
 {
-	const ImUiSkin skin = { IMUI_TEXTURE_HANDLE_INVALID };
+	const ImuiSkin skin = { IMUI_TEXTURE_HANDLE_INVALID };
 
-	const ImUiColor brightColor					= ImUiColorCreateGray( 192u );
-	const ImUiColor mediumColor					= ImUiColorCreateGray( 128u );
-	const ImUiColor lowColor					= ImUiColorCreateGray( 96u );
+	const ImuiColor brightColor					= imuiColorCreateGray( 192u );
+	const ImuiColor mediumColor					= imuiColorCreateGray( 128u );
+	const ImuiColor lowColor					= imuiColorCreateGray( 96u );
 
 	windowTheme->titleActive.skin				= skin;
-	windowTheme->titleActive.textColor			= ImUiColorCreateBlack();
+	windowTheme->titleActive.textColor			= imuiColorCreateBlack();
 	windowTheme->titleActive.backgroundColor	= brightColor;
 	windowTheme->titleInactive.skin				= skin;
-	windowTheme->titleInactive.textColor		= ImUiColorCreateBlack();
+	windowTheme->titleInactive.textColor		= imuiColorCreateBlack();
 	windowTheme->titleInactive.backgroundColor	= mediumColor;
 
-	const ImUiImage image = { IMUI_TEXTURE_HANDLE_INVALID };
+	const ImuiImage image = { IMUI_TEXTURE_HANDLE_INVALID };
 
-	ImAppWindowThemeTitleButton* buttons[] = {
+	ImappWindowThemeTitleButton* buttons[] = {
 		&windowTheme->titleMinimizeButton,
 		&windowTheme->titleRestoreButton,
 		&windowTheme->titleMaximizeButton,
@@ -133,44 +133,44 @@ void ImAppWindowThemeFillDefault( ImAppWindowTheme* windowTheme )
 
 	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( buttons ); ++i )
 	{
-		ImAppWindowThemeTitleButton* button = buttons[ i ];
+		ImappWindowThemeTitleButton* button = buttons[ i ];
 
 		button->skin					= skin;
-		button->size					= ImUiSizeCreateAll( 30.0f );
+		button->size					= imuiSizeCreateAll( 30.0f );
 		button->icon					= image;
-		button->iconSize				= ImUiSizeCreateZero();
-		button->iconColor				= ImUiColorCreateBlack();
-		button->iconColorInactive		= ImUiColorCreateBlack();
-		button->iconColorHover			= ImUiColorCreateBlack();
-		button->iconColorClicked		= ImUiColorCreateBlack();
+		button->iconSize				= imuiSizeCreateZero();
+		button->iconColor				= imuiColorCreateBlack();
+		button->iconColorInactive		= imuiColorCreateBlack();
+		button->iconColorHover			= imuiColorCreateBlack();
+		button->iconColorClicked		= imuiColorCreateBlack();
 		button->backgroundColor			= brightColor;
 		button->backgroundColorInactive	= mediumColor;
 		button->backgroundColorHover	= mediumColor;
 		button->backgroundColorClicked	= lowColor;
 	}
 
-	windowTheme->titlePadding									= ImUiBorderCreate( 0.0f, 5.0f, 0.0f, 0.0f );
+	windowTheme->titlePadding									= imuiBorderCreate( 0.0f, 5.0f, 0.0f, 0.0f );
 	windowTheme->titleHeight									= 30.0f;
 	windowTheme->titleSpacing									= 4.0f;
 
 	windowTheme->bodyActive.skin								= skin;
-	windowTheme->bodyActive.color								= ImUiColorCreateWhite();
+	windowTheme->bodyActive.color								= imuiColorCreateWhite();
 	windowTheme->bodyInactive.skin								= skin;
 	windowTheme->bodyInactive.color								= brightColor;
 
-	windowTheme->bodyPadding									= ImUiBorderCreateAll( 5.0f );
+	windowTheme->bodyPadding									= imuiBorderCreateAll( 5.0f );
 }
 
-bool ImAppWindowThemeTitleButtonUi( ImUiWindow* window, const ImAppWindowThemeTitleButton* buttonTheme, bool hasFocus, const char* alternativeText )
+bool imappWindowThemeTitleButtonUi( ImuiWindow* window, const ImappWindowThemeTitleButton* buttonTheme, bool hasFocus, const char* alternativeText )
 {
-	ImUiWidget* button = ImUiWidgetBegin( window );
-	ImUiWidgetSetFixedSize( button, buttonTheme->size );
+	ImuiWidget* button = imuiWidgetBegin( window );
+	imuiWidgetSetFixedSize( button, buttonTheme->size );
 
-	ImUiWidgetInputState inputState;
-	ImUiWidgetGetInputState( button, &inputState );
+	ImuiWidgetInputState inputState;
+	imuiWidgetGetInputState( button, &inputState );
 
-	ImUiColor iconColor = hasFocus ? buttonTheme->iconColor : buttonTheme->iconColorInactive;
-	ImUiColor backgroundColor = hasFocus ? buttonTheme->backgroundColor : buttonTheme->backgroundColorInactive;
+	ImuiColor iconColor = hasFocus ? buttonTheme->iconColor : buttonTheme->iconColorInactive;
+	ImuiColor backgroundColor = hasFocus ? buttonTheme->backgroundColor : buttonTheme->backgroundColorInactive;
 	if( inputState.wasPressed && inputState.isMouseDown )
 	{
 		iconColor = buttonTheme->iconColorClicked;
@@ -182,59 +182,59 @@ bool ImAppWindowThemeTitleButtonUi( ImUiWindow* window, const ImAppWindowThemeTi
 		backgroundColor = buttonTheme->backgroundColorHover;
 	}
 
-	ImUiWidgetDrawSkin( button, &buttonTheme->skin, backgroundColor );
+	imuiWidgetDrawSkin( button, &buttonTheme->skin, backgroundColor );
 
 	if( buttonTheme->icon.textureHandle )
 	{
-		ImUiWidget* buttonIcon = ImUiWidgetBegin( window );
-		ImUiWidgetSetAlign( buttonIcon, 0.5f, 0.5f );
-		ImUiWidgetSetFixedSize( buttonIcon, buttonTheme->iconSize );
+		ImuiWidget* buttonIcon = imuiWidgetBegin( window );
+		imuiWidgetSetAlign( buttonIcon, 0.5f, 0.5f );
+		imuiWidgetSetFixedSize( buttonIcon, buttonTheme->iconSize );
 
-		ImUiWidgetDrawImageColor( buttonIcon, &buttonTheme->icon, iconColor );
+		imuiWidgetDrawImageColor( buttonIcon, &buttonTheme->icon, iconColor );
 
-		ImUiWidgetEnd( buttonIcon );
+		imuiWidgetEnd( buttonIcon );
 	}
 	else
 	{
-		ImUiWidget* buttonText = ImUiToolboxLabelBeginColor( window, alternativeText, iconColor );
-		ImUiWidgetSetHAlign( buttonText, 0.5f );
+		ImuiWidget* buttonText = imuiToolboxLabelBeginColor( window, alternativeText, iconColor );
+		imuiWidgetSetHAlign( buttonText, 0.5f );
 
-		ImUiWidgetEnd( buttonText );
+		imuiWidgetEnd( buttonText );
 	}
 
-	ImUiWidgetEnd( button );
+	imuiWidgetEnd( button );
 
 	return inputState.wasPressed && inputState.hasMouseReleased;
 }
 
-ImUiRect imappWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
+ImuiRect imappWindowThemeDoUi( ImappWindow* appWindow, ImuiSurface* surface )
 {
-	const bool hasFocus = ImAppWindowHasFocus( appWindow );
-	const bool isMaximized = imappPlatformWindowGetState( appWindow ) == ImAppWindowState_Maximized;
+	const bool hasFocus = imappWindowHasFocus( appWindow );
+	const bool isMaximized = imappPlatformWindowGetState( appWindow ) == ImappWindowState_Maximized;
 
-	ImUiWindow* window = ImUiWindowBegin( surface, "window", ImUiSurfaceGetRect( surface ), 1 );
+	ImuiWindow* window = imuiWindowBegin( surface, "window", imuiSurfaceGetRect( surface ), 1 );
 
-	ImUiWidget* root = ImUiWidgetBegin( window );
-	ImUiWidgetSetStretchOne( root );
-	ImUiWidgetSetLayoutVertical( root );
+	ImuiWidget* root = imuiWidgetBegin( window );
+	imuiWidgetSetStretchOne( root );
+	imuiWidgetSetLayoutVertical( root );
 
 	// title bar
 	int buttonsX;
 	int titleHeight;
 	{
-		ImUiWidget* title = ImUiWidgetBegin( window );
-		ImUiWidgetSetHStretch( title, 1.0f );
-		ImUiWidgetSetLayoutHorizontalSpacing( title, s_windowTheme.titleSpacing );
-		ImUiWidgetSetFixedHeight( title, s_windowTheme.titleHeight );
-		ImUiWidgetSetPadding( title, s_windowTheme.titlePadding );
+		ImuiWidget* title = imuiWidgetBegin( window );
+		imuiWidgetSetHStretch( title, 1.0f );
+		imuiWidgetSetLayoutHorizontalSpacing( title, s_windowTheme.titleSpacing );
+		imuiWidgetSetFixedHeight( title, s_windowTheme.titleHeight );
+		imuiWidgetSetPadding( title, s_windowTheme.titlePadding );
 
-		const ImAppWindowThemeTitle* titleTheme = hasFocus ? &s_windowTheme.titleActive : &s_windowTheme.titleInactive;
-		ImUiWidgetDrawSkin( title, &titleTheme->skin, titleTheme->backgroundColor );
+		const ImappWindowThemeTitle* titleTheme = hasFocus ? &s_windowTheme.titleActive : &s_windowTheme.titleInactive;
+		imuiWidgetDrawSkin( title, &titleTheme->skin, titleTheme->backgroundColor );
 
-		//ImAppWindowThemeState* state = (ImAppWindowThemeState*)ImUiWidgetAllocState( title, sizeof( ImAppWindowThemeState ), 0u );
+		//imappWindowThemeState* state = (imappWindowThemeState*)imuiWidgetAllocState( title, sizeof( imappWindowThemeState ), 0u );
 
-		ImUiWidgetInputState inputState;
-		ImUiWidgetGetInputState( title, &inputState );
+		ImuiWidgetInputState inputState;
+		imuiWidgetGetInputState( title, &inputState );
 
 		//if( inputState.hasMousePressed )
 		//{
@@ -243,92 +243,92 @@ ImUiRect imappWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface )
 
 		//if( inputState.wasPressed )
 		//{
-		//	const ImUiPos mouseMove = ImUiPosSubPos( inputState.relativeMousePos, state->clickPosition );
+		//	const imuiPos mouseMove = imuiPosSubPos( inputState.relativeMousePos, state->clickPosition );
 		//	if( mouseMove.x != 0.0f || mouseMove.y != 0.0f )
 		//	{
 		//		int x;
 		//		int y;
-		//		ImAppWindowGetPosition( appWindow, &x, &y );
+		//		imappWindowGetPosition( appWindow, &x, &y );
 		//		x += (int)mouseMove.x;
 		//		y += (int)mouseMove.y;
 
-		//		ImAppWindowSetPosition( appWindow, x, y );
+		//		imappWindowSetPosition( appWindow, x, y );
 		//	}
 		//}
 
 		if( inputState.isMouseOver &&
-			ImUiInputHasMouseButtonDoubleClicked( ImUiWidgetGetInput( title ), ImUiInputMouseButton_Left ) )
+			imuiInputHasMouseButtonDoubleClicked( imuiWidgetGetInput( title ), ImuiInputMouseButton_Left ) )
 		{
-			imappPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
+			imappPlatformWindowSetState( appWindow, isMaximized ? ImappWindowState_Default : ImappWindowState_Maximized );
 		}
 
 		// title text
 		{
 			const char* windowTitle = imappPlatformWindowGetTitle( appWindow );
 
-			ImUiWidget* titleText = ImUiToolboxLabelBeginColor( window, windowTitle, titleTheme->textColor );
-			ImUiWidgetSetVAlign( titleText, 0.5f );
-			ImUiToolboxLabelEnd( titleText );
+			ImuiWidget* titleText = imuiToolboxLabelBeginColor( window, windowTitle, titleTheme->textColor );
+			imuiWidgetSetVAlign( titleText, 0.5f );
+			imuiToolboxLabelEnd( titleText );
 		}
 
-		ImUiWidget* strecher = ImUiWidgetBegin( window );
-		ImUiWidgetSetHStretch( strecher, 1.0f );
+		ImuiWidget* strecher = imuiWidgetBegin( window );
+		imuiWidgetSetHStretch( strecher, 1.0f );
 		{
-			const ImUiRect strecherRect = ImUiWidgetGetRect( strecher );
+			const ImuiRect strecherRect = imuiWidgetGetRect( strecher );
 			buttonsX = (int)(strecherRect.pos.x + strecherRect.size.width);
 		}
-		ImUiWidgetEnd( strecher );
+		imuiWidgetEnd( strecher );
 
 		// minimize button
 		{
-			const ImAppWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleMinimizeButton;
-			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "_") )
+			const ImappWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleMinimizeButton;
+			if( imappWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "_") )
 			{
-				imappPlatformWindowSetState( appWindow, ImAppWindowState_Minimized );
+				imappPlatformWindowSetState( appWindow, ImappWindowState_Minimized );
 			}
 		}
 
 		// maximize/restore button
 		{
-			const ImAppWindowThemeTitleButton* buttonTheme = isMaximized ? &s_windowTheme.titleRestoreButton : &s_windowTheme.titleMaximizeButton;
+			const ImappWindowThemeTitleButton* buttonTheme = isMaximized ? &s_windowTheme.titleRestoreButton : &s_windowTheme.titleMaximizeButton;
 			const char* alternativeText = isMaximized ? "[]" : "^";
-			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, alternativeText ) )
+			if( imappWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, alternativeText ) )
 			{
-				imappPlatformWindowSetState( appWindow, isMaximized ? ImAppWindowState_Default : ImAppWindowState_Maximized );
+				imappPlatformWindowSetState( appWindow, isMaximized ? ImappWindowState_Default : ImappWindowState_Maximized );
 			}
 		}
 
 		// close button
 		{
-			const ImAppWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleCloseButton;
-			if( ImAppWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "X" ) )
+			const ImappWindowThemeTitleButton* buttonTheme = &s_windowTheme.titleCloseButton;
+			if( imappWindowThemeTitleButtonUi( window, buttonTheme, hasFocus, "X" ) )
 			{
 				imappPlatformWindowClose( appWindow );
 			}
 		}
 
-		titleHeight = (int)ImUiWidgetGetSizeHeight( title );
+		titleHeight = (int)imuiWidgetGetSizeHeight( title );
 
-		ImUiWidgetEnd( title );
+		imuiWidgetEnd( title );
 	}
 
 	// body
-	ImUiRect result;
+	ImuiRect result;
 	{
-		ImUiWidget* body = ImUiWidgetBegin( window );
-		ImUiWidgetSetStretchOne( body );
-		ImUiWidgetSetPadding( body, s_windowTheme.bodyPadding );
+		ImuiWidget* body = imuiWidgetBegin( window );
+		imuiWidgetSetStretchOne( body );
+		imuiWidgetSetPadding( body, s_windowTheme.bodyPadding );
 
-		const ImAppWindowThemeBody* bodyTheme = hasFocus ? &s_windowTheme.bodyActive : &s_windowTheme.bodyInactive;
-		ImUiWidgetDrawSkin( body, &bodyTheme->skin, bodyTheme->color );
+		const ImappWindowThemeBody* bodyTheme = hasFocus ? &s_windowTheme.bodyActive : &s_windowTheme.bodyInactive;
+		imuiWidgetDrawSkin( body, &bodyTheme->skin, bodyTheme->color );
 
-		result = ImUiRectShrinkBorder( ImUiWidgetGetRect( body ), s_windowTheme.bodyPadding );
+		result = imuiRectShrinkBorder( imuiWidgetGetRect( body ), s_windowTheme.bodyPadding );
 
-		ImUiWidgetEnd( body );
+		imuiWidgetEnd( body );
 	}
 
-	ImUiWidgetEnd( root );
-	ImUiWindowEnd( window );
+	imuiWidgetEnd( root );
+	imuiWindowEnd( window );
 
 	imappPlatformWindowSetTitleBounds( appWindow, titleHeight, buttonsX );
 

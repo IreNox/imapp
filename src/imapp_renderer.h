@@ -6,23 +6,23 @@
 
 #include <stdbool.h>
 
-typedef struct ImAppPlatform ImAppPlatform;
-typedef struct ImAppRenderer ImAppRenderer;
-typedef struct ImAppRendererTexture ImAppRendererTexture;
-typedef struct ImAppWindow ImAppWindow;
-typedef struct ImUiAllocator ImUiAllocator;
-typedef struct ImUiDrawData ImUiDrawData;
-typedef struct ImAppRendererWindow ImAppRendererWindow;
+typedef struct ImappPlatform ImappPlatform;
+typedef struct ImappRenderer ImappRenderer;
+typedef struct ImappRendererTexture ImappRendererTexture;
+typedef struct ImappWindow ImappWindow;
+typedef struct ImuiAllocator ImuiAllocator;
+typedef struct ImuiDrawData ImuiDrawData;
+typedef struct ImappRendererWindow ImappRendererWindow;
 
-typedef enum ImAppRendererFormat ImAppRendererFormat;
-enum ImAppRendererFormat
+typedef enum ImappRendererFormat ImappRendererFormat;
+enum ImappRendererFormat
 {
-	ImAppRendererFormat_R8,
-	ImAppRendererFormat_RGB8,
-	ImAppRendererFormat_RGBA8
+	ImappRendererFormat_R8,
+	ImappRendererFormat_RGB8,
+	ImappRendererFormat_RGBA8
 };
 
-struct ImAppRendererWindow
+struct ImappRendererWindow
 {
 	unsigned int				vertexArray;
 	unsigned int				vertexBuffer;
@@ -33,23 +33,23 @@ struct ImAppRendererWindow
 	void*						elementBufferData;
 };
 
-ImUiVertexFormat		imappRendererGetVertexFormat();
+ImuiVertexFormat		imappRendererGetVertexFormat();
 
-ImAppRenderer*			imappRendererCreate( ImUiAllocator* allocator, ImAppPlatform* platform );
-void					imappRendererDestroy( ImAppRenderer* renderer );
+ImappRenderer*			imappRendererCreate( ImuiAllocator* allocator, ImappPlatform* platform );
+void					imappRendererDestroy( ImappRenderer* renderer );
 
-void					imappRendererUpdate( ImAppRenderer* renderer );
+void					imappRendererUpdate( ImappRenderer* renderer );
 
-bool					imappRendererCreateResources( ImAppRenderer* renderer );
-void					imappRendererDestroyResources( ImAppRenderer* renderer );
+bool					imappRendererCreateResources( ImappRenderer* renderer );
+void					imappRendererDestroyResources( ImappRenderer* renderer );
 
-void					imappRendererConstructWindow( ImAppRenderer* renderer, ImAppRendererWindow* window );
-void					imappRendererDestructWindow( ImAppRenderer* renderer, ImAppRendererWindow* window );
+void					imappRendererConstructWindow( ImappRenderer* renderer, ImappRendererWindow* window );
+void					imappRendererDestructWindow( ImappRenderer* renderer, ImappRendererWindow* window );
 
-ImAppRendererTexture*	imappRendererTextureCreate( ImAppRenderer* renderer );
-ImAppRendererTexture*	imappRendererTextureCreateFromMemory( ImAppRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags );
-bool					imappRendererTextureInitializeDataFromMemory( ImAppRenderer* renderer, ImAppRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImAppRendererFormat format, uint8_t flags );
-void					imappRendererTextureDestroyData( ImAppRenderer* renderer, ImAppRendererTexture* texture );
-void					imappRendererTextureDestroy( ImAppRenderer* renderer, ImAppRendererTexture* texture );
+ImappRendererTexture*	imappRendererTextureCreate( ImappRenderer* renderer );
+ImappRendererTexture*	imappRendererTextureCreateFromMemory( ImappRenderer* renderer, const void* data, uint32_t width, uint32_t height, ImappRendererFormat format, uint8_t flags );
+bool					imappRendererTextureInitializeDataFromMemory( ImappRenderer* renderer, ImappRendererTexture* texture, const void* data, uint32_t width, uint32_t height, ImappRendererFormat format, uint8_t flags );
+void					imappRendererTextureDestroyData( ImappRenderer* renderer, ImappRendererTexture* texture );
+void					imappRendererTextureDestroy( ImappRenderer* renderer, ImappRendererTexture* texture );
 
-void					imappRendererDraw( ImAppRenderer* renderer, ImAppRendererWindow* window, ImUiSurface* surface, int width, int height, float clearColor[ 4 ] );
+void					imappRendererDraw( ImappRenderer* renderer, ImappRendererWindow* window, ImuiSurface* surface, int width, int height, float clearColor[ 4 ] );

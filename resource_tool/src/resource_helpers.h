@@ -18,6 +18,6 @@ namespace imapp
 
 	XMLElement*		findOrCreateElement( XMLNode* node, const char* name );
 
-	bool			parseUiColor( ImUiColor& target, const StringView& string );
-	uintsize		formatUiColor( char* buffer, uintsize bufferSize, const ImUiColor& value );
+	bool			parseUiColor( ImuiColor& target, const StringView& string );
+	uintsize		formatUiColor( char* buffer, uintsize bufferSize, const ImuiColor& value );
 }

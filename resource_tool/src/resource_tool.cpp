@@ -68,7 +68,7 @@ Options:
 )V0G0N";
 
 				Path exePath( argv[ 0u ] );
-				ImAppTrace( helpFormat, exePath.getFilename().toConstCharPointer() );
+				imappTrace( helpFormat, exePath.getFilename().toConstCharPointer() );
 				shutdown = true;
 				return true;
 			}
@@ -84,7 +84,7 @@ Options:
 
 		if( compile && !loaded )
 		{
-			ImAppTrace( "Error: Failed to load '%s'\n", filename ? filename : "no file" );
+			imappTrace( "Error: Failed to load '%s'\n", filename ? filename : "no file" );
 			return false;
 		}
 
@@ -105,7 +105,7 @@ Options:
 				case CompilerErrorLevel::Warning:	level = "Warning"; break;
 				case CompilerErrorLevel::Error:		break;
 				}
-				ImAppTrace( "%s: [%s] %s\n", level, message.resourceName.toConstCharPointer(), message.text.toConstCharPointer() );
+				imappTrace( "%s: [%s] %s\n", level, message.resourceName.toConstCharPointer(), message.text.toConstCharPointer() );
 			}
 
 			if( output.hasError() )
@@ -119,7 +119,7 @@ Options:
 		return true;
 	}
 
-	void ResourceTool::doUi( ImAppContext* imapp, ImAppWindow* appWindow, UiToolboxWindow& uiWindow )
+	void ResourceTool::doUi( ImappContext* imapp, ImappWindow* appWindow, UiToolboxWindow& uiWindow )
 	{
 		update( appWindow, uiWindow.getTime() );
 
@@ -202,7 +202,7 @@ Options:
 			workLayout.setStretchOne();
 
 			{
-				UiWidget leftLayout( uiWindow, "left" );
+				UiWidget leftLayout( uiWindow/*, "left"*/ );
 				leftLayout.setLayoutVertical( 4.0f );
 				leftLayout.setVStretch( 1.0f );
 
@@ -296,7 +296,7 @@ Options:
 		return loaded;
 	}
 
-	void ResourceTool::update( ImAppWindow* appWindow, double time )
+	void ResourceTool::update( ImappWindow* appWindow, double time )
 	{
 		m_package.updateFileData( time );
 
@@ -313,10 +313,10 @@ Options:
 		}
 
 		{
-			ImAppDropData dropData;
-			while( ImAppWindowPopDropData( appWindow, &dropData ) )
+			ImappDropData dropData;
+			while( imappWindowPopDropData( appWindow, &dropData ) )
 			{
-				if( dropData.type == ImAppDropType_Text )
+				if( dropData.type == ImappDropType_Text )
 				{
 					continue;
 				}
@@ -487,12 +487,12 @@ Options:
 			notificationWidget.setStretchOne();
 			notificationWidget.setPadding( UiBorder( 10.0f ) );
 
-			UiColor bgColor = UiToolboxTheme::getColor( ImUiToolboxColor_Button );
+			UiColor bgColor = UiToolboxTheme::getColor( ImuiToolboxColor_Button );
 			bgColor.alpha = 196u;
 
-			notificationWidget.drawSkin( UiToolboxTheme::getSkin( ImUiToolboxSkin_Popup ), bgColor );
+			notificationWidget.drawSkin( UiToolboxTheme::getSkin( ImuiToolboxSkin_Popup ), bgColor );
 
-			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
+			UiToolboxConfigColorScope colorScope( ImuiToolboxColor_Text, UiColor::White );
 			switch( notification )
 			{
 			case Notifications::Loaded:
@@ -518,7 +518,7 @@ Options:
 			barWidget.setFixedHeight( 2.0f );
 			barWidget.setHStretch( animation.getValue() );
 
-			barWidget.drawColor( UiToolboxTheme::getColor( ImUiToolboxColor_Text ) );
+			barWidget.drawColor( UiToolboxTheme::getColor( ImuiToolboxColor_Text ) );
 
 			if( animation.getValue() == 0.0f )
 			{
@@ -527,9 +527,9 @@ Options:
 		}
 	}
 
-	void ResourceTool::doView( ImAppContext* imapp, UiToolboxWindow& window )
+	void ResourceTool::doView( ImappContext* imapp, UiToolboxWindow& window )
 	{
-		UiWidget viewWidget( window, (ImUiId)m_selecedEntry + 564646u );
+		UiWidget viewWidget( window, (ImuiId)m_selecedEntry + 564646u );
 		viewWidget.setStretchOne();
 		viewWidget.setLayoutVertical( 4.0f );
 
@@ -607,7 +607,7 @@ Options:
 		window.checkBox( m_package.getExportCode(), "Output Code" );
 	}
 
-	void ResourceTool::doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewImage( ImappContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Path:" );
 		{
@@ -632,7 +632,7 @@ Options:
 			resource.setImageRepeat( repeat );
 		}
 
-		const ImUiImage image = ImAppImageGetImage( resource.getOrCreateImage( imapp ) );
+		const ImuiImage image = imappImageGetImage( resource.getOrCreateImage( imapp ) );
 
 		{
 			ImageViewWidget imageView( imapp, window );
@@ -658,7 +658,7 @@ Options:
 		}
 	}
 
-	void ResourceTool::doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewFont( ImappContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Path:" );
 		{
@@ -773,7 +773,7 @@ Options:
 		}
 	}
 
-	void ResourceTool::doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewSkin( ImappContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		window.label( "Image:" );
 		const StringView selectedImageName = doResourceSelect( window, ResourceType::Image, resource.getSkinImageName() );
@@ -785,7 +785,7 @@ Options:
 		Resource* imageResource = m_package.findResource( resource.getSkinImageName() );
 		if( imageResource )
 		{
-			const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
+			const ImuiImage image = imappImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 			UiBorder& skinBorder = resource.getSkinBorder();
 			{
@@ -836,7 +836,7 @@ Options:
 
 			if( previewSkin )
 			{
-				ImUiSkin skin;
+				ImuiSkin skin;
 				skin.textureHandle	= image.textureHandle;
 				skin.width			= image.width;
 				skin.height			= image.height;
@@ -870,13 +870,13 @@ Options:
 		}
 	}
 
-	void ResourceTool::doViewTheme( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource )
+	void ResourceTool::doViewTheme( ImappContext* imapp, UiToolboxWindow& window, Resource& resource )
 	{
 		UiToolboxScrollArea scrollArea( window );
 		scrollArea.setStretchOne();
 		scrollArea.enableSpacing( true, false );
 
-		UiWidgetLayoutVertical scrollLayout( window );
+		UiWidgetLayoutVertical scrollLayout( window, "config" );
 		scrollLayout.setHStretch( 1.0f );
 		scrollLayout.setLayoutVertical( 4.0f );
 
@@ -884,12 +884,15 @@ Options:
 
 		UiWidget groupWidget;
 
+		float maxWidth = 0.0f;
 		uintsize skipLevel = 0u;
 		ResourceTheme& theme = resource.getTheme();
 		for( ResourceThemeField& field : theme.getFields() )
 		{
 			if( skipLevel > 0u && field.level >= skipLevel )
 			{
+				const ImuiSize textSize = imuiTextLayoutCalculateSize( window.getContext().getInternal(), UiToolboxTheme::getTheme().font, field.name, field.name.getLength() );
+				maxWidth = max( maxWidth, textSize.width + 4.0f );
 				continue;
 			}
 			else
@@ -907,11 +910,11 @@ Options:
 				groupWidget.setPadding( UiBorder( 4.0f ) );
 				groupWidget.setMargin( UiBorder( 0.0f, 20.0f * field.level, 0.0f, 0.0f ) );
 
-				groupWidget.drawSkin( UiToolboxTheme::getSkin( ImUiToolboxSkin_ListItem ), UiToolboxTheme::getColor( ImUiToolboxColor_Button ) );
+				groupWidget.drawSkin( UiToolboxTheme::getSkin( ImuiToolboxSkin_ListItem ), UiToolboxTheme::getColor( ImuiToolboxColor_Button ) );
 
 				bool isHover = false;
 				bool wasClicked = false;
-				ImUiWidgetInputState inputState;
+				ImuiWidgetInputState inputState;
 				{
 					UiWidget title( window );
 					title.setLayoutHorizontal( 4.0f );
@@ -919,12 +922,12 @@ Options:
 
 					{
 						UiWidget icon( window );
-						const ImUiImage iconImage = ImUiToolboxThemeGet()->icons[ field.open ? ImUiToolboxIcon_DropDownClose : ImUiToolboxIcon_DropDownOpen ];
-						icon.setFixedSize( ImUiSizeCreateImage( &iconImage ) );
+						const ImuiImage iconImage = UiToolboxTheme::getIcon( field.open ? ImuiToolboxIcon_DropDownClose : ImuiToolboxIcon_DropDownOpen );
+						icon.setFixedSize( UiSize( iconImage ) );
 						icon.setHAlign( 1.0f );
 						icon.setVAlign( 0.5f );
 
-						icon.drawImage( iconImage, ImUiToolboxThemeGet()->colors[ ImUiToolboxColor_Text ] );
+						icon.drawImage( iconImage, UiToolboxTheme::getColor( ImuiToolboxColor_Text ) );
 					}
 
 					window.label( field.name );
@@ -943,7 +946,7 @@ Options:
 
 				if( isHover )
 				{
-					ImUiInputSetMouseCursor( strecher.getContext().getInternal(), ImUiInputMouseCursor_Hand );
+					imuiInputSetMouseCursor( strecher.getContext().getInternal(), ImuiInputMouseCursor_Hand );
 				}
 
 				if( wasClicked )
@@ -962,13 +965,13 @@ Options:
 			{
 				UiToolboxLabel label( window, field.name );
 
-				state->maxWidth = max( state->maxWidth, label.getMinSize().width + 4.0f );
+				maxWidth = max( maxWidth, label.getMinSize().width + 4.0f );
 				label.setFixedWidth( state->maxWidth );
 			}
 
 			switch( field.uiField->type )
 			{
-			case ImUiToolboxThemeReflectionType_Font:
+			case ImuiToolboxThemeReflectionType_Font:
 				{
 					DynamicString& value = theme.getFieldString( field );
 					const StringView fontName = doResourceSelect( window, ResourceType::Font, value );
@@ -980,12 +983,12 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Color:
+			case ImuiToolboxThemeReflectionType_Color:
 				{
 					UiWidgetLayoutHorizontal colorLayout( window, 4.0f );
 					colorLayout.setHStretch( 1.0f );
 
-					ImUiColor& value = theme.getFieldColor( field );
+					ImuiColor& value = theme.getFieldColor( field );
 					{
 						UiWidget previewWidget( window );
 						previewWidget.setVStretch( 1.0f );
@@ -1020,7 +1023,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Skin:
+			case ImuiToolboxThemeReflectionType_Skin:
 				{
 					UiWidgetLayoutHorizontal skinLayout( window, 4.0f );
 					skinLayout.setHStretch( 1.0f );
@@ -1040,9 +1043,9 @@ Options:
 
 						if( skinResource && imageResource )
 						{
-							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
+							const ImuiImage image = imappImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
-							ImUiSkin skin;
+							ImuiSkin skin;
 							skin.textureHandle	= image.textureHandle;
 							skin.width			= image.width;
 							skin.height			= image.height;
@@ -1066,7 +1069,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Float:
+			case ImuiToolboxThemeReflectionType_Float:
 				{
 					float& value = theme.getFieldFloat( field );
 					if( doFloatTextEdit( window, value, 1 ) )
@@ -1076,7 +1079,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Double:
+			case ImuiToolboxThemeReflectionType_Double:
 				{
 					double& value = theme.getFieldDouble( field );
 					float floatValue = (float)value;
@@ -1087,7 +1090,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Border:
+			case ImuiToolboxThemeReflectionType_Border:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 4u, 4.0f, 4.0f );
 					skinLayout.setHStretch( 1.0f );
@@ -1097,7 +1100,7 @@ Options:
 					window.label( "Right" );
 					window.label( "Bottom" );
 
-					ImUiBorder& value = theme.getFieldBorder( field );
+					ImuiBorder& value = theme.getFieldBorder( field );
 					if( doFloatTextEdit( window, value.top, 0 ) ||
 						doFloatTextEdit( window, value.left, 0 ) ||
 						doFloatTextEdit( window, value.right, 0 ) ||
@@ -1108,7 +1111,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Size:
+			case ImuiToolboxThemeReflectionType_Size:
 				{
 					UiWidgetLayoutGrid skinLayout( window, 2u, 4.0f, 4.0f );
 					skinLayout.setHStretch( 1.0f );
@@ -1116,7 +1119,7 @@ Options:
 					window.label( "Width" );
 					window.label( "Height" );
 
-					ImUiSize& value = theme.getFieldSize( field );
+					ImuiSize& value = theme.getFieldSize( field );
 					if( doFloatTextEdit( window, value.width, 0 ) ||
 						doFloatTextEdit( window, value.height, 0 ) )
 					{
@@ -1125,7 +1128,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Image:
+			case ImuiToolboxThemeReflectionType_Image:
 				{
 					UiWidgetLayoutHorizontal imageLayout( window, 4.0f );
 					imageLayout.setHStretch( 1.0f );
@@ -1139,7 +1142,7 @@ Options:
 						Resource* imageResource = m_package.findResource( value );
 						if( imageResource )
 						{
-							const ImUiImage image = ImAppImageGetImage( imageResource->getOrCreateImage( imapp ) );
+							const ImuiImage image = imappImageGetImage( imageResource->getOrCreateImage( imapp ) );
 
 							const float width = (previewWidget.getRect().size.height / float( image.height )) * float( image.width );
 							previewWidget.setFixedWidth( width );
@@ -1161,7 +1164,7 @@ Options:
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_UInt32:
+			case ImuiToolboxThemeReflectionType_UInt32:
 				{
 					uint32& value = theme.getFieldUInt32( field );
 					doUIntTextEdit( window, value );
@@ -1169,6 +1172,8 @@ Options:
 				break;
 			}
 		}
+
+		state->maxWidth = maxWidth;
 	}
 
 	bool ResourceTool::doUIntTextEdit( UiToolboxWindow& window, uint32& value )
@@ -1340,7 +1345,7 @@ Options:
 		}
 	}
 
-	ResourceTool::ImageViewWidget::ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window )
+	ResourceTool::ImageViewWidget::ImageViewWidget( ImappContext* imapp, UiToolboxWindow& window )
 		: UiWidget( window )
 		, m_scrollArea( window )
 		, m_scrollContent( window )
@@ -1353,12 +1358,12 @@ Options:
 		m_scrollArea.setStretchOne();
 		m_scrollArea.setLayoutScroll( m_state->offset.x, m_state->offset.y );
 
-		m_bgImage = ImAppResPakGetImage( ImAppResourceGetDefaultPak( imapp ), "transparent_bg" );
+		m_bgImage = imappResPakGetImage( imappResourceGetDefaultPak( imapp ), "transparent_bg" );
 		if( m_bgImage && m_state->bgColor.alpha == 0.0f )
 		{
 			const UiSize size = getSize();
 
-			ImUiImage image = *m_bgImage;
+			ImuiImage image = *m_bgImage;
 			image.uv.u0		= m_state->offset.x / image.width;
 			image.uv.v0		= m_state->offset.y / image.height;
 			image.uv.u1		= image.uv.u0 + (size.width / image.width);
@@ -1371,7 +1376,7 @@ Options:
 			m_scrollArea.drawColor( m_state->bgColor );
 		}
 
-		ImUiWidgetInputState widgetInput;
+		ImuiWidgetInputState widgetInput;
 		m_scrollArea.getInputState( widgetInput );
 
 		m_scrollContent.setAlign( 0.5f, 0.5f );
@@ -1393,7 +1398,7 @@ Options:
 
 		if( widgetInput.isMouseOver )
 		{
-			getContext().setMouseCursor( ImUiInputMouseCursor_Move );
+			getContext().setMouseCursor( ImuiInputMouseCursor_Move );
 
 			m_state->zoom += max( 0.05f, roundf( m_state->zoom ) * 0.1f ) * inputState.getMouseScrollDelta().y;
 			m_state->zoom = max( 0.05f, m_state->zoom );
@@ -1413,7 +1418,7 @@ Options:
 		buttonsLayout.drawColor( UiColor::createBlack( 0xa0u ) );
 
 		{
-			UiToolboxConfigColorScope colorScope( ImUiToolboxColor_Text, UiColor::White );
+			UiToolboxConfigColorScope colorScope( ImuiToolboxColor_Text, UiColor::White );
 			window.labelFormat( "Zoom: %.0f%%", m_state->zoom * 100.0f );
 		}
 

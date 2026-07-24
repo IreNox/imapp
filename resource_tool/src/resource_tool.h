@@ -8,7 +8,7 @@
 #include <tiki/tiki_flags.h>
 #include <tiki/tiki_static_array.h>
 
-struct ImAppContext;
+struct ImappContext;
 
 namespace imui
 {
@@ -34,7 +34,7 @@ namespace imapp
 
 		bool				handleArgs( int argc, char* argv[], bool& shutdown );
 
-		void				doUi( ImAppContext* imapp, ImAppWindow* appWindow, UiToolboxWindow& uiWindow );
+		void				doUi( ImappContext* imapp, ImappWindow* appWindow, UiToolboxWindow& uiWindow );
 
 	private:
 
@@ -63,7 +63,7 @@ namespace imapp
 		{
 		public:
 
-								ImageViewWidget( ImAppContext* imapp, UiToolboxWindow& window );
+								ImageViewWidget( ImappContext* imapp, UiToolboxWindow& window );
 								~ImageViewWidget();
 
 			UiWidget&			getContent() { return m_scrollContent; }
@@ -84,7 +84,7 @@ namespace imapp
 			UiWidget			m_scrollArea;
 			UiWidget			m_scrollContent;
 
-			const ImUiImage*	m_bgImage;
+			const ImuiImage*	m_bgImage;
 			ScrollState*		m_state;
 
 			void				doBackgroundButton( const UiColor& color );
@@ -118,7 +118,7 @@ namespace imapp
 
 		bool				load( const char* filename );
 
-		void				update( ImAppWindow* appWindow, double time );
+		void				update( ImappWindow* appWindow, double time );
 
 		void				doPopups( UiSurface& surface );
 		void				doPupupStateNew( UiSurface& surface );
@@ -127,12 +127,12 @@ namespace imapp
 
 		void				doNotifications( UiSurface& surface );
 
-		void				doView( ImAppContext* imapp, UiToolboxWindow& window );
+		void				doView( ImappContext* imapp, UiToolboxWindow& window );
 		void				doViewPackage( UiToolboxWindow& window );
-		void				doViewImage( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
-		void				doViewFont( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
-		void				doViewSkin( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
-		void				doViewTheme( ImAppContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewImage( ImappContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewFont( ImappContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewSkin( ImappContext* imapp, UiToolboxWindow& window, Resource& resource );
+		void				doViewTheme( ImappContext* imapp, UiToolboxWindow& window, Resource& resource );
 
 		bool				doUIntTextEdit( UiToolboxWindow& window, uint32& value );
 		bool				doFloatTextEdit( UiToolboxWindow& window, float& value, uintsize decimalNumbers );

@@ -7,7 +7,7 @@
 
 #include <tinyxml2.h>
 
-struct ImAppContext;
+struct ImappContext;
 
 namespace imapp
 {

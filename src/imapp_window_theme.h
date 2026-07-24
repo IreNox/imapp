@@ -2,4 +2,4 @@
 
 #include "imapp/imapp.h"
 
-ImUiRect	imappWindowThemeDoUi( ImAppWindow* appWindow, ImUiSurface* surface );
+ImuiRect	imappWindowThemeDoUi( ImappWindow* appWindow, ImuiSurface* surface );

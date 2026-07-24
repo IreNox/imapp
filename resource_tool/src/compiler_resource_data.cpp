@@ -160,53 +160,53 @@ namespace imapp
 			return &m_fontData;
 		}
 
-		ImUiParameters imuiParams = {};
-		ImUiContext* imui = ImUiCreate( &imuiParams );
+		ImuiParameters imuiParams = {};
+		ImuiContext* imui = imuiCreate( &imuiParams );
 		if( !imui )
 		{
 			output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Failed to create IMUI." );
 			return nullptr;
 		}
 
-		ImUiFontTrueTypeData* ttf = ImUiFontTrueTypeDataCreate( imui, m_data.fileData.getData(), m_data.fileData.getLength() );
+		ImuiFontTrueTypeData* ttf = imuiFontTrueTypeDataCreate( imui, m_data.fileData.getData(), m_data.fileData.getLength() );
 		if( !ttf )
 		{
 			output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Failed to load font file. Path: %s", m_data.filePath.toConstCharPointer() );
-			ImUiDestroy( imui );
+			imuiDestroy( imui );
 			return nullptr;
 		}
 
 		for( const ResourceFontUnicodeBlock& block : m_data.font.blocks )
 		{
-			ImUiFontTrueTypeDataAddCodepointRange( ttf, block.first, block.last );
+			imuiFontTrueTypeDataAddCodepointRange( ttf, block.first, block.last );
 		}
 
-		ImUiFontTrueTypeDataCalculateMinTextureSize( ttf, m_data.font.size, &m_fontData.width, &m_fontData.height );
+		imuiFontTrueTypeDataCalculateMinTextureSize( ttf, m_data.font.size, &m_fontData.width, &m_fontData.height );
 		m_fontData.width = (m_fontData.width + 4u - 1u) & (0 - 4);
 		m_fontData.height = (m_fontData.height + 4u - 1u) & (0 - 4);
 
 		m_fontData.pixelData.setLengthUninitialized( m_fontData.width * m_fontData.height );
 
-		ImUiFontTrueTypeImage* ttfImage = ImUiFontTrueTypeDataGenerateTextureData( ttf, m_data.font.size, m_fontData.pixelData.getData(), m_fontData.pixelData.getLength(), m_fontData.width, m_fontData.height );
+		ImuiFontTrueTypeImage* ttfImage = imuiFontTrueTypeDataGenerateTextureData( ttf, m_data.font.size, m_fontData.pixelData.getData(), m_fontData.pixelData.getLength(), m_fontData.width, m_fontData.height );
 		if( !ttfImage )
 		{
 			output.pushMessage( CompilerErrorLevel::Error, m_data.name, "Failed to generate font pixel data. Path: %s", m_data.filePath.toConstCharPointer() );
-			ImUiFontTrueTypeDataDestroy( ttf );
-			ImUiDestroy( imui );
+			imuiFontTrueTypeDataDestroy( ttf );
+			imuiDestroy( imui );
 			return nullptr;
 		}
 
 		{
-			const ImUiFontCodepoint* codepoints = nullptr;
+			const ImuiFontCodepoint* codepoints = nullptr;
 			size_t codepointCount = 0u;
-			ImUiFontTrueTypeImageGetCodepoints( ttfImage, &codepoints, &codepointCount );
+			imuiFontTrueTypeImageGetCodepoints( ttfImage, &codepoints, &codepointCount );
 
 			m_fontData.codepoints.assign( codepoints, codepointCount );
 		}
 
-		ImUiFontTrueTypeImageDestroy( ttfImage );
-		ImUiFontTrueTypeDataDestroy( ttf );
-		ImUiDestroy( imui );
+		imuiFontTrueTypeImageDestroy( ttfImage );
+		imuiFontTrueTypeDataDestroy( ttf );
+		imuiDestroy( imui );
 
 		m_fontRevision = m_revision;
 		return &m_fontData;
@@ -342,7 +342,7 @@ namespace imapp
 		m_fontSdfData.codepoints.reserve( glyphs.size() );
 		for( const msdf_atlas::GlyphGeometry& glyph : glyphs )
 		{
-			ImUiFontCodepoint& codepoint = m_fontSdfData.codepoints.pushBack();
+			imuiFontCodepoint& codepoint = m_fontSdfData.codepoints.pushBack();
 
 			double planeLeft;
 			double planeBottom;

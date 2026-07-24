@@ -23,11 +23,11 @@
 #	include <crtdbg.h>
 #endif
 
-typedef struct ImAppFileWatcherPath ImAppFileWatcherPath;
+typedef struct ImappFileWatcherPath ImappFileWatcherPath;
 
-struct ImAppPlatform
+struct ImappPlatform
 {
-	ImUiAllocator*		allocator;
+	ImuiAllocator*		allocator;
 
 	HINSTANCE			hInstance;
 	HWND				contextHwnd;
@@ -42,7 +42,7 @@ struct ImAppPlatform
 	wchar_t				fontBasePath[ MAX_PATH ];
 	uintsize			fontBasePathLength;
 
-	HCURSOR				cursors[ ImUiInputMouseCursor_MAX ];
+	HCURSOR				cursors[ ImuiInputMouseCursor_MAX ];
 	HCURSOR				currentCursor;
 
 	HWND*				windows;
@@ -52,24 +52,24 @@ struct ImAppPlatform
 	int64_t				tickFrequency;
 };
 
-typedef struct ImAppWindowDrop ImAppWindowDrop;
-typedef struct ImAppWindowDrop
+typedef struct ImappWindowDrop ImappWindowDrop;
+typedef struct ImappWindowDrop
 {
-	ImAppWindowDrop*	nextDrop;
+	ImappWindowDrop*	nextDrop;
 
-	ImAppDropType		type;
+	ImappDropType		type;
 	char				pathOrText[ 1u ];
-} ImAppWindowDrop;
+} ImappWindowDrop;
 
-struct ImAppWindow
+struct ImappWindow
 {
 	// must be first for cast
 	IDropTarget			dropTarget;
 	FORMATETC			dropFormat;
-	ImAppWindowDrop*	firstNewDrop;
-	ImAppWindowDrop*	firstPoppedDrop;
+	ImappWindowDrop*	firstNewDrop;
+	ImappWindowDrop*	firstPoppedDrop;
 
-	ImAppPlatform*		platform;
+	ImappPlatform*		platform;
 
 	HWND				hwnd;
 	HDC					hdc;
@@ -83,8 +83,8 @@ struct ImAppWindow
 	int					y;
 	int					width;
 	int					height;
-	ImAppWindowState	state;
-	ImAppWindowStyle	style;
+	ImappWindowState	state;
+	ImappWindowStyle	style;
 	char*				title;
 	uintsize			titleCapacity;
 	float				dpiScale;
@@ -95,55 +95,55 @@ struct ImAppWindow
 
 	XINPUT_STATE		lastControllerState;
 
-	ImAppEventQueue		eventQueue;
+	ImappEventQueue		eventQueue;
 
-	ImAppPlatformWindowUpdateCallback	updateCallback;
+	imappPlatformWindowUpdateCallback	updateCallback;
 	void*								updateCallbackArg;
 };
 
-typedef struct ImAppFileWatcherPath
+typedef struct ImappFileWatcherPath
 {
 	OVERLAPPED				overlapped;
 
-	ImAppFileWatcherPath*	prevPath;
-	ImAppFileWatcherPath*	nextPath;
+	ImappFileWatcherPath*	prevPath;
+	ImappFileWatcherPath*	nextPath;
 
 	bool					isRunning;
 	HANDLE					dirHandle;
 	byte					buffer[ sizeof( FILE_NOTIFY_INFORMATION ) + (sizeof( wchar_t ) * MAX_PATH) ];
 
 	char					path[ 1u ];
-} ImAppFileWatcherPath;
+} ImappFileWatcherPath;
 
-typedef struct ImAppFileWatcher
+typedef struct ImappFileWatcher
 {
-	ImAppPlatform*			platform;
+	ImappPlatform*			platform;
 
-	ImAppFileWatcherPath*	firstPath;
+	ImappFileWatcherPath*	firstPath;
 
 	HANDLE					ioPort;
 
 	char					eventPath[ MAX_PATH * 4u ];
-} ImAppFileWatcher;
+} ImappFileWatcher;
 
-struct ImAppThread
+struct ImappThread
 {
-	ImAppPlatform*		platform;
+	ImappPlatform*		platform;
 
 	HANDLE				handle;
 
-	ImAppThreadFunc		func;
+	ImappThreadFunc		func;
 	void*				arg;
 
 	volatile LONG		isRunning;
 };
 
-static void					imappPlatformSetupKeyboard( ImAppPlatform* platform );
+static void					imappPlatformSetupKeyboard( ImappPlatform* platform );
 
 static HGLRC				imappPlatformWindowCreateGlContext( HDC windowDc );
-static void					imappPlatformWindowUpdateController( ImAppWindow* window );
+static void					imappPlatformWindowUpdateController( ImappWindow* window );
 static LRESULT CALLBACK		imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
-static ImUiInputKey			imappPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam );
+static ImuiInputKey			imappPlatformWindowMapKey( ImappWindow* window, WPARAM wParam, LPARAM lParam );
 HRESULT STDMETHODCALLTYPE	imappPlatformWindowDropTargetQueryInterface( __RPC__in IDropTarget* This, __RPC__in REFIID riid, _COM_Outptr_ void **ppvObject );
 ULONG STDMETHODCALLTYPE		imappPlatformWindowDropTargetAddRef( __RPC__in IDropTarget* This );
 ULONG STDMETHODCALLTYPE		imappPlatformWindowDropTargetRelease( __RPC__in IDropTarget* This );
@@ -152,12 +152,12 @@ HRESULT STDMETHODCALLTYPE	imappPlatformWindowDropTargetDragOver( __RPC__in IDrop
 HRESULT STDMETHODCALLTYPE	imappPlatformWindowDropTargetDragLeave( __RPC__in IDropTarget* This );
 HRESULT STDMETHODCALLTYPE	imappPlatformWindowDropTargetDrop( __RPC__in IDropTarget* This, __RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect );
 
-static void					imappPlatformFileWatcherPathStart( ImAppFileWatcherPath* path );
+static void					imappPlatformFileWatcherPathStart( ImappFileWatcherPath* path );
 
 static DWORD WINAPI			imappPlatformThreadEntry( void* voidThread );
 
-static const wchar_t* s_pWindowDummyGlClass	= L"ImAppWindowDummyGlClass";
-static const wchar_t* s_pWindowClass		= L"ImAppWindowClass";
+static const wchar_t* s_pWindowDummyGlClass	= L"imappWindowDummyGlClass";
+static const wchar_t* s_pWindowClass		= L"imappWindowClass";
 static IDropTargetVtbl s_dropTargetVtbl		= { imappPlatformWindowDropTargetQueryInterface, imappPlatformWindowDropTargetAddRef, imappPlatformWindowDropTargetRelease, imappPlatformWindowDropTargetDragEnter, imappPlatformWindowDropTargetDragOver, imappPlatformWindowDropTargetDragLeave, imappPlatformWindowDropTargetDrop };
 
 static const LPTSTR s_windowsSystemCursorMapping[] =
@@ -174,7 +174,7 @@ static const LPTSTR s_windowsSystemCursorMapping[] =
 	IDC_SIZENS,
 	IDC_SIZEALL
 };
-static_assert(IMAPP_ARRAY_COUNT( s_windowsSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors");
+static_assert(IMAPP_ARRAY_COUNT( s_windowsSystemCursorMapping ) == ImuiInputMouseCursor_MAX, "more cursors");
 
 int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd )
 {
@@ -210,7 +210,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 #	endif
 #endif
 
-	ImAppPlatform platform = { 0 };
+	ImappPlatform platform = { 0 };
 	platform.hInstance = hInstance;
 
 	imappPlatformSetupKeyboard( &platform );
@@ -244,7 +244,7 @@ int WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 	return result;
 }
 
-bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImuiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
@@ -304,7 +304,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	{
 		platform->cursors[ i ] = LoadCursor( NULL, s_windowsSystemCursorMapping[ i ] );
 	}
-	platform->currentCursor = platform->cursors[ ImUiInputMouseCursor_Arrow ];
+	platform->currentCursor = platform->cursors[ ImuiInputMouseCursor_Arrow ];
 
 	{
 		WNDCLASSEXW windowClass = { 0 };
@@ -315,7 +315,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		windowClass.lpfnWndProc		= &imappPlatformWindowProc;
 		windowClass.lpszClassName	= s_pWindowClass;
 		windowClass.hbrBackground	= (HBRUSH)COLOR_WINDOW;
-		windowClass.hCursor			= platform->cursors[ ImUiInputMouseCursor_Arrow ];
+		windowClass.hCursor			= platform->cursors[ ImuiInputMouseCursor_Arrow ];
 
 		const ATOM result = RegisterClassExW( &windowClass );
 		if( result == 0 )
@@ -365,7 +365,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 		{
 			if( platform->resourceBasePathLength == IMAPP_ARRAY_COUNT( platform->resourceBasePath ) )
 			{
-				ImAppTrace( "Error: Resource path exceeds limit!\n" );
+				imappTrace( "Error: Resource path exceeds limit!\n" );
 				return false;
 			}
 
@@ -381,7 +381,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
-void imappPlatformShutdown( ImAppPlatform* platform )
+void imappPlatformShutdown( ImappPlatform* platform )
 {
 	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->cursors ); ++i )
 	{
@@ -411,7 +411,7 @@ void imappPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator	= NULL;
 }
 
-sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs )
+sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs )
 {
 	IMAPP_USE( platform );
 
@@ -439,25 +439,25 @@ sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 	return currentPerformanceCounterValue.QuadPart;
 }
 
-double imappPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue )
+double imappPlatformTicksToSeconds( ImappPlatform* platform, sint64 tickValue )
 {
 	return tickValue / (double)platform->tickFrequency;
 }
 
-void imappPlatformShowError( ImAppPlatform* platform, const char* message )
+void imappPlatformShowError( ImappPlatform* platform, const char* message )
 {
 	IMAPP_USE( platform );
 
 	MessageBoxA( NULL, message, "I'm App", MB_ICONSTOP );
 }
 
-void imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImuiInputMouseCursor cursor )
 {
 	platform->currentCursor = platform->cursors[ cursor ];
 	SetCursor( platform->currentCursor );
 }
 
-void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 {
 	IMAPP_USE( platform );
 
@@ -498,7 +498,7 @@ void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 	CloseClipboard();
 }
 
-void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImuiContext* imui )
 {
 	IMAPP_USE( platform );
 
@@ -519,7 +519,7 @@ void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 		const WCHAR* wideText = (WCHAR*)GlobalLock( clipboardMemory );
 		const size_t textLength = wcslen( wideText );
 
-		char* text = ImUiInputBeginWritePasteText( imui, textLength );
+		char* text = imuiInputBeginWritePasteText( imui, textLength );
 		if( !text )
 		{
 			GlobalUnlock( clipboardMemory );
@@ -530,124 +530,124 @@ void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
 		WideCharToMultiByte( CP_UTF8, 0u, wideText, (int)textLength, text, (int)textLength + 1, NULL, NULL );
 		GlobalUnlock( clipboardMemory );
 
-		ImUiInputEndWritePasteText( imui, textLength );
+		imuiInputEndWritePasteText( imui, textLength );
 	}
 
 	CloseClipboard();
 }
 
-static void imappPlatformSetupKeyboard( ImAppPlatform* platform )
+static void imappPlatformSetupKeyboard( ImappPlatform* platform )
 {
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	uintsize maxScanCode = 0u;
 #endif
-	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
+	for( uintsize i = 0u; i < ImuiInputKey_MAX; ++i )
 	{
-		const ImUiInputKey keyValue = (ImUiInputKey)i;
+		const ImuiInputKey keyValue = (ImuiInputKey)i;
 
 		uint8 scanCode = 0u;
 		switch( keyValue )
 		{
-		case ImUiInputKey_None:				break;
-		case ImUiInputKey_A:				scanCode = 0x41; break;
-		case ImUiInputKey_B:				scanCode = 0x42; break;
-		case ImUiInputKey_C:				scanCode = 0x43; break;
-		case ImUiInputKey_D:				scanCode = 0x44; break;
-		case ImUiInputKey_E:				scanCode = 0x45; break;
-		case ImUiInputKey_F:				scanCode = 0x46; break;
-		case ImUiInputKey_G:				scanCode = 0x47; break;
-		case ImUiInputKey_H:				scanCode = 0x48; break;
-		case ImUiInputKey_I:				scanCode = 0x49; break;
-		case ImUiInputKey_J:				scanCode = 0x4a; break;
-		case ImUiInputKey_K:				scanCode = 0x4b; break;
-		case ImUiInputKey_L:				scanCode = 0x4c; break;
-		case ImUiInputKey_M:				scanCode = 0x4d; break;
-		case ImUiInputKey_N:				scanCode = 0x4e; break;
-		case ImUiInputKey_O:				scanCode = 0x4f; break;
-		case ImUiInputKey_P:				scanCode = 0x50; break;
-		case ImUiInputKey_Q:				scanCode = 0x51; break;
-		case ImUiInputKey_R:				scanCode = 0x52; break;
-		case ImUiInputKey_S:				scanCode = 0x53; break;
-		case ImUiInputKey_T:				scanCode = 0x54; break;
-		case ImUiInputKey_U:				scanCode = 0x55; break;
-		case ImUiInputKey_V:				scanCode = 0x56; break;
-		case ImUiInputKey_W:				scanCode = 0x57; break;
-		case ImUiInputKey_X:				scanCode = 0x58; break;
-		case ImUiInputKey_Y:				scanCode = 0x59; break;
-		case ImUiInputKey_Z:				scanCode = 0x5a; break;
-		case ImUiInputKey_1:				scanCode = 0x31; break;
-		case ImUiInputKey_2:				scanCode = 0x32; break;
-		case ImUiInputKey_3:				scanCode = 0x33; break;
-		case ImUiInputKey_4:				scanCode = 0x34; break;
-		case ImUiInputKey_5:				scanCode = 0x35; break;
-		case ImUiInputKey_6:				scanCode = 0x36; break;
-		case ImUiInputKey_7:				scanCode = 0x37; break;
-		case ImUiInputKey_8:				scanCode = 0x38; break;
-		case ImUiInputKey_9:				scanCode = 0x39; break;
-		case ImUiInputKey_0:				scanCode = 0x30; break;
-		case ImUiInputKey_Enter:			scanCode = VK_RETURN; break;
-		case ImUiInputKey_Escape:			scanCode = VK_ESCAPE; break;
-		case ImUiInputKey_Backspace:		scanCode = VK_BACK; break;
-		case ImUiInputKey_Tab:				scanCode = VK_TAB; break;
-		case ImUiInputKey_Space:			scanCode = VK_SPACE; break;
-		case ImUiInputKey_LeftShift:		scanCode = VK_LSHIFT; break;
-		case ImUiInputKey_RightShift:		scanCode = VK_RSHIFT; break;
-		case ImUiInputKey_LeftControl:		scanCode = VK_LCONTROL; break;
-		case ImUiInputKey_RightControl:		scanCode = VK_RCONTROL; break;
-		case ImUiInputKey_LeftAlt:			scanCode = VK_LMENU; break;
-		case ImUiInputKey_RightAlt:			scanCode = VK_RMENU; break;
-		case ImUiInputKey_Minus:			scanCode = VK_OEM_MINUS; break;
-		case ImUiInputKey_Equals:			scanCode = VK_OEM_PLUS; break;
-		case ImUiInputKey_LeftBracket:		scanCode = VK_OEM_4; break;
-		case ImUiInputKey_RightBracket:		scanCode = VK_OEM_6; break;
-		case ImUiInputKey_Backslash:		scanCode = VK_OEM_5; break;
-		case ImUiInputKey_Semicolon:		scanCode = VK_OEM_1; break;
-		case ImUiInputKey_Apostrophe:		scanCode = VK_OEM_7; break;
-		case ImUiInputKey_Grave:			scanCode = VK_OEM_3; break;
-		case ImUiInputKey_Comma:			scanCode = VK_OEM_COMMA; break;
-		case ImUiInputKey_Period:			scanCode = VK_OEM_PERIOD; break;
-		case ImUiInputKey_Slash:			scanCode = VK_OEM_2; break;
-		case ImUiInputKey_F1:				scanCode = VK_F1; break;
-		case ImUiInputKey_F2:				scanCode = VK_F2; break;
-		case ImUiInputKey_F3:				scanCode = VK_F3; break;
-		case ImUiInputKey_F4:				scanCode = VK_F4; break;
-		case ImUiInputKey_F5:				scanCode = VK_F5; break;
-		case ImUiInputKey_F6:				scanCode = VK_F6; break;
-		case ImUiInputKey_F7:				scanCode = VK_F7; break;
-		case ImUiInputKey_F8:				scanCode = VK_F8; break;
-		case ImUiInputKey_F9:				scanCode = VK_F9; break;
-		case ImUiInputKey_F10:				scanCode = VK_F10; break;
-		case ImUiInputKey_F11:				scanCode = VK_F11; break;
-		case ImUiInputKey_F12:				scanCode = VK_F12; break;
-		case ImUiInputKey_Print:			scanCode = VK_PRINT; break;
-		case ImUiInputKey_Pause:			scanCode = VK_PAUSE; break;
-		case ImUiInputKey_Insert:			scanCode = VK_INSERT; break;
-		case ImUiInputKey_Delete:			scanCode = VK_DELETE; break;
-		case ImUiInputKey_Home:				scanCode = VK_HOME; break;
-		case ImUiInputKey_End:				scanCode = VK_END; break;
-		case ImUiInputKey_PageUp:			scanCode = VK_PRIOR; break;
-		case ImUiInputKey_PageDown:			scanCode = VK_NEXT; break;
-		case ImUiInputKey_Up:				scanCode = VK_UP; break;
-		case ImUiInputKey_Left:				scanCode = VK_LEFT; break;
-		case ImUiInputKey_Down:				scanCode = VK_DOWN; break;
-		case ImUiInputKey_Right:			scanCode = VK_RIGHT; break;
-		case ImUiInputKey_Numpad_Divide:	scanCode = VK_DIVIDE; break;
-		case ImUiInputKey_Numpad_Multiply:	scanCode = VK_MULTIPLY; break;
-		case ImUiInputKey_Numpad_Minus:		scanCode = VK_SUBTRACT; break;
-		case ImUiInputKey_Numpad_Plus:		scanCode = VK_ADD; break;
-		case ImUiInputKey_Numpad_Enter:		break;
-		case ImUiInputKey_Numpad_1:			scanCode = VK_NUMPAD1; break;
-		case ImUiInputKey_Numpad_2:			scanCode = VK_NUMPAD2; break;
-		case ImUiInputKey_Numpad_3:			scanCode = VK_NUMPAD3; break;
-		case ImUiInputKey_Numpad_4:			scanCode = VK_NUMPAD4; break;
-		case ImUiInputKey_Numpad_5:			scanCode = VK_NUMPAD5; break;
-		case ImUiInputKey_Numpad_6:			scanCode = VK_NUMPAD6; break;
-		case ImUiInputKey_Numpad_7:			scanCode = VK_NUMPAD7; break;
-		case ImUiInputKey_Numpad_8:			scanCode = VK_NUMPAD8; break;
-		case ImUiInputKey_Numpad_9:			scanCode = VK_NUMPAD9; break;
-		case ImUiInputKey_Numpad_0:			scanCode = VK_NUMPAD0; break;
-		case ImUiInputKey_Numpad_Period:	scanCode = VK_SEPARATOR; break;
-		case ImUiInputKey_MAX:				break;
+		case ImuiInputKey_None:				break;
+		case ImuiInputKey_A:				scanCode = 0x41; break;
+		case ImuiInputKey_B:				scanCode = 0x42; break;
+		case ImuiInputKey_C:				scanCode = 0x43; break;
+		case ImuiInputKey_D:				scanCode = 0x44; break;
+		case ImuiInputKey_E:				scanCode = 0x45; break;
+		case ImuiInputKey_F:				scanCode = 0x46; break;
+		case ImuiInputKey_G:				scanCode = 0x47; break;
+		case ImuiInputKey_H:				scanCode = 0x48; break;
+		case ImuiInputKey_I:				scanCode = 0x49; break;
+		case ImuiInputKey_J:				scanCode = 0x4a; break;
+		case ImuiInputKey_K:				scanCode = 0x4b; break;
+		case ImuiInputKey_L:				scanCode = 0x4c; break;
+		case ImuiInputKey_M:				scanCode = 0x4d; break;
+		case ImuiInputKey_N:				scanCode = 0x4e; break;
+		case ImuiInputKey_O:				scanCode = 0x4f; break;
+		case ImuiInputKey_P:				scanCode = 0x50; break;
+		case ImuiInputKey_Q:				scanCode = 0x51; break;
+		case ImuiInputKey_R:				scanCode = 0x52; break;
+		case ImuiInputKey_S:				scanCode = 0x53; break;
+		case ImuiInputKey_T:				scanCode = 0x54; break;
+		case ImuiInputKey_U:				scanCode = 0x55; break;
+		case ImuiInputKey_V:				scanCode = 0x56; break;
+		case ImuiInputKey_W:				scanCode = 0x57; break;
+		case ImuiInputKey_X:				scanCode = 0x58; break;
+		case ImuiInputKey_Y:				scanCode = 0x59; break;
+		case ImuiInputKey_Z:				scanCode = 0x5a; break;
+		case ImuiInputKey_1:				scanCode = 0x31; break;
+		case ImuiInputKey_2:				scanCode = 0x32; break;
+		case ImuiInputKey_3:				scanCode = 0x33; break;
+		case ImuiInputKey_4:				scanCode = 0x34; break;
+		case ImuiInputKey_5:				scanCode = 0x35; break;
+		case ImuiInputKey_6:				scanCode = 0x36; break;
+		case ImuiInputKey_7:				scanCode = 0x37; break;
+		case ImuiInputKey_8:				scanCode = 0x38; break;
+		case ImuiInputKey_9:				scanCode = 0x39; break;
+		case ImuiInputKey_0:				scanCode = 0x30; break;
+		case ImuiInputKey_Enter:			scanCode = VK_RETURN; break;
+		case ImuiInputKey_Escape:			scanCode = VK_ESCAPE; break;
+		case ImuiInputKey_Backspace:		scanCode = VK_BACK; break;
+		case ImuiInputKey_Tab:				scanCode = VK_TAB; break;
+		case ImuiInputKey_Space:			scanCode = VK_SPACE; break;
+		case ImuiInputKey_LeftShift:		scanCode = VK_LSHIFT; break;
+		case ImuiInputKey_RightShift:		scanCode = VK_RSHIFT; break;
+		case ImuiInputKey_LeftControl:		scanCode = VK_LCONTROL; break;
+		case ImuiInputKey_RightControl:		scanCode = VK_RCONTROL; break;
+		case ImuiInputKey_LeftAlt:			scanCode = VK_LMENU; break;
+		case ImuiInputKey_RightAlt:			scanCode = VK_RMENU; break;
+		case ImuiInputKey_Minus:			scanCode = VK_OEM_MINUS; break;
+		case ImuiInputKey_Equals:			scanCode = VK_OEM_PLUS; break;
+		case ImuiInputKey_LeftBracket:		scanCode = VK_OEM_4; break;
+		case ImuiInputKey_RightBracket:		scanCode = VK_OEM_6; break;
+		case ImuiInputKey_Backslash:		scanCode = VK_OEM_5; break;
+		case ImuiInputKey_Semicolon:		scanCode = VK_OEM_1; break;
+		case ImuiInputKey_Apostrophe:		scanCode = VK_OEM_7; break;
+		case ImuiInputKey_Grave:			scanCode = VK_OEM_3; break;
+		case ImuiInputKey_Comma:			scanCode = VK_OEM_COMMA; break;
+		case ImuiInputKey_Period:			scanCode = VK_OEM_PERIOD; break;
+		case ImuiInputKey_Slash:			scanCode = VK_OEM_2; break;
+		case ImuiInputKey_F1:				scanCode = VK_F1; break;
+		case ImuiInputKey_F2:				scanCode = VK_F2; break;
+		case ImuiInputKey_F3:				scanCode = VK_F3; break;
+		case ImuiInputKey_F4:				scanCode = VK_F4; break;
+		case ImuiInputKey_F5:				scanCode = VK_F5; break;
+		case ImuiInputKey_F6:				scanCode = VK_F6; break;
+		case ImuiInputKey_F7:				scanCode = VK_F7; break;
+		case ImuiInputKey_F8:				scanCode = VK_F8; break;
+		case ImuiInputKey_F9:				scanCode = VK_F9; break;
+		case ImuiInputKey_F10:				scanCode = VK_F10; break;
+		case ImuiInputKey_F11:				scanCode = VK_F11; break;
+		case ImuiInputKey_F12:				scanCode = VK_F12; break;
+		case ImuiInputKey_Print:			scanCode = VK_PRINT; break;
+		case ImuiInputKey_Pause:			scanCode = VK_PAUSE; break;
+		case ImuiInputKey_Insert:			scanCode = VK_INSERT; break;
+		case ImuiInputKey_Delete:			scanCode = VK_DELETE; break;
+		case ImuiInputKey_Home:				scanCode = VK_HOME; break;
+		case ImuiInputKey_End:				scanCode = VK_END; break;
+		case ImuiInputKey_PageUp:			scanCode = VK_PRIOR; break;
+		case ImuiInputKey_PageDown:			scanCode = VK_NEXT; break;
+		case ImuiInputKey_Up:				scanCode = VK_UP; break;
+		case ImuiInputKey_Left:				scanCode = VK_LEFT; break;
+		case ImuiInputKey_Down:				scanCode = VK_DOWN; break;
+		case ImuiInputKey_Right:			scanCode = VK_RIGHT; break;
+		case ImuiInputKey_Numpad_Divide:	scanCode = VK_DIVIDE; break;
+		case ImuiInputKey_Numpad_Multiply:	scanCode = VK_MULTIPLY; break;
+		case ImuiInputKey_Numpad_Minus:		scanCode = VK_SUBTRACT; break;
+		case ImuiInputKey_Numpad_Plus:		scanCode = VK_ADD; break;
+		case ImuiInputKey_Numpad_Enter:		break;
+		case ImuiInputKey_Numpad_1:			scanCode = VK_NUMPAD1; break;
+		case ImuiInputKey_Numpad_2:			scanCode = VK_NUMPAD2; break;
+		case ImuiInputKey_Numpad_3:			scanCode = VK_NUMPAD3; break;
+		case ImuiInputKey_Numpad_4:			scanCode = VK_NUMPAD4; break;
+		case ImuiInputKey_Numpad_5:			scanCode = VK_NUMPAD5; break;
+		case ImuiInputKey_Numpad_6:			scanCode = VK_NUMPAD6; break;
+		case ImuiInputKey_Numpad_7:			scanCode = VK_NUMPAD7; break;
+		case ImuiInputKey_Numpad_8:			scanCode = VK_NUMPAD8; break;
+		case ImuiInputKey_Numpad_9:			scanCode = VK_NUMPAD9; break;
+		case ImuiInputKey_Numpad_0:			scanCode = VK_NUMPAD0; break;
+		case ImuiInputKey_Numpad_Period:	scanCode = VK_SEPARATOR; break;
+		case ImuiInputKey_MAX:				break;
 		}
 
 #if IMAPP_ENABLED( IMAPP_DEBUG )
@@ -666,9 +666,9 @@ static void imappPlatformWindowSetMenuItemState( HMENU menu, MENUITEMINFO* menuI
 	SetMenuItemInfo( menu, item, false, menuItemInfo );
 }
 
-ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWindowParameters* parameters )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const ImappWindowParameters* parameters )
 {
-	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
+	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 	if( window == NULL )
 	{
 		return NULL;
@@ -697,9 +697,9 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 	DWORD winStyle = WS_OVERLAPPEDWINDOW;
 	switch( parameters->style )
 	{
-	case ImAppWindowStyle_Resizable:	break;
-	case ImAppWindowStyle_Borderless:	winStyle = WS_POPUP; break;
-	case ImAppWindowStyle_Custom:		winStyle = WS_OVERLAPPED | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
+	case ImappWindowStyle_Resizable:	break;
+	case ImappWindowStyle_Borderless:	winStyle = WS_POPUP; break;
+	case ImappWindowStyle_Custom:		winStyle = WS_OVERLAPPED | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME; break;
 	}
 
 	int x = parameters->x;
@@ -770,9 +770,9 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 	int showState = SW_SHOWNORMAL;
 	switch( parameters->state )
 	{
-	case ImAppWindowState_Default: break;
-	case ImAppWindowState_Maximized: showState = SW_SHOWMAXIMIZED; break;
-	case ImAppWindowState_Minimized: showState = SW_SHOWMINIMIZED; break;
+	case ImappWindowState_Default: break;
+	case ImappWindowState_Maximized: showState = SW_SHOWMAXIMIZED; break;
+	case ImappWindowState_Minimized: showState = SW_SHOWMINIMIZED; break;
 	}
 	ShowWindow( window->hwnd, showState );
 
@@ -813,22 +813,22 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const ImAppWind
 	return window;
 }
 
-void imappPlatformWindowDestroy( ImAppWindow* window )
+void imappPlatformWindowDestroy( ImappWindow* window )
 {
 	while( window->firstNewDrop )
 	{
-		ImAppWindowDrop* drop = window->firstNewDrop;
+		ImappWindowDrop* drop = window->firstNewDrop;
 		window->firstNewDrop = drop->nextDrop;
 
-		ImUiMemoryFree( window->platform->allocator, drop );
+		imuiMemoryFree( window->platform->allocator, drop );
 	}
 
 	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		ImappWindowDrop* drop = window->firstPoppedDrop;
 		window->firstPoppedDrop = drop->nextDrop;
 
-		ImUiMemoryFree( window->platform->allocator, drop );
+		imuiMemoryFree( window->platform->allocator, drop );
 	}
 
 	imappEventQueueDestruct( &window->eventQueue );
@@ -851,11 +851,11 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 
 	if( window->title )
 	{
-		ImUiMemoryFree( window->platform->allocator, window->title );
+		imuiMemoryFree( window->platform->allocator, window->title );
 		window->title = NULL;
 	}
 
-	ImUiMemoryFree( window->platform->allocator, window );
+	imuiMemoryFree( window->platform->allocator, window );
 }
 
 static HGLRC imappPlatformWindowCreateGlContext( HDC windowDc )
@@ -880,23 +880,23 @@ static HGLRC imappPlatformWindowCreateGlContext( HDC windowDc )
 	return wglCreateContext( windowDc );
 }
 
-ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
+ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
 {
 	IMAPP_USE( window );
-	return ImAppWindowDeviceState_Ok;
+	return ImappWindowDeviceState_Ok;
 }
 
-void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
+void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCallback callback, void* arg )
 {
 	window->updateCallback		= callback;
 	window->updateCallbackArg	= arg;
 
 	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		ImappWindowDrop* drop = window->firstPoppedDrop;
 		window->firstPoppedDrop = drop->nextDrop;
 
-		ImUiMemoryFree( window->platform->allocator, drop );
+		imuiMemoryFree( window->platform->allocator, drop );
 	}
 
 	imappPlatformWindowUpdateController( window );
@@ -913,7 +913,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	window->updateCallbackArg	= NULL;
 }
 
-bool imappPlatformWindowBeginRender( ImAppWindow* window )
+bool imappPlatformWindowBeginRender( ImappWindow* window )
 {
 	if( !wglMakeCurrent( window->hdc, window->hglrc ) )
 	{
@@ -924,7 +924,7 @@ bool imappPlatformWindowBeginRender( ImAppWindow* window )
 	return true;
 }
 
-bool imappPlatformWindowEndRender( ImAppWindow* window )
+bool imappPlatformWindowEndRender( ImappWindow* window )
 {
 	if( !wglSwapLayerBuffers( window->hdc, WGL_SWAP_MAIN_PLANE ) )
 	{
@@ -935,19 +935,19 @@ bool imappPlatformWindowEndRender( ImAppWindow* window )
 	return true;
 }
 
-ImAppEventQueue* imappPlatformWindowGetEventQueue( ImAppWindow* window )
+ImappEventQueue* imappPlatformWindowGetEventQueue( ImappWindow* window )
 {
 	return &window->eventQueue;
 }
 
-bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+bool imappPlatformWindowPopDropData( ImappWindow* window, ImappDropData* outData )
 {
 	if( !window->firstNewDrop )
 	{
 		return false;
 	}
 
-	ImAppWindowDrop* drop = window->firstNewDrop;
+	ImappWindowDrop* drop = window->firstNewDrop;
 	outData->type		= drop->type;
 	outData->pathOrText	= drop->pathOrText;
 
@@ -959,7 +959,7 @@ bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 	return true;
 }
 
-void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
+void imappPlatformWindowGetViewRect( const ImappWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
 	*outX = 0;
 	*outY = 0;
@@ -967,44 +967,44 @@ void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	imappPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-bool imappPlatformWindowHasFocus( const ImAppWindow* window )
+bool imappPlatformWindowHasFocus( const ImappWindow* window )
 {
 	return window->hasFocus;
 }
 
-void imappPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
+void imappPlatformWindowGetSize( const ImappWindow* window, int* outWidth, int* outHeight )
 {
 	*outWidth	= window->width;
 	*outHeight	= window->height;
 }
 
-void imappPlatformWindowSetSize( ImAppWindow* window, int width, int height )
+void imappPlatformWindowSetSize( ImappWindow* window, int width, int height )
 {
 	SetWindowPos( window->hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER );
 }
 
-void imappPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
+void imappPlatformWindowGetPosition( const ImappWindow* window, int* outX, int* outY )
 {
 	*outX = window->x;
 	*outY = window->y;
 }
 
-void imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
 	SetWindowPos( window->hwnd, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER );
 }
 
-ImAppWindowStyle imappPlatformWindowGetStyle( const ImAppWindow* window )
+ImappWindowStyle imappPlatformWindowGetStyle( const ImappWindow* window )
 {
 	return window->style;
 }
 
-ImAppWindowState imappPlatformWindowGetState( const ImAppWindow* window )
+ImappWindowState imappPlatformWindowGetState( const ImappWindow* window )
 {
 	return window->state;
 }
 
-void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+void imappPlatformWindowSetState( ImappWindow* window, ImappWindowState state )
 {
 	if( window->state == state )
 	{
@@ -1014,9 +1014,9 @@ void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
 	int cmdShow = -1;
 	switch( state )
 	{
-	case ImAppWindowState_Default:		cmdShow = SW_RESTORE; break;
-	case ImAppWindowState_Maximized:	cmdShow = SW_MAXIMIZE; break;
-	case ImAppWindowState_Minimized:	cmdShow = SW_MINIMIZE; break;
+	case ImappWindowState_Default:		cmdShow = SW_RESTORE; break;
+	case ImappWindowState_Maximized:	cmdShow = SW_MAXIMIZE; break;
+	case ImappWindowState_Minimized:	cmdShow = SW_MINIMIZE; break;
 	}
 
 	if( cmdShow < 0 )
@@ -1028,12 +1028,12 @@ void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
 	window->state = state;
 }
 
-const char* imappPlatformWindowGetTitle( const ImAppWindow* window )
+const char* imappPlatformWindowGetTitle( const ImappWindow* window )
 {
 	return window->title;
 }
 
-void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+void imappPlatformWindowSetTitle( ImappWindow* window, const char* title )
 {
 	const uintsize windowTitleLength = strlen( title ) + 1u;
 	if( !IMUI_MEMORY_ARRAY_CHECK_CAPACITY( window->platform->allocator, window->title, window->titleCapacity, windowTitleLength ) )
@@ -1050,18 +1050,18 @@ void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
 	SetWindowTextW( window->hwnd, wideWindowTitle );
 }
 
-void imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+void imappPlatformWindowSetTitleBounds( ImappWindow* window, int height, int buttonsX )
 {
 	window->titleHeight		= height;
 	window->titleButtonsX	= buttonsX;
 }
 
-float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
+float imappPlatformWindowGetDpiScale( const ImappWindow* window )
 {
 	return window->dpiScale;
 }
 
-void imappPlatformWindowClose( ImAppWindow* window )
+void imappPlatformWindowClose( ImappWindow* window )
 {
 	SendMessage( window->hwnd, WM_CLOSE, 0, 0 );
 }
@@ -1084,26 +1084,26 @@ static const WORD s_controllerButtonsXInput[] =
 	XINPUT_GAMEPAD_Y
 };
 
-static const ImUiInputKey s_controllerButtonsImUi[] =
+static const ImuiInputKey s_controllerButtonsimui[] =
 {
-	ImUiInputKey_Gamepad_Dpad_Up,
-	ImUiInputKey_Gamepad_Dpad_Down,
-	ImUiInputKey_Gamepad_Dpad_Left,
-	ImUiInputKey_Gamepad_Dpad_Right,
-	ImUiInputKey_Gamepad_Start,
-	ImUiInputKey_Gamepad_Back,
-	ImUiInputKey_Gamepad_LeftThumb,
-	ImUiInputKey_Gamepad_RightThumb,
-	ImUiInputKey_Gamepad_LeftShoulder,
-	ImUiInputKey_Gamepad_RightShoulder,
-	ImUiInputKey_Gamepad_A,
-	ImUiInputKey_Gamepad_B,
-	ImUiInputKey_Gamepad_X,
-	ImUiInputKey_Gamepad_Y
+	ImuiInputKey_Gamepad_Dpad_Up,
+	ImuiInputKey_Gamepad_Dpad_Down,
+	ImuiInputKey_Gamepad_Dpad_Left,
+	ImuiInputKey_Gamepad_Dpad_Right,
+	ImuiInputKey_Gamepad_Start,
+	ImuiInputKey_Gamepad_Back,
+	ImuiInputKey_Gamepad_LeftThumb,
+	ImuiInputKey_Gamepad_RightThumb,
+	ImuiInputKey_Gamepad_LeftShoulder,
+	ImuiInputKey_Gamepad_RightShoulder,
+	ImuiInputKey_Gamepad_A,
+	ImuiInputKey_Gamepad_B,
+	ImuiInputKey_Gamepad_X,
+	ImuiInputKey_Gamepad_Y
 };
-static_assert( IMAPP_ARRAY_COUNT( s_controllerButtonsXInput ) == IMAPP_ARRAY_COUNT( s_controllerButtonsImUi ), "more controller buttons" );
+static_assert( IMAPP_ARRAY_COUNT( s_controllerButtonsXInput ) == IMAPP_ARRAY_COUNT( s_controllerButtonsimui ), "more controller buttons" );
 
-static void imappPlatformWindowUpdateController( ImAppWindow* window )
+static void imappPlatformWindowUpdateController( ImappWindow* window )
 {
 	XINPUT_STATE state;
 	if( XInputGetState( 0u, &state ) != ERROR_SUCCESS )
@@ -1118,7 +1118,7 @@ static void imappPlatformWindowUpdateController( ImAppWindow* window )
 	if( state.Gamepad.sThumbLX != window->lastControllerState.Gamepad.sThumbLX ||
 		state.Gamepad.sThumbLY != window->lastControllerState.Gamepad.sThumbLY )
 	{
-		ImAppEvent directionEvent = { .type = ImAppEventType_Direction };
+		ImappEvent directionEvent = { .type = ImappEventType_Direction };
 		if( state.Gamepad.sThumbLX < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE )
 		{
 			directionEvent.direction.x = (float)(state.Gamepad.sThumbLX + XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) / (32768.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
@@ -1150,9 +1150,9 @@ static void imappPlatformWindowUpdateController( ImAppWindow* window )
 			continue;
 		}
 
-		ImAppEvent keyEvent;
-		keyEvent.key.type	= isDown ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
-		keyEvent.key.key	= s_controllerButtonsImUi[ i ];
+		ImappEvent keyEvent;
+		keyEvent.key.type	= isDown ? ImappEventType_KeyDown : ImappEventType_KeyUp;
+		keyEvent.key.key	= s_controllerButtonsimui[ i ];
 
 		imappEventQueuePush( &window->eventQueue, &keyEvent );
 	}
@@ -1176,7 +1176,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		return 0;
 	}
 
-	ImAppWindow* window = (ImAppWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+	ImappWindow* window = (ImappWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 	if( window == NULL )
 	{
 		return DefWindowProc( hWnd, message, wParam, lParam );
@@ -1185,7 +1185,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	switch( message )
 	{
 	case WM_CREATE:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			// extend the frame over the entire window
 			const MARGINS margin = { -1, -1, -1, -1 };
@@ -1197,7 +1197,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_CLOSE:
 		{
-			const ImAppEvent closeEvent = { .window = { .type = ImAppEventType_WindowClose } };
+			const ImappEvent closeEvent = { .window = { .type = ImappEventType_WindowClose } };
 			imappEventQueuePush( &window->eventQueue, &closeEvent );
 		}
 		return 0;
@@ -1236,15 +1236,15 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 			switch( wParam )
 			{
 			case SIZE_RESTORED:
-				window->state = ImAppWindowState_Default;
+				window->state = ImappWindowState_Default;
 				break;
 
 			case SIZE_MAXIMIZED:
-				window->state = ImAppWindowState_Maximized;
+				window->state = ImappWindowState_Maximized;
 				break;
 
 			case SIZE_MINIMIZED:
-				window->state = ImAppWindowState_Minimized;
+				window->state = ImappWindowState_Minimized;
 				break;
 			}
 
@@ -1266,21 +1266,21 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCACTIVATE:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			return TRUE;
 		}
 		break;
 
 	//case WM_NCPAINT:
-	//	if( window->style == ImAppWindowStyle_Custom )
+	//	if( window->style == imappWindowStyle_Custom )
 	//	{
 	//		return 0;
 	//	}
 	//	break;
 
 	case WM_ERASEBKGND:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			return 1;
 		}
@@ -1325,14 +1325,14 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 			const int x = GET_X_LPARAM( lParam );
 			const int y = GET_Y_LPARAM( lParam );
-			const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = x, .y = y } };
+			const ImappEvent motionEvent = { .motion = {.type = ImappEventType_Motion, .x = x, .y = y } };
 			imappEventQueuePush( &window->eventQueue, &motionEvent );
 		}
 		return 0;
 
 	case WM_MOUSELEAVE:
 		{
-			const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = 0xffffffff, .y = 0xffffffff } };
+			const ImappEvent motionEvent = { .motion = {.type = ImappEventType_Motion, .x = 0xffffffff, .y = 0xffffffff } };
 			imappEventQueuePush( &window->eventQueue, &motionEvent );
 
 			window->hasTracking = false;
@@ -1346,40 +1346,40 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 				break;
 			}
 
-			const ImAppEvent characterEvent = { .character = {.type = ImAppEventType_Character, .character = (uint32_t)wParam } };
+			const ImappEvent characterEvent = { .character = {.type = ImappEventType_Character, .character = (uint32_t)wParam } };
 			imappEventQueuePush( &window->eventQueue, &characterEvent );
 		}
 		return 0;
 
 	case WM_KEYDOWN:
 		{
-			const ImUiInputKey key = imappPlatformWindowMapKey( window, wParam, lParam );
+			const ImuiInputKey key = imappPlatformWindowMapKey( window, wParam, lParam );
 
 			const bool repeat = lParam & 0x40000000;
-			const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyDown, .key = key, .repeat = repeat } };
+			const ImappEvent keyEvent = { .key = { .type = ImappEventType_KeyDown, .key = key, .repeat = repeat } };
 			imappEventQueuePush( &window->eventQueue, &keyEvent );
 		}
 		return 0;
 
 	case WM_KEYUP:
 		{
-			const ImUiInputKey key = imappPlatformWindowMapKey( window, wParam, lParam );
+			const ImuiInputKey key = imappPlatformWindowMapKey( window, wParam, lParam );
 
-			const ImAppEvent keyEvent = { .key = { .type = ImAppEventType_KeyUp, .key = key } };
+			const ImappEvent keyEvent = { .key = { .type = ImappEventType_KeyUp, .key = key } };
 			imappEventQueuePush( &window->eventQueue, &keyEvent );
 		}
 		return 0;
 
 	case WM_LBUTTONDBLCLK:
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Left } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_DoubleClick, .button = ImuiInputMouseButton_Left } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 		}
 		// fall through
 
 	case WM_LBUTTONDOWN:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonDown, .button = ImuiInputMouseButton_Left } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			SetCapture( window->hwnd );
@@ -1388,7 +1388,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_LBUTTONUP:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonUp, .button = ImuiInputMouseButton_Left } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			ReleaseCapture();
@@ -1397,14 +1397,14 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_RBUTTONDBLCLK:
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Right } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_DoubleClick, .button = ImuiInputMouseButton_Right } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 		}
 		// fall through
 
 	case WM_RBUTTONDOWN:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Right } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonDown, .button = ImuiInputMouseButton_Right } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			SetCapture( window->hwnd );
@@ -1413,7 +1413,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_RBUTTONUP:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Right } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonUp, .button = ImuiInputMouseButton_Right } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			ReleaseCapture();
@@ -1422,14 +1422,14 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_MBUTTONDBLCLK:
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_Middle } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_DoubleClick, .button = ImuiInputMouseButton_Middle } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 		}
 		// fall through
 
 	case WM_MBUTTONDOWN:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Middle } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonDown, .button = ImuiInputMouseButton_Middle } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			SetCapture( window->hwnd );
@@ -1438,7 +1438,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_MBUTTONUP:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Middle } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonUp, .button = ImuiInputMouseButton_Middle } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			ReleaseCapture();
@@ -1447,14 +1447,14 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_XBUTTONDBLCLK:
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_DoubleClick, .button = ImUiInputMouseButton_X1 } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_DoubleClick, .button = ImuiInputMouseButton_X1 } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 		}
 		// fall through
 
 	case WM_XBUTTONDOWN:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_X1 } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonDown, .button = ImuiInputMouseButton_X1 } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			SetCapture( window->hwnd );
@@ -1463,7 +1463,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 	case WM_XBUTTONUP:
 		{
-			const ImAppEvent buttonEvent = { .button = { .type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_X1 } };
+			const ImappEvent buttonEvent = { .button = { .type = ImappEventType_ButtonUp, .button = ImuiInputMouseButton_X1 } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			ReleaseCapture();
@@ -1473,7 +1473,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	case WM_MOUSEWHEEL:
 		{
 			const int yDelta = GET_WHEEL_DELTA_WPARAM( wParam ) / WHEEL_DELTA;
-			const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = 0, .y = yDelta } };
+			const ImappEvent scrollEvent = { .scroll = { .type = ImappEventType_Scroll, .x = 0, .y = yDelta } };
 			imappEventQueuePush( &window->eventQueue, &scrollEvent );
 		}
 		return 0;
@@ -1481,13 +1481,13 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	case WM_MOUSEHWHEEL:
 		{
 			const int xDelta = GET_WHEEL_DELTA_WPARAM( wParam ) / WHEEL_DELTA;
-			const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = xDelta, .y = 0 } };
+			const ImappEvent scrollEvent = { .scroll = { .type = ImappEventType_Scroll, .x = xDelta, .y = 0 } };
 			imappEventQueuePush( &window->eventQueue, &scrollEvent );
 		}
 		return 0;
 
 	case WM_NCCALCSIZE:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			if( !wParam )
 			{
@@ -1499,7 +1499,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCHITTEST:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			window->windowHitResult = DefWindowProc( window->hwnd, message, wParam, lParam );
 			switch( window->windowHitResult )
@@ -1585,14 +1585,14 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCMOUSEMOVE:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			POINT mousePos;
 			mousePos.x = GET_X_LPARAM( lParam );
 			mousePos.y = GET_Y_LPARAM( lParam );
 			ScreenToClient( window->hwnd, &mousePos );
 
-			const ImAppEvent motionEvent = { .motion = {.type = ImAppEventType_Motion, .x = mousePos.x, .y = mousePos.y } };
+			const ImappEvent motionEvent = { .motion = {.type = ImappEventType_Motion, .x = mousePos.x, .y = mousePos.y } };
 			imappEventQueuePush( &window->eventQueue, &motionEvent );
 
 			return 0;
@@ -1600,10 +1600,10 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCLBUTTONDOWN:
-		if( window->style == ImAppWindowStyle_Custom &&
+		if( window->style == ImappWindowStyle_Custom &&
 			window->windowHitResult == HTCLIENT )
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonDown, .button = ImUiInputMouseButton_Left } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_ButtonDown, .button = ImuiInputMouseButton_Left } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			return 0;
@@ -1611,10 +1611,10 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCLBUTTONUP:
-		if( window->style == ImAppWindowStyle_Custom &&
+		if( window->style == ImappWindowStyle_Custom &&
 			window->windowHitResult == HTCLIENT )
 		{
-			const ImAppEvent buttonEvent = { .button = {.type = ImAppEventType_ButtonUp, .button = ImUiInputMouseButton_Left } };
+			const ImappEvent buttonEvent = { .button = {.type = ImappEventType_ButtonUp, .button = ImuiInputMouseButton_Left } };
 			imappEventQueuePush( &window->eventQueue, &buttonEvent );
 
 			return 0;
@@ -1622,10 +1622,10 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_NCRBUTTONUP:
-		if( window->style == ImAppWindowStyle_Custom &&
+		if( window->style == ImappWindowStyle_Custom &&
 			wParam == HTCAPTION )
 		{
-			const BOOL isMaximized = window->state == ImAppWindowState_Maximized;
+			const BOOL isMaximized = window->state == ImappWindowState_Maximized;
 			MENUITEMINFO menuItemInfo = {
 				.cbSize = sizeof( menuItemInfo ),
 				.fMask = MIIM_STATE
@@ -1648,7 +1648,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 		break;
 
 	case WM_GETMINMAXINFO:
-		if( window->style == ImAppWindowStyle_Custom )
+		if( window->style == ImappWindowStyle_Custom )
 		{
 			MINMAXINFO* mmi = (MINMAXINFO*)lParam;
 
@@ -1677,30 +1677,30 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 	return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
-static ImUiInputKey imappPlatformWindowMapKey( ImAppWindow* window, WPARAM wParam, LPARAM lParam )
+static ImuiInputKey imappPlatformWindowMapKey( ImappWindow* window, WPARAM wParam, LPARAM lParam )
 {
 	if( wParam > IMAPP_ARRAY_COUNT( window->platform->inputKeyMapping ) )
 	{
-		return ImUiInputKey_None;
+		return ImuiInputKey_None;
 	}
 
-	ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
+	ImuiInputKey key = (ImuiInputKey)window->platform->inputKeyMapping[ (uint8)wParam ];
 	if( wParam == VK_RETURN &&
 		lParam & 0x1000000 )
 	{
-		key = ImUiInputKey_Numpad_Enter;
+		key = ImuiInputKey_Numpad_Enter;
 	}
 	else if( wParam == VK_SHIFT )
 	{
-		key = lParam & 0x1000000 ? ImUiInputKey_RightShift : ImUiInputKey_LeftShift;
+		key = lParam & 0x1000000 ? ImuiInputKey_RightShift : ImuiInputKey_LeftShift;
 	}
 	else if( wParam == VK_CONTROL )
 	{
-		key = lParam & 0x1000000 ? ImUiInputKey_RightControl : ImUiInputKey_LeftControl;
+		key = lParam & 0x1000000 ? ImuiInputKey_RightControl : ImuiInputKey_LeftControl;
 	}
 	else if( wParam == VK_MENU )
 	{
-		key = lParam & 0x1000000 ? ImUiInputKey_RightAlt : ImUiInputKey_LeftAlt;
+		key = lParam & 0x1000000 ? ImuiInputKey_RightAlt : ImuiInputKey_LeftAlt;
 	}
 
 	return key;
@@ -1737,7 +1737,7 @@ HRESULT STDMETHODCALLTYPE imappPlatformWindowDropTargetDragEnter( __RPC__in IDro
 	IMAPP_USE( pt );
 	IMAPP_USE( pdwEffect );
 
-	ImAppWindow* window = (ImAppWindow*)This;
+	ImappWindow* window = (ImappWindow*)This;
 
 	IEnumFORMATETC* formatEnum = NULL;
 	pDataObj->lpVtbl->EnumFormatEtc( pDataObj, DATADIR_GET, &formatEnum );
@@ -1789,7 +1789,7 @@ HRESULT STDMETHODCALLTYPE imappPlatformWindowDropTargetDrop( __RPC__in IDropTarg
 	IMAPP_USE( pt );
 	IMAPP_USE( pdwEffect );
 
-	ImAppWindow* window = (ImAppWindow*)This;
+	ImappWindow* window = (ImappWindow*)This;
 
 	STGMEDIUM medium = { 0u };
 	const HRESULT dataResult = pDataObj->lpVtbl->GetData( pDataObj, &window->dropFormat, &medium );
@@ -1805,8 +1805,8 @@ HRESULT STDMETHODCALLTYPE imappPlatformWindowDropTargetDrop( __RPC__in IDropTarg
 	{
 		const size_t dataSize = GlobalSize( medium.hGlobal );
 
-		ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + dataSize );
-		drop->type = ImAppDropType_Text;
+		ImappWindowDrop* drop = (ImappWindowDrop*)imuiMemoryAlloc( window->platform->allocator, sizeof( ImappWindowDrop ) + dataSize );
+		drop->type = ImappDropType_Text;
 
 		const void* data = (const void*)GlobalLock( medium.hGlobal );
 		memcpy( drop->pathOrText, data, dataSize );
@@ -1835,8 +1835,8 @@ HRESULT STDMETHODCALLTYPE imappPlatformWindowDropTargetDrop( __RPC__in IDropTarg
 			}
 
 			const int utfNameLength = WideCharToMultiByte( CP_UTF8, 0u, fileName, nameLength, NULL, 0, NULL, NULL );
-			ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + utfNameLength );
-			drop->type = ImAppDropType_File;
+			ImappWindowDrop* drop = (ImappWindowDrop*)imuiMemoryAlloc( window->platform->allocator, sizeof( ImappWindowDrop ) + utfNameLength );
+			drop->type = ImappDropType_File;
 
 			WideCharToMultiByte( CP_UTF8, 0u, fileName, nameLength, drop->pathOrText, utfNameLength, NULL, NULL );
 			drop->pathOrText[ utfNameLength ] = '\0';
@@ -1853,7 +1853,7 @@ HRESULT STDMETHODCALLTYPE imappPlatformWindowDropTargetDrop( __RPC__in IDropTarg
 	return handled ? S_OK : S_FALSE;
 }
 
-void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+void imappPlatformResourceGetPath( ImappPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
 	const uintsize nameLength = strlen( resourceName );
 
@@ -1873,16 +1873,16 @@ void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uints
 	}
 }
 
-ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resourceName )
 {
 	return imappPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
 }
 
-ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
-	ImAppBlob result = { NULL, 0u };
+	ImappBlob result = { NULL, 0u };
 
-	ImAppFile* file = imappPlatformResourceOpen( platform, resourceName );
+	ImappFile* file = imappPlatformResourceOpen( platform, resourceName );
 	if( !file )
 	{
 		return result;
@@ -1896,7 +1896,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 		length = fileSize.QuadPart - offset;
 	}
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	void* memory = imuiMemoryAlloc( platform->allocator, length );
 	if( !memory )
 	{
 		imappPlatformResourceClose( platform, file );
@@ -1908,7 +1908,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 
 	if( readResult != length )
 	{
-		ImUiMemoryFree( platform->allocator, memory );
+		imuiMemoryFree( platform->allocator, memory );
 		return result;
 	}
 
@@ -1917,7 +1917,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	return result;
 }
 
-ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+ImappFile* imappPlatformResourceOpen( ImappPlatform* platform, const char* resourceName )
 {
 	wchar_t pathBuffer[ MAX_PATH ];
 	wcsncpy_s( pathBuffer, MAX_PATH, platform->resourceBasePath, platform->resourceBasePathLength );
@@ -1941,9 +1941,9 @@ ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 		return NULL;
 	}
 
-	return (ImAppFile*)fileHandle;
+	return (ImappFile*)fileHandle;
 }
-uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+uintsize imappPlatformResourceRead( ImappFile* file, void* outData, uintsize length, uintsize offset )
 {
 	const HANDLE fileHandle = (HANDLE)file;
 
@@ -1963,7 +1963,7 @@ uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 	return bytesRead;
 }
 
-void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+void imappPlatformResourceClose( ImappPlatform* platform, ImappFile* file )
 {
 	IMAPP_USE( platform );
 
@@ -1971,7 +1971,7 @@ void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
 	CloseHandle( fileHandle );
 }
 
-ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const char* fontName )
 {
 	wchar_t* pTargetBuffer = platform->fontBasePath + platform->fontBasePathLength;
 	const uintsize targetLengthInCharacters = IMAPP_ARRAY_COUNT( platform->fontBasePath ) - platform->fontBasePathLength;
@@ -1989,14 +1989,14 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	const HANDLE fileHandle = CreateFileW( platform->fontBasePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
 	if( fileHandle == INVALID_HANDLE_VALUE )
 	{
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
 	LARGE_INTEGER fileSize;
 	GetFileSizeEx( fileHandle, &fileSize );
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, (uintsize)fileSize.QuadPart );
+	void* memory = imuiMemoryAlloc( platform->allocator, (uintsize)fileSize.QuadPart );
 
 	DWORD bytesRead = 0u;
 	const BOOL readResult = ReadFile( fileHandle, memory, (DWORD)fileSize.QuadPart, &bytesRead, NULL );
@@ -2004,23 +2004,23 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 
 	if( !readResult || bytesRead != (DWORD)fileSize.QuadPart )
 	{
-		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result = { NULL, 0u };
+		imuiMemoryFree( platform->allocator, memory );
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
-	const ImAppBlob result = { memory, (uintsize)fileSize.QuadPart };
+	const ImappBlob result = { memory, (uintsize)fileSize.QuadPart };
 	return result;
 }
 
-void imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+void imappPlatformResourceFree( ImappPlatform* platform, ImappBlob blob )
 {
-	ImUiMemoryFree( platform->allocator, blob.data );
+	imuiMemoryFree( platform->allocator, blob.data );
 }
 
-ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
+ImappFileWatcher* imappPlatformFileWatcherCreate( ImappPlatform* platform )
 {
-	ImAppFileWatcher* watcher = IMUI_MEMORY_NEW( platform->allocator, ImAppFileWatcher );
+	ImappFileWatcher* watcher = IMUI_MEMORY_NEW( platform->allocator, ImappFileWatcher );
 	if( !watcher )
 	{
 		return NULL;
@@ -2039,16 +2039,16 @@ ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
 	return watcher;
 }
 
-void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+void imappPlatformFileWatcherDestroy( ImappPlatform* platform, ImappFileWatcher* watcher )
 {
-	ImAppFileWatcherPath* path = watcher->firstPath;
-	ImAppFileWatcherPath* nextPath = NULL;
+	ImappFileWatcherPath* path = watcher->firstPath;
+	ImappFileWatcherPath* nextPath = NULL;
 	while( path )
 	{
 		nextPath = path->nextPath;
 		CancelIo( path->dirHandle );
 		CloseHandle( path->dirHandle );
-		ImUiMemoryFree( platform->allocator, path );
+		imuiMemoryFree( platform->allocator, path );
 		path = nextPath;
 	}
 
@@ -2057,15 +2057,15 @@ void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher*
 		CloseHandle( watcher->ioPort );
 	}
 
-	ImUiMemoryFree( platform->allocator, watcher );
+	imuiMemoryFree( platform->allocator, watcher );
 }
 
-void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherAddPath( ImappFileWatcher* watcher, const char* path )
 {
 	const char* pathEnd = strrchr( path, '/' );
 	const uintsize pathLength = pathEnd ? pathEnd - path : strlen( path );
 
-	for( ImAppFileWatcherPath* watcherPath = watcher->firstPath; watcherPath; watcherPath = watcherPath->nextPath )
+	for( ImappFileWatcherPath* watcherPath = watcher->firstPath; watcherPath; watcherPath = watcherPath->nextPath )
 	{
 		if( strncmp( path, watcherPath->path, pathLength ) == 0 )
 		{
@@ -2074,7 +2074,7 @@ void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* pat
 		}
 	}
 
-	ImAppFileWatcherPath* watcherPath = (ImAppFileWatcherPath*)ImUiMemoryAllocZero( watcher->platform->allocator, sizeof( ImAppFileWatcherPath ) + pathLength );
+	ImappFileWatcherPath* watcherPath = (ImappFileWatcherPath*)imuiMemoryAllocZero( watcher->platform->allocator, sizeof( ImappFileWatcherPath ) + pathLength );
 	if( !watcherPath )
 	{
 		return;
@@ -2107,7 +2107,7 @@ void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* pat
 	if( watcherPath->dirHandle == INVALID_HANDLE_VALUE )
 	{
 		IMAPP_DEBUG_LOGE( "Failed to open '%s'. Error: 0x%08x", GetLastError() );
-		ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+		imuiMemoryFree( watcher->platform->allocator, watcherPath );
 		return;
 	}
 
@@ -2116,7 +2116,7 @@ void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* pat
 	{
 		IMAPP_DEBUG_LOGE( "Failed to attach '%s' to I/O completion port. Error: 0x%08x", GetLastError() );
 		CloseHandle( watcherPath->dirHandle );
-		ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+		imuiMemoryFree( watcher->platform->allocator, watcherPath );
 		return;
 	}
 
@@ -2130,12 +2130,12 @@ void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* pat
 	watcher->firstPath = watcherPath;
 }
 
-void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherRemovePath( ImappFileWatcher* watcher, const char* path )
 {
 	const char* pathEnd = strrchr( path, '/' );
 	const uintsize pathLength = pathEnd ? pathEnd - path : strlen( path );
 
-	ImAppFileWatcherPath* watcherPath = NULL;
+	ImappFileWatcherPath* watcherPath = NULL;
 	for( watcherPath = watcher->firstPath; watcherPath; watcherPath = watcherPath->nextPath )
 	{
 		if( strncmp( path, watcherPath->path, pathLength ) == 0 )
@@ -2167,10 +2167,10 @@ void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* 
 		watcher->firstPath = watcherPath->nextPath;
 	}
 
-	ImUiMemoryFree( watcher->platform->allocator, watcherPath );
+	imuiMemoryFree( watcher->platform->allocator, watcherPath );
 }
 
-bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+bool imappPlatformFileWatcherPopEvent( ImappFileWatcher* watcher, ImappFileWatchEvent* outEvent )
 {
 	ULONG_PTR key;
 	DWORD readSize;
@@ -2186,7 +2186,7 @@ bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatch
 		return false;
 	}
 
-	ImAppFileWatcherPath* path = (ImAppFileWatcherPath*)overlapped;
+	ImappFileWatcherPath* path = (ImappFileWatcherPath*)overlapped;
 	const FILE_NOTIFY_INFORMATION* fileInfo = (const FILE_NOTIFY_INFORMATION*)path->buffer;
 
 	const int pathLength = WideCharToMultiByte( CP_UTF8, 0, fileInfo->FileName, (int)fileInfo->FileNameLength, watcher->eventPath, IMAPP_ARRAY_COUNT( watcher->eventPath ), NULL, NULL );
@@ -2199,7 +2199,7 @@ bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatch
 	return true;
 }
 
-static void imappPlatformFileWatcherPathStart( ImAppFileWatcherPath* path )
+static void imappPlatformFileWatcherPathStart( ImappFileWatcherPath* path )
 {
 	const BOOL result = ReadDirectoryChangesW(
 		path->dirHandle,
@@ -2222,9 +2222,9 @@ static void imappPlatformFileWatcherPathStart( ImAppFileWatcherPath* path )
 	}
 }
 
-ImAppThread* imappPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+ImappThread* imappPlatformThreadCreate( ImappPlatform* platform, const char* name, ImappThreadFunc func, void* arg )
 {
-	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
+	ImappThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappThread );
 	if( !thread )
 	{
 		return NULL;
@@ -2243,22 +2243,22 @@ ImAppThread* imappPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 	return thread;
 }
 
-void imappPlatformThreadDestroy( ImAppThread* thread )
+void imappPlatformThreadDestroy( ImappThread* thread )
 {
 	WaitForSingleObject( thread->handle, INFINITE );
 	CloseHandle( thread->handle );
 
-	ImUiMemoryFree( thread->platform->allocator, thread );
+	imuiMemoryFree( thread->platform->allocator, thread );
 }
 
-bool imappPlatformThreadIsRunning( const ImAppThread* thread )
+bool imappPlatformThreadIsRunning( const ImappThread* thread )
 {
 	return InterlockedOrNoFence( (volatile LONG*)&thread->isRunning, 0);
 }
 
 static DWORD WINAPI imappPlatformThreadEntry( void* voidThread )
 {
-	ImAppThread* thread = (ImAppThread*)voidThread;
+	ImappThread* thread = (ImappThread*)voidThread;
 
 	thread->func( thread->arg );
 
@@ -2267,52 +2267,52 @@ static DWORD WINAPI imappPlatformThreadEntry( void* voidThread )
 	return 0u;
 }
 
-ImAppMutex* imappPlatformMutexCreate( ImAppPlatform* platform )
+ImappMutex* imappPlatformMutexCreate( ImappPlatform* platform )
 {
 	CRITICAL_SECTION* cs = IMUI_MEMORY_NEW_ZERO( platform->allocator, CRITICAL_SECTION );
 
 	InitializeCriticalSection( cs );
 
-	return (ImAppMutex*)cs;
+	return (ImappMutex*)cs;
 }
 
-void imappPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+void imappPlatformMutexDestroy( ImappPlatform* platform, ImappMutex* mutex )
 {
-	ImUiMemoryFree( platform->allocator, mutex );
+	imuiMemoryFree( platform->allocator, mutex );
 }
 
-void imappPlatformMutexLock( ImAppMutex* mutex )
+void imappPlatformMutexLock( ImappMutex* mutex )
 {
 	CRITICAL_SECTION* cs = (CRITICAL_SECTION*)mutex;
 	EnterCriticalSection( cs );
 }
 
-void imappPlatformMutexUnlock( ImAppMutex* mutex )
+void imappPlatformMutexUnlock( ImappMutex* mutex )
 {
 	CRITICAL_SECTION* cs = (CRITICAL_SECTION*)mutex;
 	LeaveCriticalSection( cs );
 }
 
-ImAppSemaphore* imappPlatformSemaphoreCreate( ImAppPlatform* platform )
+ImappSemaphore* imappPlatformSemaphoreCreate( ImappPlatform* platform )
 {
 	IMAPP_USE( platform );
 
-	return (ImAppSemaphore*)CreateSemaphore( NULL, 0, LONG_MAX, NULL );
+	return (ImappSemaphore*)CreateSemaphore( NULL, 0, LONG_MAX, NULL );
 }
 
-void imappPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreDestroy( ImappPlatform* platform, ImappSemaphore* semaphore )
 {
 	IMAPP_USE( platform );
 
 	CloseHandle( (HANDLE)semaphore );
 }
 
-void imappPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreInc( ImappSemaphore* semaphore )
 {
 	ReleaseSemaphore( (HANDLE)semaphore, 1, NULL );
 }
 
-bool imappPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+bool imappPlatformSemaphoreDec( ImappSemaphore* semaphore, bool wait )
 {
 	return WaitForSingleObject( (HANDLE)semaphore, wait ? INFINITE : 0u ) == WAIT_OBJECT_0;
 }

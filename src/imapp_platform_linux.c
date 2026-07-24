@@ -26,13 +26,13 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
-//typedef struct ImAppPlatformLinuxFont
+//typedef struct ImappPlatformLinuxFont
 //{
 //	const char*					path;
 //	uintsize					pathLength;
-//} ImAppPlatformLinuxFont;
+//} ImappPlatformLinuxFont;
 
-struct ImAppPlatform
+struct ImappPlatform
 {
 	ImUiAllocator*				allocator;
 
@@ -41,7 +41,7 @@ struct ImAppPlatform
 	char*						resourceBasePath;
 	uintsize					resourceBasePathLength;
 
-	//ImAppPlatformLinuxFont*		fonts;
+	//ImappPlatformLinuxFont*		fonts;
 	//uintsize					fontsCapacity;
 	//uintsize					fontsCount;
 
@@ -67,24 +67,24 @@ struct ImAppPlatform
 
 	EGLDisplay					eglDisplay;
 
-	ImAppWindow**				windows;
+	ImappWindow**				windows;
 	uintsize					windowsCapacity;
 	uintsize					windowsCount;
 
-	ImAppWindow*				mouseFocusWindow;
-	ImAppWindow*				keyboardFocusWindow;
+	ImappWindow*				mouseFocusWindow;
+	ImappWindow*				keyboardFocusWindow;
 
 	//SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
 
 #include "imapp_platform_pthread.h"
 
-struct ImAppWindow
+struct ImappWindow
 {
 	ImUiAllocator*				allocator;
-	ImAppPlatform*				platform;
-	ImAppEventQueue				eventQueue;
-	ImAppWindowDoUiFunc			uiFunc;
+	ImappPlatform*				platform;
+	ImappEventQueue				eventQueue;
+	ImappWindowDoUiFunc			uiFunc;
 
 	struct wl_egl_window*		wlWindow;
 	struct wl_surface*			wlSurface;
@@ -103,13 +103,13 @@ struct ImAppWindow
 	int							y;
 	int							width;
 	int							height;
-	ImAppWindowState			state;
-	ImAppWindowStyle			style;
+	ImappWindowState			state;
+	ImappWindowStyle			style;
 	char*						title;
 	uintsize					titleCapacity;
 	float						dpiScale;
 
-	ImAppWindowDropQueue		drops;
+	imappWindowDropQueue		drops;
 };
 
 // static const SDL_SystemCursor s_sdlSystemCursorMapping[] =
@@ -128,115 +128,115 @@ struct ImAppWindow
 // };
 // static_assert( IMAPP_ARRAY_COUNT( s_sdlSystemCursorMapping ) == ImUiInputMouseCursor_MAX, "more cursors" );
 
-//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform* platform );
+//static void imappPlatformLinuxReadFontConfig( imappPlatform* platform );
 
-static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version );
-static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name );
+static void imappPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version );
+static void imappPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name );
 
-//static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial );
-//static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height );
-//static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface );
+//static void imappPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial );
+//static void imappPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height );
+//static void imappPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface );
 
-//static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
-//static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
+//static void imappPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time );
+//static void imappPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time );
 
-static void ImAppPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y );
-static void ImAppPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface );
-static void ImAppPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y );
-static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state );
-static void ImAppPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value );
+static void imappPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y );
+static void imappPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface );
+static void imappPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y );
+static void imappPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state );
+static void imappPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value );
 
-static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size );
-static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys );
-static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface );
-static void ImAppPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state );
-static void ImAppPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group );
+static void imappPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size );
+static void imappPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys );
+static void imappPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface );
+static void imappPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state );
+static void imappPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group );
 
-static void ImAppPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities );
+static void imappPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities );
 
-static void ImAppPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial );
+static void imappPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial );
 
-static void ImAppPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial );
+static void imappPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial );
 
-static void ImAppPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states );
-static void ImAppPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel );
-static void ImAppPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height );
-static void ImAppPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities );
+static void imappPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states );
+static void imappPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel );
+static void imappPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height );
+static void imappPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities );
 
-static void ImAppPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode );
+static void imappPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode );
 
 static const struct wl_registry_listener s_wlRegistryListener =
 {
-	&ImAppPlatformWaylandRegistryGlobalCallback,
-	&ImAppPlatformWaylandRegistryGlobalRemoveCallback
+	&imappPlatformWaylandRegistryGlobalCallback,
+	&imappPlatformWaylandRegistryGlobalRemoveCallback
 };
 
 //static const struct wl_shell_surface_listener s_wlShellSurfaceListener =
 //{
-//	&ImAppPlatformWaylandShellSurfacePingCallback,
-//	&ImAppPlatformWaylandShellSurfaceConfigureCallback,
-//	&ImAppPlatformWaylandShellSurfacePopupDoneCallback
+//	&imappPlatformWaylandShellSurfacePingCallback,
+//	&imappPlatformWaylandShellSurfaceConfigureCallback,
+//	&imappPlatformWaylandShellSurfacePopupDoneCallback
 //};
 
 //static struct wl_callback_listener s_wlWindowConfigCallbackListener =
 //{
-//	ImAppPlatformWaylandHandleWindowConfigCallback
+//	imappPlatformWaylandHandleWindowConfigCallback
 //};
 
 //static const struct wl_callback_listener s_wlWindowDrawCallbackListener =
 //{
-//	&ImAppPlatformWaylandHandleWindowDrawCallback
+//	&imappPlatformWaylandHandleWindowDrawCallback
 //};
 
 static const struct wl_pointer_listener s_wlWindowPointerListener =
 {
-	&ImAppPlatformWaylandHandlePointerEnter,
-	&ImAppPlatformWaylandHandlePointerLeave,
-	&ImAppPlatformWaylandHandlePointerMotion,
-	&ImAppPlatformWaylandHandlePointerButton,
-	&ImAppPlatformWaylandHandlePointerAxis
+	&imappPlatformWaylandHandlePointerEnter,
+	&imappPlatformWaylandHandlePointerLeave,
+	&imappPlatformWaylandHandlePointerMotion,
+	&imappPlatformWaylandHandlePointerButton,
+	&imappPlatformWaylandHandlePointerAxis
 };
 
 static const struct wl_keyboard_listener s_wlKeyboardListener =
 {
-	&ImAppPlatformWaylandHandleKeyboardKeymap,
-	&ImAppPlatformWaylandHandleKeyboardEnter,
-	&ImAppPlatformWaylandHandleKeyboardLeave,
-	&ImAppPlatformWaylandHandleKeyboardKey,
-	&ImAppPlatformWaylandHandleKeyboardModifiers
+	&imappPlatformWaylandHandleKeyboardKeymap,
+	&imappPlatformWaylandHandleKeyboardEnter,
+	&imappPlatformWaylandHandleKeyboardLeave,
+	&imappPlatformWaylandHandleKeyboardKey,
+	&imappPlatformWaylandHandleKeyboardModifiers
 };
 
 static const struct wl_seat_listener s_wlSeatListener =
 {
-	&ImAppPlatformWaylandHandleSeatCapabilities
+	&imappPlatformWaylandHandleSeatCapabilities
 };
 
 static const struct xdg_wm_base_listener s_xdgWmBaseListener =
 {
-	&ImAppPlatformWaylandHandleXdgPing
+	&imappPlatformWaylandHandleXdgPing
 };
 
 static const struct xdg_surface_listener s_xdgSurfaceListener =
 {
-	&ImAppPlatformWaylandHandleXdgSurfaceConfigure
+	&imappPlatformWaylandHandleXdgSurfaceConfigure
 };
 
 static const struct xdg_toplevel_listener s_xdgToplevelListener =
 {
-	&ImAppPlatformWaylandHandleXdgToplevelConfigure,
-	&ImAppPlatformWaylandHandleXdgToplevelClose,
-	&ImAppPlatformWaylandHandleXdgToplevelConfigureBounds,
-	&ImAppPlatformWaylandHandleXdgToplevelWmCapabilities
+	&imappPlatformWaylandHandleXdgToplevelConfigure,
+	&imappPlatformWaylandHandleXdgToplevelClose,
+	&imappPlatformWaylandHandleXdgToplevelConfigureBounds,
+	&imappPlatformWaylandHandleXdgToplevelWmCapabilities
 };
 
 static const struct zxdg_toplevel_decoration_v1_listener s_xdgDecorationListener =
 {
-	&ImAppPlatformWaylandHandleXdgDecorationConfigure
+	&imappPlatformWaylandHandleXdgDecorationConfigure
 };
 
 int main( int argc, char* argv[] )
 {
-	ImAppPlatform platform = { 0 };
+	ImappPlatform platform = { 0 };
 
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	uintsize maxScanCode = 0u;
@@ -364,11 +364,11 @@ int main( int argc, char* argv[] )
 	return result;
 }
 
-bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
-	//ImAppPlatformLinuxReadFontConfig( platform );
+	//imappPlatformLinuxReadFontConfig( platform );
 
 	platform->wlDisplay = wl_display_connect( NULL );
 	if( !platform->wlDisplay )
@@ -470,7 +470,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
-//static void ImAppPlatformLinuxReadFontConfig( ImAppPlatform* platform )
+//static void imappPlatformLinuxReadFontConfig( imappPlatform* platform )
 //{
 //	xmlTextReaderPtr fontConfReader = xmlReaderForFile( "/etc/fonts/fonts.conf", NULL, 0 );
 //	if( !fontConfReader )
@@ -514,7 +514,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 //			return;
 //		}
 //
-//		ImAppPlatformLinuxFont* font = &platform->fonts[ platform->fontsCount ];
+//		ImappPlatformLinuxFont* font = &platform->fonts[ platform->fontsCount ];
 //		font->pathLength = fontPathLength + 1; // +1 for ending '/'
 //
 //		char* targetFontPath = ImUiMemoryAlloc( platform->allocator, font->pathLength + 1 ); // +1 for null terminator
@@ -535,7 +535,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 //	xmlFreeTextReader( fontConfReader );
 //}
 
-void imappPlatformShutdown( ImAppPlatform* platform )
+void imappPlatformShutdown( ImappPlatform* platform )
 {
 	//for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
 	//{
@@ -569,7 +569,7 @@ void imappPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs )
+sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 tickIntervalMs )
 {
 	wl_display_dispatch_pending( platform->wlDisplay );
 
@@ -597,14 +597,14 @@ sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 	return currentTick;
 }
 
-double imappPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue )
+double imappPlatformTicksToSeconds( ImappPlatform* platform, sint64 tickValue )
 {
 	return (double)tickValue / 1000000000.0;
 }
 
-static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version )
+static void imappPlatformWaylandRegistryGlobalCallback( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	IMAPP_DEBUG_LOGI( "Global registry: %s", interface );
 
@@ -643,12 +643,12 @@ static void ImAppPlatformWaylandRegistryGlobalCallback( void* data, struct wl_re
 	}
 }
 
-static void ImAppPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name )
+static void imappPlatformWaylandRegistryGlobalRemoveCallback( void* data, struct wl_registry* registry, uint32_t name )
 {
 
 }
 
-void imappPlatformShowError( ImAppPlatform* pPlatform, const char* message )
+void imappPlatformShowError( ImappPlatform* pPlatform, const char* message )
 {
 	//int fd_pipe[ 2 ]; /* fd_pipe[0]: read end of pipe, fd_pipe[1]: write end of pipe* /
 	//int zenity_major = 0, zenity_minor = 0, output_len = 0;
@@ -754,23 +754,23 @@ void imappPlatformShowError( ImAppPlatform* pPlatform, const char* message )
 	//SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
 }
 
-void imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImUiInputMouseCursor cursor )
 {
 	//SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
-void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 {
 	//SDL_SetClipboardText( text );
 }
 
-void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
 {
 	//const char* clipboardText = SDL_GetClipboardText();
 	//ImUiInputSetPasteText( imui, clipboardText );
 }
 
-ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImappWindowStyle style, ImappWindowState state, ImappWindowDoUiFunc uiFunc )
 {
 	if( !platform->wlCompositor )
 	{
@@ -782,7 +782,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		return NULL;
 	}
 
-	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
+	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 	if( window == NULL )
 	{
 		return NULL;
@@ -827,14 +827,14 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	{
 		switch( state )
 		{
-		case ImAppWindowState_Default:
+		case ImappWindowState_Default:
 			break;
 
-		case ImAppWindowState_Minimized:
+		case ImappWindowState_Minimized:
 			xdg_toplevel_set_maximized( window->xdgToplevel );
 			break;
 
-		case ImAppWindowState_Maximized:
+		case ImappWindowState_Maximized:
 			xdg_toplevel_set_minimized( window->xdgToplevel );
 			break;
 		}
@@ -852,7 +852,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 			}
 		}
 
-		if( style != ImAppWindowStyle_Borderless &&
+		if( style != ImappWindowStyle_Borderless &&
 			window->xdgToplevel &&
 			platform->zxdgDecorationManager )
 		{
@@ -874,7 +874,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 		//if( !window->wlShellSurface )
 		//{
 		//	IMAPP_DEBUG_LOGE( "Failed to create Wayland Shell Surface." );
-		//	ImAppPlatformWindowDestroy( window );
+		//	imappPlatformWindowDestroy( window );
 		//	return NULL;
 		//}
 		//wl_shell_surface_add_listener( window->wlShellSurface, &s_wlShellSurfaceListener, window );
@@ -889,13 +889,13 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	//Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 	//switch( style )
 	//{
-	//case ImAppWindowState_Resizable:
+	//case imappWindowState_Resizable:
 	//	flags |= SDL_WINDOW_RESIZABLE;
 	//	break;
 
-	//case ImAppWindowState_Borderless:
+	//case imappWindowState_Borderless:
 	//	flags |= SDL_WINDOW_BORDERLESS;
-	//	if( state == ImAppWindowState_Maximized )
+	//	if( state == imappWindowState_Maximized )
 	//	{
 	//		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	//	}
@@ -917,15 +917,15 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	return window;
 }
 
-void imappPlatformWindowDestroy( ImAppWindow* window )
+void imappPlatformWindowDestroy( ImappWindow* window )
 {
 	IMAPP_ASSERT( window->eglContext == EGL_NO_CONTEXT );
 
-	ImAppPlatform* platform = window->platform;
+	ImappPlatform* platform = window->platform;
 
 	//while( window->firstNewDrop )
 	//{
-	//	ImAppWindowDrop* drop = window->firstNewDrop;
+	//	imappWindowDrop* drop = window->firstNewDrop;
 	//	window->firstNewDrop = drop->nextDrop;
 
 	//	ImUiMemoryFree( window->platform->allocator, drop );
@@ -933,7 +933,7 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 
 	//while( window->firstPoppedDrop )
 	//{
-	//	ImAppWindowDrop* drop = window->firstPoppedDrop;
+	//	imappWindowDrop* drop = window->firstPoppedDrop;
 	//	window->firstPoppedDrop = drop->nextDrop;
 
 	//	ImUiMemoryFree( window->platform->allocator, drop );
@@ -973,14 +973,14 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 	ImUiMemoryFree( window->allocator, window );
 }
 
-//static void ImAppPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial )
+//static void imappPlatformWaylandShellSurfacePingCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t serial )
 //{
 //	wl_shell_surface_pong( shell_surface, serial );
 //}
 //
-//static void ImAppPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height )
+//static void imappPlatformWaylandShellSurfaceConfigureCallback( void* data, struct wl_shell_surface* shell_surface, uint32_t edges, int32_t width, int32_t height )
 //{
-//	ImAppWindow* window = (ImAppWindow*)data;
+//	imappWindow* window = (imappWindow*)data;
 //
 //	if( window->wlWindow )
 //	{
@@ -990,19 +990,19 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 //	window->width = width;
 //	window->height = height;
 //
-//	//if( window->state != ImAppWindowState_Maximized )
+//	//if( window->state != imappWindowState_Maximized )
 //	//{
 //	//	window->window_size = window->geometry;
 //	//}
 //}
 //
-//static void ImAppPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface )
+//static void imappPlatformWaylandShellSurfacePopupDoneCallback( void* data, struct wl_shell_surface* shell_surface )
 //{
 //}
 
-//static void ImAppPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time )
+//static void imappPlatformWaylandHandleWindowConfigCallback( void* data, struct wl_callback* callback, uint32_t time )
 //{
-//	ImAppWindow* window = (ImAppWindow*)data;
+//	imappWindow* window = (imappWindow*)data;
 //
 //	wl_callback_destroy( callback );
 //
@@ -1010,13 +1010,13 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 //
 //	if( !window->wlDrawCallback )
 //	{
-//		ImAppPlatformWaylandHandleWindowDrawCallback( data, NULL, time );
+//		imappPlatformWaylandHandleWindowDrawCallback( data, NULL, time );
 //	}
 //}
 
-//static void ImAppPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time )
+//static void imappPlatformWaylandHandleWindowDrawCallback( void* data, struct wl_callback* callback, uint32_t time )
 //{
-//	//ImAppWindow* window = (ImAppWindow*)data;
+//	//imappWindow* window = (imappWindow*)data;
 //
 //	if( callback )
 //	{
@@ -1053,9 +1053,9 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 //	//eglSwapBuffers( window->platform->eglDisplay, window->eglSurface );
 //}
 
-static void ImAppPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y )
+static void imappPlatformWaylandHandlePointerEnter( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface, wl_fixed_t surface_x, wl_fixed_t surface_y )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	for( uintsize i = 0; i < platform->windowsCount; ++i )
 	{
@@ -1069,39 +1069,39 @@ static void ImAppPlatformWaylandHandlePointerEnter( void* data, struct wl_pointe
 	}
 }
 
-static void ImAppPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface )
+static void imappPlatformWaylandHandlePointerLeave( void* data, struct wl_pointer* pointer, uint32_t serial, struct wl_surface* surface )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	platform->mouseFocusWindow = NULL;
 }
 
-static void ImAppPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y )
+static void imappPlatformWaylandHandlePointerMotion( void* data, struct wl_pointer* pointer, uint32_t time, wl_fixed_t x, wl_fixed_t y )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 	if( !platform->mouseFocusWindow )
 	{
 		return;
 	}
 
-	ImAppEvent mouseEvent;
-	mouseEvent.motion.type	= ImAppEventType_Motion;
+	ImappEvent mouseEvent;
+	mouseEvent.motion.type	= ImappEventType_Motion;
 	mouseEvent.motion.x		= wl_fixed_to_int( x );
 	mouseEvent.motion.y		= wl_fixed_to_int( y );
 
 	imappEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
 }
 
-static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state )
+static void imappPlatformWaylandHandlePointerButton( void* data, struct wl_pointer* pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 	if( !platform->mouseFocusWindow )
 	{
 		return;
 	}
 
-	ImAppEvent mouseEvent;
-	mouseEvent.button.type	= state == WL_POINTER_BUTTON_STATE_PRESSED ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
+	ImappEvent mouseEvent;
+	mouseEvent.button.type	= state == WL_POINTER_BUTTON_STATE_PRESSED ? ImappEventType_ButtonDown : ImappEventType_ButtonUp;
 	//mouseEvent.button.x		= x;
 	//mouseEvent.button.y		= y;
 
@@ -1131,16 +1131,16 @@ static void ImAppPlatformWaylandHandlePointerButton( void* data, struct wl_point
 	imappEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
 }
 
-static void ImAppPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value )
+static void imappPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer* pointer, uint32_t time, uint32_t axis, wl_fixed_t value )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 	if( !platform->mouseFocusWindow )
 	{
 		return;
 	}
 
-	ImAppEvent mouseEvent;
-	mouseEvent.scroll.type	= ImAppEventType_Scroll;
+	ImappEvent mouseEvent;
+	mouseEvent.scroll.type	= ImappEventType_Scroll;
 	//mouseEvent.button.x		= x;
 	//mouseEvent.button.y		= y;
 
@@ -1156,9 +1156,9 @@ static void ImAppPlatformWaylandHandlePointerAxis( void* data, struct wl_pointer
 	imappEventQueuePush( &platform->mouseFocusWindow->eventQueue, &mouseEvent );
 }
 
-static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size )
+static void imappPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyboard* keyboard, uint32_t format, int32_t fd, uint32_t size )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	char* keymap_string = mmap( NULL, size, PROT_READ, MAP_SHARED, fd, 0 );
 	xkb_keymap_unref( platform->xkbKeymap );
@@ -1169,9 +1169,9 @@ static void ImAppPlatformWaylandHandleKeyboardKeymap( void* data, struct wl_keyb
 	platform->xkbState = xkb_state_new( platform->xkbKeymap );
 }
 
-static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys )
+static void imappPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	for( uintsize i = 0; i < platform->windowsCount; ++i )
 	{
@@ -1185,16 +1185,16 @@ static void ImAppPlatformWaylandHandleKeyboardEnter( void* data, struct wl_keybo
 	}
 }
 
-static void ImAppPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface )
+static void imappPlatformWaylandHandleKeyboardLeave( void* data, struct wl_keyboard* keyboard, uint32_t serial, struct wl_surface* surface )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	platform->keyboardFocusWindow = NULL;
 }
 
-static void ImAppPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state )
+static void imappPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 	if( !platform->keyboardFocusWindow )
 	{
 		return;
@@ -1207,30 +1207,30 @@ static void ImAppPlatformWaylandHandleKeyboardKey( void* data, struct wl_keyboar
 		const uint32_t keyCharacter = xkb_keysym_to_utf32( keySymbol );
 		if( keyCharacter >= ' ' )
 		{
-			ImAppEvent keyboardEvent;
-			keyboardEvent.character.type		= ImAppEventType_Character;
+			ImappEvent keyboardEvent;
+			keyboardEvent.character.type		= ImappEventType_Character;
 			keyboardEvent.character.character	= keyCharacter;
 
 			imappEventQueuePush( &platform->keyboardFocusWindow->eventQueue, &keyboardEvent );
 		}
 	}
 
-	ImAppEvent keyboardEvent;
-	keyboardEvent.key.type		= state == WL_KEYBOARD_KEY_STATE_PRESSED ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+	ImappEvent keyboardEvent;
+	keyboardEvent.key.type		= state == WL_KEYBOARD_KEY_STATE_PRESSED ? ImappEventType_KeyDown : ImappEventType_KeyUp;
 	keyboardEvent.key.key		= platform->inputKeyMapping[ keySymbol ];
 	//keyboardEvent.key.repeat	= ...;
 
 	imappEventQueuePush( &platform->keyboardFocusWindow->eventQueue, &keyboardEvent );
 }
 
-static void ImAppPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group )
+static void imappPlatformWaylandHandleKeyboardModifiers( void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)data;
+	ImappPlatform* platform = (ImappPlatform*)data;
 
 	xkb_state_update_mask( platform->xkbState, mods_depressed, mods_latched, mods_locked, 0, 0, group );
 }
 
-static void ImAppPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities )
+static void imappPlatformWaylandHandleSeatCapabilities( void* data, struct wl_seat* seat, uint32_t capabilities )
 {
 	if( capabilities & WL_SEAT_CAPABILITY_POINTER )
 	{
@@ -1245,14 +1245,14 @@ static void ImAppPlatformWaylandHandleSeatCapabilities( void* data, struct wl_se
 	}
 }
 
-static void ImAppPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial )
+static void imappPlatformWaylandHandleXdgPing( void* data, struct xdg_wm_base* xdg_wm_base, uint32_t serial )
 {
 	xdg_wm_base_pong( xdg_wm_base, serial );
 }
 
-static void ImAppPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial )
+static void imappPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xdg_surface* xdg_surface, uint32_t serial )
 {
-	ImAppWindow* window = (ImAppWindow*)data;
+	ImappWindow* window = (ImappWindow*)data;
 
 	//Wayland_HandleResize( window, window->w, window->h, wind->scale_factor );
 	xdg_surface_ack_configure( xdg_surface, serial );
@@ -1261,27 +1261,27 @@ static void ImAppPlatformWaylandHandleXdgSurfaceConfigure( void* data, struct xd
 
 }
 
-static void ImAppPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states )
+static void imappPlatformWaylandHandleXdgToplevelConfigure( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height, struct wl_array* states )
 {
 }
 
-static void ImAppPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel )
+static void imappPlatformWaylandHandleXdgToplevelClose( void* data, struct xdg_toplevel* xdg_toplevel )
 {
 }
 
-static void ImAppPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height )
+static void imappPlatformWaylandHandleXdgToplevelConfigureBounds( void* data, struct xdg_toplevel* xdg_toplevel, int32_t width, int32_t height )
 {
 }
 
-static void ImAppPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities )
+static void imappPlatformWaylandHandleXdgToplevelWmCapabilities( void* data, struct xdg_toplevel* xdg_toplevel, struct wl_array* capabilities )
 {
 }
 
-static void ImAppPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode )
+static void imappPlatformWaylandHandleXdgDecorationConfigure( void* data, struct zxdg_toplevel_decoration_v1* zxdg_toplevel_decoration_v1, uint32_t mode )
 {
 }
 
-bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
+bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 {
 	// Choose config
 	EGLint attribList[] =
@@ -1301,7 +1301,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	EGLint numConfigs;
 	if( !eglChooseConfig( window->platform->eglDisplay, attribList, &config, 1, &numConfigs ) )
 	{
-		ImAppPlatformWindowDestroyGlContext( window );
+		imappPlatformWindowDestroyGlContext( window );
 		return false;
 	}
 
@@ -1309,7 +1309,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	window->eglSurface = eglCreateWindowSurface( window->platform->eglDisplay, config, (EGLNativeWindowType)window->wlWindow, NULL );
 	if( window->eglSurface == EGL_NO_SURFACE )
 	{
-		ImAppPlatformWindowDestroyGlContext( window );
+		imappPlatformWindowDestroyGlContext( window );
 		return false;
 	}
 
@@ -1318,7 +1318,7 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	window->eglContext = eglCreateContext( window->platform->eglDisplay, config, EGL_NO_CONTEXT, contextAttribs );
 	if( window->eglContext == EGL_NO_CONTEXT )
 	{
-		ImAppPlatformWindowDestroyGlContext( window );
+		imappPlatformWindowDestroyGlContext( window );
 		return false;
 	}
 
@@ -1326,14 +1326,14 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	if( makeCurrentResult != EGL_TRUE )
 	{
 		IMAPP_DEBUG_LOGE( "Failed to set GL context. Result: %d", makeCurrentResult );
-		ImAppPlatformWindowDestroyGlContext( window );
+		imappPlatformWindowDestroyGlContext( window );
 		return false;
 	}
 
 	return true;
 }
 
-void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
+void imappPlatformWindowDestroyGlContext( ImappWindow* window )
 {
 	eglMakeCurrent( window->platform->eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
 
@@ -1350,12 +1350,12 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	}
 }
 
-ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
+ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
 {
-	return ImAppWindowDeviceState_Ok;
+	return ImappWindowDeviceState_Ok;
 }
 
-void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
+void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCallback callback, void* arg )
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	SDL_GL_SetSwapInterval( 1 );
@@ -1363,7 +1363,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 
 //	while( window->firstPoppedDrop )
 //	{
-//		ImAppWindowDrop* drop = window->firstPoppedDrop;
+//		imappWindowDrop* drop = window->firstPoppedDrop;
 //		window->firstPoppedDrop = drop->nextDrop;
 //
 //		ImUiMemoryFree( window->platform->allocator, drop );
@@ -1382,10 +1382,10 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //				const ImUiInputKey mappedKey = window->platform->inputKeyMapping[ sdlKeyEvent->keysym.scancode ];
 //				if( mappedKey != ImUiInputKey_None )
 //				{
-//					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+//					const imappEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? imappEventType_KeyDown : imappEventType_KeyUp;
 //					const bool repeate				= sdlKeyEvent->repeat != 0;
-//					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
-//					ImAppEventQueuePush( &window->eventQueue, &keyEvent );
+//					const imappEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
+//					imappEventQueuePush( &window->eventQueue, &keyEvent );
 //				}
 //			}
 //			break;
@@ -1396,8 +1396,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //
 //				for( const char* pText = textInputEvent->text;* pText != '\0'; ++pText )
 //				{
-//					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character =* pText } };
-//					ImAppEventQueuePush( &window->eventQueue, &charEvent );
+//					const imappEvent charEvent = { .character = { .type = imappEventType_Character, .character =* pText } };
+//					imappEventQueuePush( &window->eventQueue, &charEvent );
 //				}
 //			}
 //			break;
@@ -1406,8 +1406,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //			{
 //				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
 //
-//				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
-//				ImAppEventQueuePush( &window->eventQueue, &motionEvent );
+//				const imappEvent motionEvent = { .motion = { .type = imappEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
+//				imappEventQueuePush( &window->eventQueue, &motionEvent );
 //			}
 //			break;
 //
@@ -1429,9 +1429,9 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //					continue;
 //				}
 //
-//				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-//				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
-//				ImAppEventQueuePush( &window->eventQueue, &buttonEvent );
+//				const imappEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? imappEventType_ButtonDown : imappEventType_ButtonUp;
+//				const imappEvent buttonEvent	= { .button = { .type = eventType, .x = sdlButtonEvent->x, .y = sdlButtonEvent->y, .button = button, .repeateCount = sdlButtonEvent->clicks } };
+//				imappEventQueuePush( &window->eventQueue, &buttonEvent );
 //			}
 //			break;
 //
@@ -1439,8 +1439,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //			{
 //				const SDL_MouseWheelEvent* sdlWheelEvent = &sdlEvent.wheel;
 //
-//				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
-//				ImAppEventQueuePush( &window->eventQueue, &scrollEvent );
+//				const imappEvent scrollEvent = { .scroll = { .type = imappEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
+//				imappEventQueuePush( &window->eventQueue, &scrollEvent );
 //			}
 //			break;
 //
@@ -1451,8 +1451,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //				{
 //				case SDL_WINDOWEVENT_CLOSE:
 //					{
-//						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
-//						ImAppEventQueuePush( &window->eventQueue, &closeEvent );
+//						const imappEvent closeEvent = { .type = imappEventType_WindowClose };
+//						imappEventQueuePush( &window->eventQueue, &closeEvent );
 //					}
 //					break;
 //
@@ -1468,8 +1468,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
 //
 //				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
-//				ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + textLength );
-//				drop->type = sdlEvent.type == SDL_DROPFILE ? ImAppDropType_File : ImAppDropType_Text;
+//				imappWindowDrop* drop = (imappWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( imappWindowDrop ) + textLength );
+//				drop->type = sdlEvent.type == SDL_DROPFILE ? imappDropType_File : imappDropType_Text;
 //
 //				memcpy( drop->pathOrText, sdlDropEvent->file, textLength );
 //				drop->pathOrText[ textLength ] = '\0';
@@ -1490,7 +1490,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 //	}
 }
 
-bool ImAppPlatformWindowPresent( ImAppWindow* window )
+bool imappPlatformWindowPresent( ImappWindow* window )
 {
 	if( window->eglContext == EGL_NO_CONTEXT )
 	{
@@ -1505,24 +1505,24 @@ bool ImAppPlatformWindowPresent( ImAppWindow* window )
 	return true;
 }
 
-ImAppEventQueue* imappPlatformWindowGetEventQueue( ImAppWindow* window )
+ImappEventQueue* imappPlatformWindowGetEventQueue( ImappWindow* window )
 {
 	return &window->eventQueue;
 }
 
-ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+ImappWindowDoUiFunc imappPlatformWindowGetUiFunc( ImappWindow* window )
 {
 	return window->uiFunc;
 }
 
-bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+bool imappPlatformWindowPopDropData( ImappWindow* window, ImappDropData* outData )
 {
 	//if( !window->firstNewDrop )
 	//{
 	//	return false;
 	//}
 
-	//ImAppWindowDrop* drop = window->firstNewDrop;
+	//imappWindowDrop* drop = window->firstNewDrop;
 	//outData->type		= drop->type;
 	//outData->pathOrText	= drop->pathOrText;
 
@@ -1535,7 +1535,7 @@ bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 	return false;
 }
 
-void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
+void imappPlatformWindowGetViewRect( const ImappWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
 	*outX = 0;
 	*outY = 0;
@@ -1543,19 +1543,19 @@ void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	imappPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-bool imappPlatformWindowHasFocus( const ImAppWindow* window )
+bool imappPlatformWindowHasFocus( const ImappWindow* window )
 {
 	return window->platform->mouseFocusWindow == window ||
 		window->platform->keyboardFocusWindow == window;
 }
 
-void imappPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
+void imappPlatformWindowGetSize( const ImappWindow* window, int* outWidth, int* outHeight )
 {
 	*outWidth	= window->width;
 	*outHeight	= window->height;
 }
 
-void imappPlatformWindowSetSize( ImAppWindow* window, int width, int height )
+void imappPlatformWindowSetSize( ImappWindow* window, int width, int height )
 {
 	window->width	= width;
 	window->height	= height;
@@ -1563,49 +1563,49 @@ void imappPlatformWindowSetSize( ImAppWindow* window, int width, int height )
 	wl_egl_window_resize( window->wlWindow, width, height, 0, 0 );
 }
 
-void imappPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
+void imappPlatformWindowGetPosition( const ImappWindow* window, int* outX, int* outY )
 {
 	//SDL_GetWindowPosition( window->sdlWindow, outX, outY );
 }
 
-void imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
 
 }
 
-ImAppWindowState imappPlatformWindowGetState( const ImAppWindow* pWindow )
+ImappWindowState imappPlatformWindowGetState( const ImappWindow* pWindow )
 {
 	//const Uint32 flags = SDL_GetWindowFlags( pWindow->sdlWindow );
 	//if( flags & SDL_WINDOW_MINIMIZED )
 	//{
-	//	return ImAppWindowState_Minimized;
+	//	return imappWindowState_Minimized;
 	//}
 	//if( flags & SDL_WINDOW_MAXIMIZED )
 	//{
-	//	return ImAppWindowState_Maximized;
+	//	return imappWindowState_Maximized;
 	//}
 
-	return ImAppWindowState_Default;
+	return ImappWindowState_Default;
 }
 
-void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+void imappPlatformWindowSetState( ImappWindow* window, ImappWindowState state )
 {
 }
 
-const char* imappPlatformWindowGetTitle( const ImAppWindow* window )
+const char* imappPlatformWindowGetTitle( const ImappWindow* window )
 {
 	return NULL;
 }
 
-void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+void imappPlatformWindowSetTitle( ImappWindow* window, const char* title )
 {
 }
 
-void imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+void imappPlatformWindowSetTitleBounds( ImappWindow* window, int height, int buttonsX )
 {
 }
 
-float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
+float imappPlatformWindowGetDpiScale( const ImappWindow* window )
 {
 	//float dpi;
 	//if( SDL_GetDisplayDPI( SDL_GetWindowDisplayIndex( window->sdlWindow ), &dpi, NULL, NULL ) != 0 )
@@ -1617,17 +1617,17 @@ float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
 	return 1.0f;
 }
 
-void imappPlatformWindowClose( ImAppWindow* window )
+void imappPlatformWindowClose( ImappWindow* window )
 {
 
 }
 
-void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+void imappPlatformResourceGetPath( ImappPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
 	const size_t resourceNameLength = strlen( resourceName );
 	if( platform->resourceBasePathLength + resourceNameLength >= pathCapacity )
 	{
-		ImAppTrace( "Error: Resource path buffer too small!\n" );
+		imappTrace( "Error: Resource path buffer too small!\n" );
 		return;
 	}
 	memcpy( outPath, platform->resourceBasePath, platform->resourceBasePathLength );
@@ -1635,16 +1635,16 @@ void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uints
 	outPath[ platform->resourceBasePathLength + resourceNameLength ] = '\0';
 }
 
-ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resourceName )
 {
 	return imappPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
 }
 
-ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
-	ImAppBlob result ={ NULL, 0u };
+	ImappBlob result ={ NULL, 0u };
 
-	ImAppFile* file = imappPlatformResourceOpen( platform, resourceName );
+	ImappFile* file = imappPlatformResourceOpen( platform, resourceName );
 	if( !file )
 	{
 		return result;
@@ -1656,7 +1656,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 		if( fstat( fileno( (FILE*)file ), &fileStats ) != 0 )
 		{
 			imappPlatformResourceClose( platform, file );
-			const ImAppBlob result = { NULL, 0u };
+			const ImappBlob result = { NULL, 0u };
 			return result;
 		}
 
@@ -1688,7 +1688,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	return result;
 }
 
-ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+ImappFile* imappPlatformResourceOpen( ImappPlatform* platform, const char* resourceName )
 {
 	const size_t resourceNameLength = strlen( resourceName );
 	const size_t resourcePathLength = platform->resourceBasePathLength + resourceNameLength + 1;
@@ -1700,13 +1700,13 @@ ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 	FILE* file = fopen( platform->resourceBasePath, "rb" );
 	if( !file )
 	{
-		ImAppTrace( "Error: Failed to open '%s'\n", platform->resourceBasePath );
+		imappTrace( "Error: Failed to open '%s'\n", platform->resourceBasePath );
 		return NULL;
 	}
 
-	return (ImAppFile*)file;
+	return (ImappFile*)file;
 }
-uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+uintsize imappPlatformResourceRead( ImappFile* file, void* outData, uintsize length, uintsize offset )
 {
 	FILE* nativeFile = (FILE*)file;
 
@@ -1724,13 +1724,13 @@ uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 	return readResult;
 }
 
-void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+void imappPlatformResourceClose( ImappPlatform* platform, ImappFile* file )
 {
 	FILE* nativeFile = (FILE*)file;
 	fclose( nativeFile );
 }
 
-ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const char* fontName )
 {
 	char fontMatchCmd[ PATH_MAX ];
 	snprintf( fontMatchCmd, sizeof( fontMatchCmd ), "fc-match -f \"%%{file}\" %s", fontName );
@@ -1741,8 +1741,8 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	FILE* fontMatchProc = popen( fontMatchCmd, "r" );
 	if( !fontMatchProc )
 	{
-		ImAppTrace( "Error: Failed to start '%s'\n", fontMatchCmd );
-		const ImAppBlob result = { NULL, 0u };
+		imappTrace( "Error: Failed to start '%s'\n", fontMatchCmd );
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -1762,7 +1762,7 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	//const size_t fontNameLength = strlen( fontName );
 	//for( uintsize fontIndex = 0; fontIndex < platform->fontsCount; ++fontIndex )
 	//{
-	//	const ImAppPlatformLinuxFont* font = &platform->fonts[ fontIndex ];
+	//	const ImappPlatformLinuxFont* font = &platform->fonts[ fontIndex ];
 
 	//	if( font->pathLength + fontNameLength + 1 >= PATH_MAX )
 	//	{
@@ -1781,15 +1781,15 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 
 	if( !file )
 	{
-		ImAppTrace( "Error: Failed to open '%s'\n", fontPath );
-		const ImAppBlob result = { NULL, 0u };
+		imappTrace( "Error: Failed to open '%s'\n", fontPath );
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
 	struct stat fileStats;
 	if( fstat( fileno( file ), &fileStats ) != 0 )
 	{
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -1801,38 +1801,38 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	if( readResult != fileStats.st_size )
 	{
 		ImUiMemoryFree( platform->allocator, memory );
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
-	const ImAppBlob result = { memory, (size_t)fileStats.st_size };
+	const ImappBlob result = { memory, (size_t)fileStats.st_size };
 	return result;
 }
 
-void imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+void imappPlatformResourceFree( ImappPlatform* platform, ImappBlob blob )
 {
 	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
-ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
+ImappFileWatcher* imappPlatformFileWatcherCreate( ImappPlatform* platform )
 {
 	// not implemented
 	return NULL;
 }
 
-void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+void imappPlatformFileWatcherDestroy( ImappPlatform* platform, ImappFileWatcher* watcher )
 {
 }
 
-void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherAddPath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherRemovePath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+bool imappPlatformFileWatcherPopEvent( ImappFileWatcher* watcher, ImappFileWatchEvent* outEvent )
 {
 	return false;
 }

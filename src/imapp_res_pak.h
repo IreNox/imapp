@@ -9,18 +9,17 @@ extern "C"
 
 #define IMAPP_RES_PAK_MAGIC "IAR1"
 
-typedef struct ImAppResPakHeader
+typedef struct ImappResPakHeader
 {
 	uint8_t		magic[ 4u ];
 	uint16_t	resourceCount;
 	uint32_t	resourcesOffset;
 
-	uint32_t	resourcesByTypeIndexOffset[ ImAppResPakType_MAX ];
-	uint16_t	resourcesbyTypeCount[ ImAppResPakType_MAX ];
-} ImAppResPakHeader;
+	uint32_t	resourcesByTypeIndexOffset[ ImappResPakType_MAX ];
+	uint16_t	resourcesbyTypeCount[ ImappResPakType_MAX ];
+} ImappResPakHeader;
 
-typedef struct ImAppResPakResource ImAppResPakResource;
-struct ImAppResPakResource
+typedef struct ImappResPakResource
 {
 	uint8_t		type;
 	uint8_t		nameLength;
@@ -30,46 +29,46 @@ struct ImAppResPakResource
 	uint32_t	headerSize;
 	uint32_t	dataOffset;
 	uint32_t	dataSize;
-};
+} ImappResPakResource;
 
-typedef enum ImAppResPakTextureFormat
+typedef enum ImappResPakTextureFormat
 {
-	ImAppResPakTextureFormat_A8,
-	ImAppResPakTextureFormat_RGB8,
-	ImAppResPakTextureFormat_RGBA8,
-	ImAppResPakTextureFormat_PNG24,
-	ImAppResPakTextureFormat_PNG32,
-	ImAppResPakTextureFormat_JPEG,
+	ImappResPakTextureFormat_A8,
+	ImappResPakTextureFormat_RGB8,
+	ImappResPakTextureFormat_RGBA8,
+	ImappResPakTextureFormat_PNG24,
+	ImappResPakTextureFormat_PNG32,
+	ImappResPakTextureFormat_JPEG,
 
-	ImAppResPakTextureFormat_MAX
-} ImAppResPakTextureFormat;
+	ImappResPakTextureFormat_MAX
+} ImappResPakTextureFormat;
 
-typedef enum ImAppResPakTextureFlags
+typedef enum ImappResPakTextureFlags
 {
-	ImAppResPakTextureFlags_Opaque	= 1u << 0u,
-	ImAppResPakTextureFlags_Font	= 1u << 1u,
-	ImAppResPakTextureFlags_FontSdf	= 1u << 2u,
-	ImAppResPakTextureFlags_Repeat	= 1u << 3u
-} ImAppResPakTextureFlags;
+	ImappResPakTextureFlags_Opaque	= 1u << 0u,
+	ImappResPakTextureFlags_Font	= 1u << 1u,
+	ImappResPakTextureFlags_FontSdf	= 1u << 2u,
+	ImappResPakTextureFlags_Repeat	= 1u << 3u
+} ImappResPakTextureFlags;
 
 
-typedef struct ImAppResPakTextureHeader
+typedef struct ImappResPakTextureHeader
 {
-	uint8_t		format;		// ImAppResPakTextureFormat
+	uint8_t		format;		// imappResPakTextureFormat
 	uint8_t		flags;
 	uint16_t	width;
 	uint16_t	height;
-} ImAppResPakTextureHeader;
+} ImappResPakTextureHeader;
 
-typedef struct ImAppResPakImageHeader
+typedef struct ImappResPakImageHeader
 {
 	uint16_t	x;
 	uint16_t	y;
 	uint16_t	width;
 	uint16_t	height;
-} ImAppResPakImageHeader;
+} ImappResPakImageHeader;
 
-typedef struct ImAppResPakSkinHeader
+typedef struct ImappResPakSkinHeader
 {
 	uint16_t	x;
 	uint16_t	y;
@@ -79,9 +78,9 @@ typedef struct ImAppResPakSkinHeader
 	float		left;
 	float		bottom;
 	float		right;
-} ImAppResPakSkinHeader;
+} ImappResPakSkinHeader;
 
-typedef struct ImAppResPakFontHeader
+typedef struct ImappResPakFontHeader
 {
 	uint32_t	codepointCount;
 	uint32_t	ttfDataSize;
@@ -89,26 +88,26 @@ typedef struct ImAppResPakFontHeader
 	float		fontSize;
 	float		lineGap;
 	bool		isScalable;
-} ImAppResPakFontHeader;
+} ImappResPakFontHeader;
 
-typedef enum ImAppResPakThemeFieldBase
+typedef enum ImappResPakThemeFieldBase
 {
-	ImAppResPakThemeFieldBase_UiTheme,
-	ImAppResPakThemeFieldBase_WindowTheme
-} ImAppResPakThemeFieldBase;
+	ImappResPakThemeFieldBase_UiTheme,
+	ImappResPakThemeFieldBase_WindowTheme
+} ImappResPakThemeFieldBase;
 
-typedef struct ImAppResPakThemeField
+typedef struct ImappResPakThemeField
 {
 	uint32_t						nameHash;
 	uint16_t						type;		// ImUiToolboxThemeReflectionType
-	uint16_t						base;		// ImAppResPakThemeFieldBase
-} ImAppResPakThemeField;
+	uint16_t						base;		// imappResPakThemeFieldBase
+} ImappResPakThemeField;
 
-typedef struct ImAppResPakThemeHeader
+typedef struct ImappResPakThemeHeader
 {
 	uint16_t						referencedCount;
 	uint16_t						themeFieldCount;
-} ImAppResPakThemeHeader;
+} ImappResPakThemeHeader;
 
 #ifdef __cplusplus
 }

@@ -18,11 +18,11 @@ namespace imapp
 		return child;
 	}
 
-	bool parseUiColor( ImUiColor& target, const StringView& string )
+	bool parseUiColor( ImuiColor& target, const StringView& string )
 	{
 		if( string.getLength() >= 6u )
 		{
-			ImUiColor result;
+			ImuiColor result;
 
 			bool ok = true;
 			ok &= string_tools::tryParseHexUInt8( result.red, string.subString( 0u, 2u ) );
@@ -48,7 +48,7 @@ namespace imapp
 		}
 		else if( string.getLength() >= 3u )
 		{
-			ImUiColor result;
+			ImuiColor result;
 
 			bool ok = true;
 			ok &= string_tools::tryParseHexNibble( result.red, string.subString( 0u, 1u ) );
@@ -81,7 +81,7 @@ namespace imapp
 		return false;
 	}
 
-	uintsize formatUiColor( char* buffer, uintsize bufferSize, const ImUiColor& value )
+	uintsize formatUiColor( char* buffer, uintsize bufferSize, const ImuiColor& value )
 	{
 		bool isNibbleUniform = true;
 		const byte* bytes = &value.red;

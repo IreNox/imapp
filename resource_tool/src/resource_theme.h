@@ -27,11 +27,11 @@ namespace imapp
 
 	struct ResourceThemeField
 	{
-		using UiField = ImUiToolboxThemeReflectionField;
+		using UiField = ImuiToolboxThemeReflectionField;
 
 		DynamicString				name;
 		const UiField*				uiField	= nullptr;
-		ImAppResPakThemeFieldBase	base;
+		ImappResPakThemeFieldBase	base;
 		uintsize					level;
 		bool						open	= false;
 
@@ -55,40 +55,40 @@ namespace imapp
 		FieldView				getFields() { return m_fields; }
 		ConstFieldView			getFields() const { return m_fields; }
 
-		ImUiColor&				getFieldColor( ResourceThemeField& field );
-		const ImUiColor&		getFieldColor( const ResourceThemeField& field ) const;
+		ImuiColor&				getFieldColor( ResourceThemeField& field );
+		const ImuiColor&		getFieldColor( const ResourceThemeField& field ) const;
 		float&					getFieldFloat( ResourceThemeField& field );
 		const float&			getFieldFloat( const ResourceThemeField& field ) const;
 		double&					getFieldDouble( ResourceThemeField& field );
 		const double&			getFieldDouble( const ResourceThemeField& field ) const;
-		ImUiBorder&				getFieldBorder( ResourceThemeField& field );
-		const ImUiBorder&		getFieldBorder( const ResourceThemeField& field ) const;
-		ImUiSize&				getFieldSize( ResourceThemeField& field );
-		const ImUiSize&			getFieldSize( const ResourceThemeField& field ) const;
+		ImuiBorder&				getFieldBorder( ResourceThemeField& field );
+		const ImuiBorder&		getFieldBorder( const ResourceThemeField& field ) const;
+		ImuiSize&				getFieldSize( ResourceThemeField& field );
+		const ImuiSize&			getFieldSize( const ResourceThemeField& field ) const;
 		uint32&					getFieldUInt32( ResourceThemeField& field );
 		const uint32&			getFieldUInt32( const ResourceThemeField& field ) const;
 		DynamicString&			getFieldString( ResourceThemeField& field );
 		const DynamicString&	getFieldString( const ResourceThemeField& field ) const;
 
-		const ImUiToolboxTheme&	getUiTheme() const { return m_theme.uiTheme; }
-		const ImAppWindowTheme&	getWindowTheme() const { return m_theme.windowTheme; }
+		const ImuiToolboxTheme&	getUiTheme() const { return m_theme.uiTheme; }
+		const ImappWindowTheme&	getWindowTheme() const { return m_theme.windowTheme; }
 
 	private:
 
-		static constexpr uintsize FieldCount = ImUiToolboxColor_MAX + ImUiToolboxSkin_MAX + ImUiToolboxIcon_MAX + 38u;
+		static constexpr uintsize FieldCount = ImuiToolboxColor_MAX + ImuiToolboxSkin_MAX + ImuiToolboxIcon_MAX + 38u;
 
 		using FieldArray = DynamicArray< ResourceThemeField >;
-		using SkinArray = StaticArray< DynamicString, ImUiToolboxSkin_MAX >;
-		using ImageArray = StaticArray< DynamicString, ImUiToolboxIcon_MAX >;
+		using SkinArray = StaticArray< DynamicString, ImuiToolboxSkin_MAX >;
+		using ImageArray = StaticArray< DynamicString, ImuiToolboxIcon_MAX >;
 
 		using FieldPool = ChunkedPool< ResourceThemeTreeField >;
 
-		ImAppTheme				m_theme;
+		ImappTheme				m_theme;
 
 		FieldArray				m_fields;
 
 		void					buildFields();
-		void					buildReflectionFields( const ImUiToolboxThemeReflection& reflection, ResourceThemeTreeField& rootField, FieldPool& fieldPool, ImAppResPakThemeFieldBase base );
+		void					buildReflectionFields( const ImuiToolboxThemeReflection& reflection, ResourceThemeTreeField& rootField, FieldPool& fieldPool, ImappResPakThemeFieldBase base );
 		void					serializeFields( DynamicArray< ResourceThemeTreeField* >& fields, ResourceThemeTreeField& field, uintsize level );
 
 		void*					getFieldData( ResourceThemeField& field );

@@ -12,51 +12,51 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct ImAppFont ImAppFont;
-typedef struct ImAppPlatform ImAppPlatform;
-typedef struct ImAppRenderer ImAppRenderer;
-typedef struct ImAppRendererWindow ImAppRendererWindow;
-typedef struct ImAppResSys ImAppResSys;
-typedef struct ImAppWindow ImAppWindow;
+typedef struct ImappFont ImappFont;
+typedef struct ImappPlatform ImappPlatform;
+typedef struct ImappRenderer ImappRenderer;
+typedef struct ImappRendererWindow ImappRendererWindow;
+typedef struct ImappResSys ImappResSys;
+typedef struct ImappWindow ImappWindow;
 
-typedef struct ImAppContextWindowInfo
+typedef struct ImappContextWindowInfo
 {
-	ImAppWindow*			window;
-	const ImUiInputState*	inputState;
+	ImappWindow*			window;
+	const ImuiInputState*	inputState;
 
-	ImAppWindowDoUiFunc		uiFunc;
+	ImappWindowDoUiFunc		uiFunc;
 	void*					uiContext;
 
-	ImAppRendererWindow		rendererWindow;
+	ImappRendererWindow		rendererWindow;
 	float					clearColor[ 4u ];
 
 	bool					isRendererCreated;
 	bool					isDestroyed;
-} ImAppContextWindowInfo;
+} ImappContextWindowInfo;
 
-struct ImAppContext
+struct ImappContext
 {
-	ImUiAllocator			allocator;
+	ImuiAllocator			allocator;
 
 	bool					running;
 	int						exitCode;
 	int64_t					tickIntervalMs;
 	int64_t					lastTickValue;
-	ImUiInputMouseCursor	lastCursor;
+	ImuiInputMouseCursor	lastCursor;
 	double					lastFocusExecuteTime;
 
-	ImAppPlatform*			platform;
-	ImUiContext*			imui;
-	ImAppRenderer*			renderer;
-	ImAppResSys*			ressys;
+	ImappPlatform*			platform;
+	ImuiContext*			imui;
+	ImappRenderer*			renderer;
+	ImappResSys*			ressys;
 
-	ImAppContextWindowInfo*	windows;
+	ImappContextWindowInfo*	windows;
 	uintsize				windowsCount;
 	uintsize				windowsCapacity;
 
-	ImAppResPak*			defaultResPak;
-	ImAppFont*				defaultFont;
+	ImappResPak*			defaultResPak;
+	ImappFont*				defaultFont;
 
 	void*					programContext;
-	ImUiFrame*				frame;
+	ImuiFrame*				frame;
 };

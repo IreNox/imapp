@@ -4,7 +4,7 @@
 
 #include <imapp/imapp.h>
 
-struct ImAppImage;
+struct ImappImage;
 
 namespace tiki
 {
@@ -81,7 +81,7 @@ namespace imapp
 		ResourceTheme&			getTheme() { TIKI_ASSERT( m_theme ); return *m_theme; }
 		const ResourceTheme&	getTheme() const { TIKI_ASSERT( m_theme ); return *m_theme; }
 
-		ImAppImage*				getOrCreateImage( ImAppContext* imapp );
+		ImappImage*				getOrCreateImage( ImappContext* imapp );
 
 		uint32					getRevision() const { return m_revision; }
 		void					increaseRevision() { m_revision++; }
@@ -105,8 +105,8 @@ namespace imapp
 		ByteArray				m_imageData;
 		uint32					m_imageWidth		= 0u;
 		uint32					m_imageHeight		= 0u;
-		ImAppContext*			m_imapp				= nullptr;
-		ImAppImage*				m_image				= nullptr;
+		ImappContext*			m_imapp				= nullptr;
+		ImappImage*				m_image				= nullptr;
 		bool					m_imageAllowAtlas	= true;
 		bool					m_imageRepeat		= false;
 

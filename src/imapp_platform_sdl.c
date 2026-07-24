@@ -30,7 +30,7 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
-struct ImAppPlatform
+struct ImappPlatform
 {
 	ImUiAllocator*	allocator;
 
@@ -45,36 +45,36 @@ struct ImAppPlatform
 	SDL_Cursor*		systemCursors[ ImUiInputMouseCursor_MAX ];
 };
 
-typedef struct ImAppWindowDrop ImAppWindowDrop;
-typedef struct ImAppWindowDrop
+typedef struct ImappWindowDrop ImappWindowDrop;
+typedef struct ImappWindowDrop
 {
-	ImAppWindowDrop*	nextDrop;
+	ImappWindowDrop*	nextDrop;
 
-	ImAppDropType		type;
+	ImappDropType		type;
 	char				pathOrText[ 1u ];
-} ImAppWindowDrop;
+} ImappWindowDrop;
 
-struct ImAppWindow
+struct ImappWindow
 {
-	ImAppPlatform*		platform;
-	ImAppEventQueue		eventQueue;
+	ImappPlatform*		platform;
+	ImappEventQueue		eventQueue;
 
-	ImAppWindowDoUiFunc uiFunc;
+	ImappWindowDoUiFunc uiFunc;
 
 	SDL_Window*			sdlWindow;
 	SDL_GLContext		glContext;
 
-	ImAppWindowDrop*	firstNewDrop;
-	ImAppWindowDrop*	firstPoppedDrop;
+	ImappWindowDrop*	firstNewDrop;
+	ImappWindowDrop*	firstPoppedDrop;
 };
 
-struct ImAppThread
+struct ImappThread
 {
-	ImAppPlatform*	platform;
+	ImappPlatform*	platform;
 
 	SDL_Thread*		sdlThread;
 
-	ImAppThreadFunc	func;
+	ImappThreadFunc	func;
 	void*			arg;
 
 	SDL_atomic_t	isRunning;
@@ -109,7 +109,7 @@ int main( int argc, char* argv[] )
 	char** argv = NULL;
 	#endif
 
-	ImAppPlatform platform = { 0 };
+	ImappPlatform platform = { 0 };
 
 	if( SDL_Init( SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER ) < 0 )
 	{
@@ -269,7 +269,7 @@ int main( int argc, char* argv[] )
 	return result;
 }
 
-bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
@@ -341,7 +341,7 @@ bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator,
 	return true;
 }
 
-void imappPlatformShutdown( ImAppPlatform* platform )
+void imappPlatformShutdown( ImappPlatform* platform )
 {
 	for( uintsize i = 0u; i < IMAPP_ARRAY_COUNT( platform->systemCursors ); ++i )
 	{
@@ -352,7 +352,7 @@ void imappPlatformShutdown( ImAppPlatform* platform )
 	platform->allocator = NULL;
 }
 
-sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
+sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
 	sint64 currentTick		= (sint64)SDL_GetTicks64();
 	const sint64 deltaTicks	= currentTick - lastTickValue;
@@ -373,35 +373,35 @@ sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 	return (sint64)currentTick;
 }
 
-double imappPlatformTicksToSeconds( ImAppPlatform* platform, sint64 tickValue )
+double imappPlatformTicksToSeconds( ImappPlatform* platform, sint64 tickValue )
 {
 	return tickValue / 1000.0;
 }
 
-void imappPlatformShowError( ImAppPlatform* pPlatform, const char* pMessage )
+void imappPlatformShowError( ImappPlatform* pPlatform, const char* pMessage )
 {
 	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "I'm App", pMessage, NULL );
 }
 
-void imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImUiInputMouseCursor cursor )
 {
 	SDL_SetCursor( platform->systemCursors[ cursor ] );
 }
 
-void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 {
 	SDL_SetClipboardText( text );
 }
 
-void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
 {
 	const char* clipboardText = SDL_GetClipboardText();
 	ImUiInputSetPasteText( imui, clipboardText );
 }
 
-ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImappWindowStyle style, ImappWindowState state, ImappWindowDoUiFunc uiFunc )
 {
-	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
+	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 	if( window == NULL )
 	{
 		return NULL;
@@ -413,34 +413,34 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 	switch( style )
 	{
-	case ImAppWindowStyle_Resizable:
+	case ImappWindowStyle_Resizable:
 		flags |= SDL_WINDOW_RESIZABLE;
 		break;
 
-	case ImAppWindowStyle_Borderless:
+	case ImappWindowStyle_Borderless:
 		flags |= SDL_WINDOW_BORDERLESS;
-		if( state == ImAppWindowState_Maximized )
+		if( state == ImappWindowState_Maximized )
 		{
 			flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		}
 		break;
 
-	case ImAppWindowStyle_Custom:
+	case ImappWindowStyle_Custom:
 		flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE;
 		break;
 	}
 
 	switch( state )
 	{
-	case ImAppWindowState_Default:
+	case ImappWindowState_Default:
 		flags |= SDL_WINDOW_SHOWN;
 		break;
 
-	case ImAppWindowState_Minimized:
+	case ImappWindowState_Minimized:
 		flags |= SDL_WINDOW_MINIMIZED;
 		break;
 
-	case ImAppWindowState_Maximized:
+	case ImappWindowState_Maximized:
 		flags |= SDL_WINDOW_MAXIMIZED;
 		break;
 	}
@@ -459,13 +459,13 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	return window;
 }
 
-void imappPlatformWindowDestroy( ImAppWindow* window )
+void imappPlatformWindowDestroy( ImappWindow* window )
 {
 	IMAPP_ASSERT( window->glContext == NULL );
 
 	while( window->firstNewDrop )
 	{
-		ImAppWindowDrop* drop = window->firstNewDrop;
+		ImappWindowDrop* drop = window->firstNewDrop;
 		window->firstNewDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
@@ -473,7 +473,7 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 
 	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		ImappWindowDrop* drop = window->firstPoppedDrop;
 		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
@@ -490,7 +490,7 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 	ImUiMemoryFree( window->platform->allocator, window );
 }
 
-bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
+bool imappPlatformWindowCreateGlContext( ImappWindow* pWindow )
 {
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
@@ -508,13 +508,13 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* pWindow )
 
 	if( SDL_GL_SetSwapInterval( 1 ) < 0 )
 	{
-		ImAppTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+		imappTrace( "[renderer] Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
 	}
 
 	return true;
 }
 
-void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
+void imappPlatformWindowDestroyGlContext( ImappWindow* window )
 {
 	if( window->glContext != NULL )
 	{
@@ -523,17 +523,17 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	}
 }
 
-ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
+ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
 {
 	if( window->glContext == NULL )
 	{
-		return ImAppWindowDeviceState_NoDevice;
+		return ImappWindowDeviceState_NoDevice;
 	}
 
-	return ImAppWindowDeviceState_Ok;
+	return ImappWindowDeviceState_Ok;
 }
 
-void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
+void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCallback callback, void* arg )
 {
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 	SDL_GL_SetSwapInterval( 1 );
@@ -541,7 +541,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 
 	while( window->firstPoppedDrop )
 	{
-		ImAppWindowDrop* drop = window->firstPoppedDrop;
+		ImappWindowDrop* drop = window->firstPoppedDrop;
 		window->firstPoppedDrop = drop->nextDrop;
 
 		ImUiMemoryFree( window->platform->allocator, drop );
@@ -560,9 +560,9 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 				const ImUiInputKey mappedKey = window->platform->inputKeyMapping[ sdlKeyEvent->keysym.scancode ];
 				if( mappedKey != ImUiInputKey_None )
 				{
-					const ImAppEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
+					const ImappEventType eventType	= sdlKeyEvent->type == SDL_KEYDOWN ? ImappEventType_KeyDown : ImappEventType_KeyUp;
 					const bool repeate				= sdlKeyEvent->repeat != 0;
-					const ImAppEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
+					const ImappEvent keyEvent		= { .key = { .type = eventType, .key = mappedKey, .repeat = repeate } };
 					imappEventQueuePush( &window->eventQueue, &keyEvent );
 				}
 			}
@@ -574,7 +574,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 
 				for( const char* pText = textInputEvent->text; *pText != '\0'; ++pText )
 				{
-					const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = *pText } };
+					const ImappEvent charEvent = { .character = { .type = ImappEventType_Character, .character = *pText } };
 					imappEventQueuePush( &window->eventQueue, &charEvent );
 				}
 			}
@@ -584,7 +584,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 			{
 				const SDL_MouseMotionEvent* sdlMotionEvent = &sdlEvent.motion;
 
-				const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
+				const ImappEvent motionEvent = { .motion = { .type = ImappEventType_Motion, .x = sdlMotionEvent->x, .y = sdlMotionEvent->y } };
 				imappEventQueuePush( &window->eventQueue, &motionEvent );
 			}
 			break;
@@ -607,8 +607,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 					continue;
 				}
 
-				const ImAppEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-				const ImAppEvent buttonEvent	= { .button = { .type = eventType, .button = button, .repeateCount = sdlButtonEvent->clicks } };
+				const ImappEventType eventType	= sdlButtonEvent->type == SDL_MOUSEBUTTONDOWN ? ImappEventType_ButtonDown : ImappEventType_ButtonUp;
+				const ImappEvent buttonEvent	= { .button = { .type = eventType, .button = button, .repeateCount = sdlButtonEvent->clicks } };
 				imappEventQueuePush( &window->eventQueue, &buttonEvent );
 			}
 			break;
@@ -617,7 +617,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 			{
 				const SDL_MouseWheelEvent* sdlWheelEvent = &sdlEvent.wheel;
 
-				const ImAppEvent scrollEvent = { .scroll = { .type = ImAppEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
+				const ImappEvent scrollEvent = { .scroll = { .type = ImappEventType_Scroll, .x = sdlWheelEvent->x, .y = sdlWheelEvent->y } };
 				imappEventQueuePush( &window->eventQueue, &scrollEvent );
 			}
 			break;
@@ -629,7 +629,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 				{
 				case SDL_WINDOWEVENT_CLOSE:
 					{
-						const ImAppEvent closeEvent = { .type = ImAppEventType_WindowClose };
+						const ImappEvent closeEvent = { .type = ImappEventType_WindowClose };
 						imappEventQueuePush( &window->eventQueue, &closeEvent );
 					}
 					break;
@@ -646,8 +646,8 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 				const SDL_DropEvent* sdlDropEvent = &sdlEvent.drop;
 
 				const uintsize textLength = strlen( sdlDropEvent->file ) + 1u;
-				ImAppWindowDrop* drop = (ImAppWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImAppWindowDrop ) + textLength );
-				drop->type = sdlEvent.type == SDL_DROPFILE ? ImAppDropType_File : ImAppDropType_Text;
+				ImappWindowDrop* drop = (ImappWindowDrop*)ImUiMemoryAlloc( window->platform->allocator, sizeof( ImappWindowDrop ) + textLength );
+				drop->type = sdlEvent.type == SDL_DROPFILE ? ImappDropType_File : ImappDropType_Text;
 
 				memcpy( drop->pathOrText, sdlDropEvent->file, textLength );
 				drop->pathOrText[ textLength ] = '\0';
@@ -673,30 +673,30 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	}
 }
 
-bool ImAppPlatformWindowPresent( ImAppWindow* window )
+bool imappPlatformWindowPresent( ImappWindow* window )
 {
 	SDL_GL_SwapWindow( window->sdlWindow );
 	return true;
 }
 
-ImAppEventQueue* imappPlatformWindowGetEventQueue( ImAppWindow* window )
+ImappEventQueue* imappPlatformWindowGetEventQueue( ImappWindow* window )
 {
 	return &window->eventQueue;
 }
 
-ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+ImappWindowDoUiFunc imappPlatformWindowGetUiFunc( ImappWindow* window )
 {
 	return window->uiFunc;
 }
 
-bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+bool imappPlatformWindowPopDropData( ImappWindow* window, ImappDropData* outData )
 {
 	if( !window->firstNewDrop )
 	{
 		return false;
 	}
 
-	ImAppWindowDrop* drop = window->firstNewDrop;
+	ImappWindowDrop* drop = window->firstNewDrop;
 	outData->type		= drop->type;
 	outData->pathOrText	= drop->pathOrText;
 
@@ -708,7 +708,7 @@ bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData
 	return true;
 }
 
-void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
+void imappPlatformWindowGetViewRect( const ImappWindow* window, int* outX, int* outY, int* outWidth, int* outHeight )
 {
 	*outX = 0;
 	*outY = 0;
@@ -716,74 +716,74 @@ void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* outX, int* 
 	imappPlatformWindowGetSize( window, outWidth, outHeight );
 }
 
-bool imappPlatformWindowHasFocus( const ImAppWindow* window )
+bool imappPlatformWindowHasFocus( const ImappWindow* window )
 {
 	return (SDL_GetWindowFlags( window->sdlWindow ) & SDL_WINDOW_INPUT_FOCUS) != 0;
 }
 
-void imappPlatformWindowGetSize( const ImAppWindow* window, int* outWidth, int* outHeight )
+void imappPlatformWindowGetSize( const ImappWindow* window, int* outWidth, int* outHeight )
 {
 	SDL_GetWindowSize( window->sdlWindow, outWidth, outHeight );
 }
 
-void imappPlatformWindowGetPosition( const ImAppWindow* window, int* outX, int* outY )
+void imappPlatformWindowGetPosition( const ImappWindow* window, int* outX, int* outY )
 {
 	SDL_GetWindowPosition( window->sdlWindow, outX, outY );
 }
 
-void imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
 	SDL_SetWindowPosition( window->sdlWindow, x, y );
 }
 
-ImAppWindowState imappPlatformWindowGetState( const ImAppWindow* pWindow )
+ImappWindowState imappPlatformWindowGetState( const ImappWindow* pWindow )
 {
 	const Uint32 flags = SDL_GetWindowFlags( pWindow->sdlWindow );
 	if( flags & SDL_WINDOW_MINIMIZED )
 	{
-		return ImAppWindowState_Minimized;
+		return ImappWindowState_Minimized;
 	}
 	if( flags & SDL_WINDOW_MAXIMIZED )
 	{
-		return ImAppWindowState_Maximized;
+		return ImappWindowState_Maximized;
 	}
 
-	return ImAppWindowState_Default;
+	return ImappWindowState_Default;
 }
 
-void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+void imappPlatformWindowSetState( ImappWindow* window, ImappWindowState state )
 {
 	switch( state )
 	{
-	case ImAppWindowState_Default:
+	case ImappWindowState_Default:
 		SDL_RestoreWindow( window->sdlWindow );
 		break;
 
-	case ImAppWindowState_Minimized:
+	case ImappWindowState_Minimized:
 		SDL_MinimizeWindow( window->sdlWindow );
 		break;
 
-	case ImAppWindowState_Maximized:
+	case ImappWindowState_Maximized:
 		SDL_MaximizeWindow( window->sdlWindow );
 		break;
 	}
 }
 
-const char* imappPlatformWindowGetTitle( const ImAppWindow* window )
+const char* imappPlatformWindowGetTitle( const ImappWindow* window )
 {
 	return SDL_GetWindowTitle( window->sdlWindow );
 }
 
-void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+void imappPlatformWindowSetTitle( ImappWindow* window, const char* title )
 {
 	SDL_SetWindowTitle( window->sdlWindow, title );
 }
 
-void imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+void imappPlatformWindowSetTitleBounds( ImappWindow* window, int height, int buttonsX )
 {
 }
 
-float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
+float imappPlatformWindowGetDpiScale( const ImappWindow* window )
 {
 	float dpi;
 	if( SDL_GetDisplayDPI( SDL_GetWindowDisplayIndex( window->sdlWindow ), &dpi, NULL, NULL ) != 0 )
@@ -794,17 +794,17 @@ float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
 	return dpi / 96.0f;
 }
 
-void imappPlatformWindowClose( ImAppWindow* window )
+void imappPlatformWindowClose( ImappWindow* window )
 {
 	SDL_DestroyWindow( window->sdlWindow );
 }
 
-void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+void imappPlatformResourceGetPath( ImappPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
 	const size_t resourceNameLength = strlen( resourceName );
 	if( platform->resourceBasePathLength + resourceNameLength >= pathCapacity )
 	{
-		ImAppTrace( "Error: Resource path buffer too small!\n" );
+		imappTrace( "Error: Resource path buffer too small!\n" );
 		return;
 	}
 	memcpy( outPath, platform->resourceBasePath, platform->resourceBasePathLength );
@@ -812,16 +812,16 @@ void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uints
 	outPath[ platform->resourceBasePathLength + resourceNameLength ] = '\0';
 }
 
-ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resourceName )
 {
 	return imappPlatformResourceLoadRange( platform, resourceName, 0u, (uintsize)-1 );
 }
 
-ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
-	ImAppBlob result ={ NULL, 0u };
+	ImappBlob result ={ NULL, 0u };
 
-	ImAppFile* file = imappPlatformResourceOpen( platform, resourceName );
+	ImappFile* file = imappPlatformResourceOpen( platform, resourceName );
 	if( !file )
 	{
 		return result;
@@ -854,7 +854,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	return result;
 }
 
-ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+ImappFile* imappPlatformResourceOpen( ImappPlatform* platform, const char* resourceName )
 {
 	const size_t resourceNameLength = strlen( resourceName );
 	const size_t resourcePathLength = platform->resourceBasePathLength + resourceNameLength + 1;
@@ -866,16 +866,16 @@ ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 	SDL_RWops* file = SDL_RWFromFile( resourcePath, "rb" );
 	if( !file )
 	{
-		ImAppTrace( "Error: Failed to open '%s'\n", resourcePath );
+		imappTrace( "Error: Failed to open '%s'\n", resourcePath );
 		free( resourcePath );
 		return NULL;
 	}
 
 	free( resourcePath );
 
-	return (ImAppFile*)file;
+	return (ImappFile*)file;
 }
-uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+uintsize imappPlatformResourceRead( ImappFile* file, void* outData, uintsize length, uintsize offset )
 {
 	SDL_RWops* rwopts = (SDL_RWops*)file;
 
@@ -894,20 +894,20 @@ uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 	return readResult;
 }
 
-void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+void imappPlatformResourceClose( ImappPlatform* platform, ImappFile* file )
 {
 	SDL_RWops* rwops = (SDL_RWops*)file;
 	SDL_RWclose( rwops );
 }
 
-ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const char* fontName )
 {
 	const size_t fontNameLength = strlen( fontName );
 	const size_t fontPathLength = platform->fontBasePathLength + fontNameLength;
 	char* fontPath = (char*)ImUiMemoryAlloc( platform->allocator, fontPathLength + 1 );
 	if( !fontPath )
 	{
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -917,9 +917,9 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	SDL_RWops* file = SDL_RWFromFile( fontPath, "rb" );
 	if( !file )
 	{
-		ImAppTrace( "Error: Failed to open '%s'\n", fontPath );
+		imappTrace( "Error: Failed to open '%s'\n", fontPath );
 		ImUiMemoryFree( platform->allocator, fontPath );
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -927,7 +927,7 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	if( fileSize == -1 )
 	{
 		ImUiMemoryFree( platform->allocator, fontPath );
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -940,46 +940,46 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 	{
 		ImUiMemoryFree( platform->allocator, memory );
 		ImUiMemoryFree( platform->allocator, fontPath );
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
 	ImUiMemoryFree( platform->allocator, fontPath );
-	const ImAppBlob result = { memory, (size_t)fileSize };
+	const ImappBlob result = { memory, (size_t)fileSize };
 	return result;
 }
 
-void imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+void imappPlatformResourceFree( ImappPlatform* platform, ImappBlob blob )
 {
 	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
-ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
+ImappFileWatcher* imappPlatformFileWatcherCreate( ImappPlatform* platform )
 {
 	// not implemented
 	return NULL;
 }
 
-void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+void imappPlatformFileWatcherDestroy( ImappPlatform* platform, ImappFileWatcher* watcher )
 {
 }
 
-void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherAddPath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherRemovePath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+bool imappPlatformFileWatcherPopEvent( ImappFileWatcher* watcher, ImappFileWatchEvent* outEvent )
 {
 	return false;
 }
 
-ImAppThread* imappPlatformThreadCreate( ImAppPlatform* platform, const char* name, ImAppThreadFunc func, void* arg )
+ImappThread* imappPlatformThreadCreate( ImappPlatform* platform, const char* name, ImappThreadFunc func, void* arg )
 {
-	ImAppThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppThread );
+	ImappThread* thread = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappThread );
 	if( !thread )
 	{
 		return NULL;
@@ -997,7 +997,7 @@ ImAppThread* imappPlatformThreadCreate( ImAppPlatform* platform, const char* nam
 	return thread;
 }
 
-void imappPlatformThreadDestroy( ImAppThread* thread )
+void imappPlatformThreadDestroy( ImappThread* thread )
 {
 	if( SDL_AtomicGet( (SDL_atomic_t*)&thread->isRunning ) )
 	{
@@ -1007,14 +1007,14 @@ void imappPlatformThreadDestroy( ImAppThread* thread )
 	ImUiMemoryFree( thread->platform->allocator, thread );
 }
 
-bool imappPlatformThreadIsRunning( const ImAppThread* thread )
+bool imappPlatformThreadIsRunning( const ImappThread* thread )
 {
 	return SDL_AtomicGet( (SDL_atomic_t*)&thread->isRunning);
 }
 
 static int SDLCALL imappPlatformThreadEntry( void* voidThread )
 {
-	ImAppThread* thread = (ImAppThread*)voidThread;
+	ImappThread* thread = (ImappThread*)voidThread;
 
 	thread->func( thread->arg );
 
@@ -1023,47 +1023,47 @@ static int SDLCALL imappPlatformThreadEntry( void* voidThread )
 	return 0u;
 }
 
-ImAppMutex* imappPlatformMutexCreate( ImAppPlatform* platform )
+ImappMutex* imappPlatformMutexCreate( ImappPlatform* platform )
 {
-	return (ImAppMutex*)SDL_CreateMutex();
+	return (ImappMutex*)SDL_CreateMutex();
 }
 
-void imappPlatformMutexDestroy( ImAppPlatform* platform, ImAppMutex* mutex )
+void imappPlatformMutexDestroy( ImappPlatform* platform, ImappMutex* mutex )
 {
 	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
 	SDL_DestroyMutex( sdlMutex );
 }
 
-void imappPlatformMutexLock( ImAppMutex* mutex )
+void imappPlatformMutexLock( ImappMutex* mutex )
 {
 	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
 	SDL_LockMutex( sdlMutex );
 }
 
-void imappPlatformMutexUnlock( ImAppMutex* mutex )
+void imappPlatformMutexUnlock( ImappMutex* mutex )
 {
 	SDL_mutex* sdlMutex = (SDL_mutex*)mutex;
 	SDL_UnlockMutex( sdlMutex );
 }
 
-ImAppSemaphore* imappPlatformSemaphoreCreate( ImAppPlatform* platform )
+ImappSemaphore* imappPlatformSemaphoreCreate( ImappPlatform* platform )
 {
-	return (ImAppSemaphore*)SDL_CreateSemaphore( 0u );
+	return (ImappSemaphore*)SDL_CreateSemaphore( 0u );
 }
 
-void imappPlatformSemaphoreDestroy( ImAppPlatform* platform, ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreDestroy( ImappPlatform* platform, ImappSemaphore* semaphore )
 {
 	SDL_sem* sdlSem = (SDL_sem*)semaphore;
 	SDL_DestroySemaphore( sdlSem );
 }
 
-void imappPlatformSemaphoreInc( ImAppSemaphore* semaphore )
+void imappPlatformSemaphoreInc( ImappSemaphore* semaphore )
 {
 	SDL_sem* sdlSem = (SDL_sem*)semaphore;
 	SDL_SemPost( sdlSem );
 }
 
-bool imappPlatformSemaphoreDec( ImAppSemaphore* semaphore, bool wait )
+bool imappPlatformSemaphoreDec( ImappSemaphore* semaphore, bool wait )
 {
 	SDL_sem* sdlSem = (SDL_sem*)semaphore;
 	if( wait )

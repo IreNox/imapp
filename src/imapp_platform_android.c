@@ -23,7 +23,7 @@
 //////////////////////////////////////////////////////////////////////////
 // Main
 
-typedef struct ImAppPlatform
+typedef struct ImappPlatform
 {
 	ANativeActivity*		pActivity;
 
@@ -49,39 +49,39 @@ typedef struct ImAppPlatform
 	bool					stoped;
 
 	ImUiAllocator*			allocator;
-} ImAppPlatform;
+} ImappPlatform;
 
 #include "imapp_platform_pthread.h"
 
-typedef enum ImAppAndroidLooperType
+typedef enum imappAndroidLooperType
 {
-	ImAppAndroidLooperType_Invalid,
-	ImAppAndroidLooperType_Event,
-	ImAppAndroidLooperType_Input
-} ImAppAndroidLooperType;
+	imappAndroidLooperType_Invalid,
+	imappAndroidLooperType_Event,
+	imappAndroidLooperType_Input
+} imappAndroidLooperType;
 
-typedef enum ImAppAndroidEventType
+typedef enum imappAndroidEventType
 {
-	ImAppAndroidEventType_StateChanged,
-	ImAppAndroidEventType_WindowChanged,
-	ImAppAndroidEventType_WindowResize,
-	ImAppAndroidEventType_InputChanged,
-	ImAppAndroidEventType_Shutdown
-} ImAppAndroidEventType;
+	imappAndroidEventType_StateChanged,
+	imappAndroidEventType_WindowChanged,
+	imappAndroidEventType_WindowResize,
+	imappAndroidEventType_InputChanged,
+	imappAndroidEventType_Shutdown
+} imappAndroidEventType;
 
-typedef enum ImAppAndroidStateType
+typedef enum imappAndroidStateType
 {
-	ImAppAndroidStateType_Start,
-	ImAppAndroidStateType_Pause,
-	ImAppAndroidStateType_Resume,
-	ImAppAndroidStateType_Stop
-} ImAppAndroidStateType;
+	imappAndroidStateType_Start,
+	imappAndroidStateType_Pause,
+	imappAndroidStateType_Resume,
+	imappAndroidStateType_Stop
+} imappAndroidStateType;
 
-typedef union ImAppAndroidEventData
+typedef union imappAndroidEventData
 {
 	struct
 	{
-		ImAppAndroidStateType	state;
+		imappAndroidStateType	state;
 	} state;
 	struct
 	{
@@ -91,48 +91,48 @@ typedef union ImAppAndroidEventData
 	{
 		AInputQueue*			pInputQueue;
 	} input;
-} ImAppAndroidEventData;
+} imappAndroidEventData;
 
-typedef struct ImAppAndroidEvent
+typedef struct ImappAndroidEvent
 {
-	ImAppAndroidEventType		type;
-	ImAppAndroidEventData		data;
-} ImAppAndroidEvent;
+	imappAndroidEventType		type;
+	imappAndroidEventData		data;
+} ImappAndroidEvent;
 
-static void*	ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
-static void		ImAppAndroidDestroy( ImAppPlatform* platform );
+static void*	imappAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
+static void		imappAndroidDestroy( ImappPlatform* platform );
 
-static void*	ImAppAndroidThreadEntryPoint( void* pArgument );
+static void*	imappAndroidThreadEntryPoint( void* pArgument );
 
-static void		ImAppAndroidUpdateViewBoundsAndDpiScale( ImAppPlatform* platform );
+static void		imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform );
 
-static bool		ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* platform );
-static void		ImAppAndroidEventPush( ImAppPlatform* platform, const ImAppAndroidEvent* pEvent );
+static bool		imappAndroidEventPop( ImappAndroidEvent* pTarget, ImappPlatform* platform );
+static void		imappAndroidEventPush( ImappPlatform* platform, const ImappAndroidEvent* pEvent );
 
-static void		ImAppAndroidOnStart( ANativeActivity* pActivity );
-static void		ImAppAndroidOnPause( ANativeActivity* pActivity );
-static void		ImAppAndroidOnResume( ANativeActivity* pActivity );
-static void		ImAppAndroidOnStop( ANativeActivity* pActivity );
-static void		ImAppAndroidOnDestroy( ANativeActivity* pActivity );
-static void		ImAppAndroidOnLowMemory( ANativeActivity* pActivity );
-static void*	ImAppAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen );
-static void		ImAppAndroidOnConfigurationChanged( ANativeActivity* pActivity );
-static void		ImAppAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused );
-static void		ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window );
-static void		ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window );
-static void		ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window );
-static void		ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue );
-static void		ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue );
+static void		imappAndroidOnStart( ANativeActivity* pActivity );
+static void		imappAndroidOnPause( ANativeActivity* pActivity );
+static void		imappAndroidOnResume( ANativeActivity* pActivity );
+static void		imappAndroidOnStop( ANativeActivity* pActivity );
+static void		imappAndroidOnDestroy( ANativeActivity* pActivity );
+static void		imappAndroidOnLowMemory( ANativeActivity* pActivity );
+static void*	imappAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen );
+static void		imappAndroidOnConfigurationChanged( ANativeActivity* pActivity );
+static void		imappAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused );
+static void		imappAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window );
+static void		imappAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window );
+static void		imappAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window );
+static void		imappAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue );
+static void		imappAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue );
 
-void imappPlatformShowError( ImAppPlatform* platform, const char* message )
-{
-}
-
-void imappPlatformSetMouseCursor( ImAppPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformShowError( ImappPlatform* platform, const char* message )
 {
 }
 
-void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImUiInputMouseCursor cursor )
+{
+}
+
+void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 {
 	JNIEnv* pEnv = NULL;
 	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
@@ -151,7 +151,7 @@ void imappPlatformSetClipboardText( ImAppPlatform* platform, const char* text )
 	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
 }
 
-void imappPlatformGetClipboardText( ImAppPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
 {
 	JNIEnv* pEnv = NULL;
 	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
@@ -176,27 +176,27 @@ void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, siz
 {
 	IMAPP_DEBUG_LOGI( "Creating: %p\n", pActivity );
 
-	pActivity->callbacks->onStart					= ImAppAndroidOnStart;
-	pActivity->callbacks->onPause					= ImAppAndroidOnPause;
-	pActivity->callbacks->onResume					= ImAppAndroidOnResume;
-	pActivity->callbacks->onStop					= ImAppAndroidOnStop;
-	pActivity->callbacks->onDestroy					= ImAppAndroidOnDestroy;
-	pActivity->callbacks->onLowMemory				= ImAppAndroidOnLowMemory;
-	pActivity->callbacks->onSaveInstanceState		= ImAppAndroidOnSaveInstanceState;
-	pActivity->callbacks->onConfigurationChanged	= ImAppAndroidOnConfigurationChanged;
-	pActivity->callbacks->onWindowFocusChanged		= ImAppAndroidOnWindowFocusChanged;
-	pActivity->callbacks->onNativeWindowCreated		= ImAppAndroidOnNativeWindowCreated;
-	pActivity->callbacks->onNativeWindowDestroyed	= ImAppAndroidOnNativeWindowDestroyed;
-	pActivity->callbacks->onNativeWindowResized		= ImAppAndroidOnNativeWindowResized;
-	pActivity->callbacks->onInputQueueCreated		= ImAppAndroidOnInputQueueCreated;
-	pActivity->callbacks->onInputQueueDestroyed		= ImAppAndroidOnInputQueueDestroyed;
+	pActivity->callbacks->onStart					= imappAndroidOnStart;
+	pActivity->callbacks->onPause					= imappAndroidOnPause;
+	pActivity->callbacks->onResume					= imappAndroidOnResume;
+	pActivity->callbacks->onStop					= imappAndroidOnStop;
+	pActivity->callbacks->onDestroy					= imappAndroidOnDestroy;
+	pActivity->callbacks->onLowMemory				= imappAndroidOnLowMemory;
+	pActivity->callbacks->onSaveInstanceState		= imappAndroidOnSaveInstanceState;
+	pActivity->callbacks->onConfigurationChanged	= imappAndroidOnConfigurationChanged;
+	pActivity->callbacks->onWindowFocusChanged		= imappAndroidOnWindowFocusChanged;
+	pActivity->callbacks->onNativeWindowCreated		= imappAndroidOnNativeWindowCreated;
+	pActivity->callbacks->onNativeWindowDestroyed	= imappAndroidOnNativeWindowDestroyed;
+	pActivity->callbacks->onNativeWindowResized		= imappAndroidOnNativeWindowResized;
+	pActivity->callbacks->onInputQueueCreated		= imappAndroidOnInputQueueCreated;
+	pActivity->callbacks->onInputQueueDestroyed		= imappAndroidOnInputQueueDestroyed;
 
-	pActivity->instance = ImAppAndroidCreate( pActivity, savedState, savedStateSize );
+	pActivity->instance = imappAndroidCreate( pActivity, savedState, savedStateSize );
 }
 
-static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
+static void* imappAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)malloc( sizeof( *platform ) );
+	ImappPlatform* platform = (ImappPlatform*)malloc( sizeof( *platform ) );
     memset( platform, 0, sizeof( *platform ) );
 
 	platform->pActivity = pActivity;
@@ -338,17 +338,17 @@ static void* ImAppAndroidCreate( ANativeActivity* pActivity, void* savedState, s
 	pthread_attr_t threadAttributes;
 	pthread_attr_init( &threadAttributes );
 	pthread_attr_setdetachstate( &threadAttributes, PTHREAD_CREATE_DETACHED );
-	pthread_create( &platform->thread, &threadAttributes, ImAppAndroidThreadEntryPoint, platform );
+	pthread_create( &platform->thread, &threadAttributes, imappAndroidThreadEntryPoint, platform );
 
 	return platform;
 }
 
-static void ImAppAndroidDestroy( ImAppPlatform* platform )
+static void imappAndroidDestroy( ImappPlatform* platform )
 {
 	{
-		ImAppAndroidEvent androidEvent;
-		androidEvent.type = ImAppAndroidEventType_Shutdown;
-		ImAppAndroidEventPush( platform, &androidEvent );
+		ImappAndroidEvent androidEvent;
+		androidEvent.type = imappAndroidEventType_Shutdown;
+		imappAndroidEventPush( platform, &androidEvent );
 	}
 
 	pthread_mutex_lock( &platform->threadConditionMutex );
@@ -367,12 +367,12 @@ static void ImAppAndroidDestroy( ImAppPlatform* platform )
 	free( platform );
 }
 
-static void* ImAppAndroidThreadEntryPoint( void* pArgument )
+static void* imappAndroidThreadEntryPoint( void* pArgument )
 {
-	ImAppPlatform* platform = (ImAppPlatform*)pArgument;
+	ImappPlatform* platform = (ImappPlatform*)pArgument;
 
 	platform->pLooper = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
-	ALooper_addFd( platform->pLooper, platform->eventPipeRead, ImAppAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, platform );
+	ALooper_addFd( platform->pLooper, platform->eventPipeRead, imappAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, platform );
 
 	pthread_mutex_lock( &platform->threadConditionMutex );
 	platform->started = true;
@@ -391,7 +391,7 @@ static void* ImAppAndroidThreadEntryPoint( void* pArgument )
 	return NULL;
 }
 
-static void ImAppAndroidUpdateViewBoundsAndDpiScale( ImAppPlatform* platform )
+static void imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform )
 {
 	JNIEnv* pEnv = NULL;
 	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
@@ -471,142 +471,142 @@ static void ImAppAndroidUpdateViewBoundsAndDpiScale( ImAppPlatform* platform )
 	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
 }
 
-static bool ImAppAndroidEventPop( ImAppAndroidEvent* pTarget, ImAppPlatform* platform )
+static bool imappAndroidEventPop( ImappAndroidEvent* pTarget, ImappPlatform* platform )
 {
 	const int bytesRead = read( platform->eventPipeRead, pTarget, sizeof( *pTarget ) );
 	IMAPP_ASSERT( bytesRead == 0 || bytesRead == sizeof( *pTarget ) );
 	return bytesRead == sizeof( *pTarget );
 }
 
-static void ImAppAndroidEventPush( ImAppPlatform* platform, const ImAppAndroidEvent* pEvent )
+static void imappAndroidEventPush( ImappPlatform* platform, const ImappAndroidEvent* pEvent )
 {
 	if( write( platform->eventPipeWrite, pEvent, sizeof( *pEvent ) ) != sizeof( *pEvent ) )
 	{
-		ImAppTrace( "Write to pipe failed. Error: %s\n", strerror( errno ) );
+		imappTrace( "Write to pipe failed. Error: %s\n", strerror( errno ) );
 	}
 }
 
-static void ImAppAndroidOnStart( ANativeActivity* pActivity )
+static void imappAndroidOnStart( ANativeActivity* pActivity )
 {
-	ImAppTrace( "Start: %p\n", pActivity );
+	imappTrace( "Start: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Start };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Start };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnPause( ANativeActivity* pActivity )
+static void imappAndroidOnPause( ANativeActivity* pActivity )
 {
-	ImAppTrace( "Pause: %p\n", pActivity );
+	imappTrace( "Pause: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Pause };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Pause };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnResume( ANativeActivity* pActivity )
+static void imappAndroidOnResume( ANativeActivity* pActivity )
 {
-	ImAppTrace( "Resume: %p\n", pActivity );
+	imappTrace( "Resume: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Resume };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Resume };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnStop( ANativeActivity* pActivity )
+static void imappAndroidOnStop( ANativeActivity* pActivity )
 {
-	ImAppTrace( "Stop: %p\n", pActivity );
+	imappTrace( "Stop: %p\n", pActivity );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_StateChanged, .data.state.state = ImAppAndroidStateType_Stop };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Stop };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnDestroy( ANativeActivity* pActivity )
+static void imappAndroidOnDestroy( ANativeActivity* pActivity )
 {
-	ImAppTrace( "Destroy: %p\n", pActivity );
+	imappTrace( "Destroy: %p\n", pActivity );
 
-	ImAppPlatform* platform = (ImAppPlatform*)pActivity->instance;
-	ImAppAndroidDestroy( platform );
+	ImappPlatform* platform = (ImappPlatform*)pActivity->instance;
+	imappAndroidDestroy( platform );
 }
 
-static void ImAppAndroidOnLowMemory( ANativeActivity* pActivity )
+static void imappAndroidOnLowMemory( ANativeActivity* pActivity )
 {
-	ImAppTrace( "LowMemory: %p\n", pActivity );
+	imappTrace( "LowMemory: %p\n", pActivity );
 	//android_app_write_cmd( (struct android_app*)pActivity->instance, APP_CMD_LOW_MEMORY );
 }
 
-static void* ImAppAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen )
+static void* imappAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen )
 {
-	ImAppTrace( "SaveInstanceState: %p\n", pActivity );
+	imappTrace( "SaveInstanceState: %p\n", pActivity );
 	*pOutLen = 0u;
 	return NULL;
 }
 
-static void ImAppAndroidOnConfigurationChanged( ANativeActivity* pActivity )
+static void imappAndroidOnConfigurationChanged( ANativeActivity* pActivity )
 {
-	ImAppTrace( "ConfigurationChanged: %p\n", pActivity );
+	imappTrace( "ConfigurationChanged: %p\n", pActivity );
 	//android_app_write_cmd( (struct android_app*)pActivity->instance, APP_CMD_CONFIG_CHANGED );
 }
 
-static void ImAppAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused )
+static void imappAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused )
 {
-	ImAppTrace( "WindowFocusChanged: %p -- %d\n", pActivity, focused );
+	imappTrace( "WindowFocusChanged: %p -- %d\n", pActivity, focused );
 	//android_app_write_cmd( (struct android_app*)pActivity->instance, focused ? APP_CMD_GAINED_FOCUS : APP_CMD_LOST_FOCUS );
 }
 
-static void ImAppAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window )
+static void imappAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowCreated: %p -- %p\n", pActivity, window );
+	imappTrace( "NativeWindowCreated: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.window = window };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowChanged, .data.window.window = window };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window )
+static void imappAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, window );
+	imappTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowChanged, .data.window.window = NULL };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowChanged, .data.window.window = NULL };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window )
+static void imappAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANativeWindow* window )
 {
-	ImAppTrace( "NativeWindowResized: %p -- %p\n", pActivity, window );
+	imappTrace( "NativeWindowResized: %p -- %p\n", pActivity, window );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_WindowResize, .data.window.window = window };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowResize, .data.window.window = window };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue )
+static void imappAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQueue* pInputQueue )
 {
-	ImAppTrace( "InputQueueCreated: %p -- %p\n", pActivity, pInputQueue );
+	imappTrace( "InputQueueCreated: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_InputChanged, .data.input.pInputQueue = pInputQueue };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_InputChanged, .data.input.pInputQueue = pInputQueue };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
-static void ImAppAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue )
+static void imappAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInputQueue* pInputQueue )
 {
-	ImAppTrace( "InputQueueDestroyed: %p -- %p\n", pActivity, pInputQueue );
+	imappTrace( "InputQueueDestroyed: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImAppAndroidEvent androidEvent = { ImAppAndroidEventType_InputChanged, .data.input.pInputQueue = NULL };
-	ImAppAndroidEventPush( (ImAppPlatform*)pActivity->instance, &androidEvent );
+	const ImappAndroidEvent androidEvent = { imappAndroidEventType_InputChanged, .data.input.pInputQueue = NULL };
+	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Platform
 
-bool imappPlatformInitialize( ImAppPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
 	return true;
 }
 
-void imappPlatformShutdown( ImAppPlatform* platform )
+void imappPlatformShutdown( ImappPlatform* platform )
 {
 	platform->allocator = NULL;
 }
 
-sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
+sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 tickInterval )
 {
 	int waitDuration;
 	int64_t currentTickValue;
@@ -633,13 +633,13 @@ sint64 imappPlatformTick( ImAppPlatform* platform, sint64 lastTickValue, sint64 
 //////////////////////////////////////////////////////////////////////////
 // Window
 
-struct ImAppWindow
+struct ImappWindow
 {
 	ImUiAllocator*		allocator;
-	ImAppPlatform*		platform;
-    ImAppWindowDoUiFunc uiFunc;
+	ImappPlatform*		platform;
+    ImappWindowDoUiFunc uiFunc;
 
-	ImAppEventQueue		eventQueue;
+	ImappEventQueue		eventQueue;
 
 	ANativeWindow*		pNativeWindow;
 	bool				isOpen;
@@ -654,15 +654,15 @@ struct ImAppWindow
 	int					height;
 };
 
-static void	ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
-static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
-static void	ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent );
+static void	imappPlatformWindowHandleWindowChangedEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent );
+static void	imappPlatformWindowHandleWindowResizeEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent );
+static void	imappPlatformWindowHandleInputChangedEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent );
 
-static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent );
+static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInputEvent* pInputEvent );
 
-ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImAppWindowStyle style, ImAppWindowState state, ImAppWindowDoUiFunc uiFunc )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImappWindowStyle style, ImappWindowState state, ImappWindowDoUiFunc uiFunc )
 {
-	ImAppWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImAppWindow );
+	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 	if( window == NULL )
 	{
 		return NULL;
@@ -695,7 +695,7 @@ ImAppWindow* imappPlatformWindowCreate( ImAppPlatform* platform, const char* win
 	return window;
 }
 
-void imappPlatformWindowDestroy( ImAppWindow* window )
+void imappPlatformWindowDestroy( ImappWindow* window )
 {
 	IMAPP_ASSERT( window->context == EGL_NO_CONTEXT );
 
@@ -704,7 +704,7 @@ void imappPlatformWindowDestroy( ImAppWindow* window )
 	ImUiMemoryFree( window->allocator, window );
 }
 
-bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
+bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 {
 	IMAPP_ASSERT( window->pNativeWindow != NULL );
 	IMAPP_ASSERT( window->display == EGL_NO_DISPLAY );
@@ -746,12 +746,12 @@ bool ImAppPlatformWindowCreateGlContext( ImAppWindow* window )
 	eglQuerySurface( window->display, window->surface, EGL_WIDTH, &window->width );
 	eglQuerySurface( window->display, window->surface, EGL_HEIGHT, &window->height );
 
-	ImAppAndroidUpdateViewBoundsAndDpiScale( window->platform );
+	imappAndroidUpdateViewBoundsAndDpiScale( window->platform );
 
 	return true;
 }
 
-void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
+void imappPlatformWindowDestroyGlContext( ImappWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{
@@ -778,25 +778,25 @@ void ImAppPlatformWindowDestroyGlContext( ImAppWindow* window )
 	window->pNativeWindow = NULL;
 }
 
-ImAppWindowDeviceState imappPlatformWindowGetGlContextState( const ImAppWindow* window )
+ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{
-		return ImAppWindowDeviceState_NoDevice;
+		return ImappWindowDeviceState_NoDevice;
 	}
 	else if( window->hasDeviceLost)
 	{
-		return ImAppWindowDeviceState_DeviceLost;
+		return ImappWindowDeviceState_DeviceLost;
 	}
 	else if( window->hasDeviceChange )
 	{
-		return ImAppWindowDeviceState_NewDevice;
+		return ImappWindowDeviceState_NewDevice;
 	}
 
-	return ImAppWindowDeviceState_Ok;
+	return ImappWindowDeviceState_Ok;
 }
 
-void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCallback callback, void* arg )
+void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCallback callback, void* arg )
 {
 	int eventCount;
 	int eventType;
@@ -805,23 +805,23 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 	{
 		IMAPP_ASSERT( pUserData == window->platform );
 
-		if( eventType == ImAppAndroidLooperType_Event )
+		if( eventType == imappAndroidLooperType_Event )
 		{
-			ImAppAndroidEvent androidEvent;
-			if( ImAppAndroidEventPop( &androidEvent, window->platform ) )
+			ImappAndroidEvent androidEvent;
+			if( imappAndroidEventPop( &androidEvent, window->platform ) )
 			{
 				switch( androidEvent.type )
 				{
-				case ImAppAndroidEventType_WindowChanged:
-					ImAppPlatformWindowHandleWindowChangedEvent( window, &androidEvent );
+				case imappAndroidEventType_WindowChanged:
+					imappPlatformWindowHandleWindowChangedEvent( window, &androidEvent );
 					break;
 
-				case ImAppAndroidEventType_WindowResize:
-					ImAppPlatformWindowHandleWindowResizeEvent( window, &androidEvent );
+				case imappAndroidEventType_WindowResize:
+					imappPlatformWindowHandleWindowResizeEvent( window, &androidEvent );
 					break;
 
-				case ImAppAndroidEventType_InputChanged:
-					ImAppPlatformWindowHandleInputChangedEvent( window, &androidEvent );
+				case imappAndroidEventType_InputChanged:
+					imappPlatformWindowHandleInputChangedEvent( window, &androidEvent );
 					break;
 
 				default:
@@ -829,7 +829,7 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 				}
 			}
 		}
-		else if( eventType == ImAppAndroidLooperType_Input )
+		else if( eventType == imappAndroidLooperType_Input )
 		{
 			AInputEvent* pInputEvent = NULL;
 			while( AInputQueue_getEvent( window->platform->pInputQueue, &pInputEvent ) >= 0 )
@@ -839,14 +839,14 @@ void imappPlatformWindowUpdate( ImAppWindow* window, ImAppPlatformWindowUpdateCa
 					continue;
 				}
 
-				const bool handled = ImAppPlatformWindowHandleInputEvent( window, pInputEvent );
+				const bool handled = imappPlatformWindowHandleInputEvent( window, pInputEvent );
 				AInputQueue_finishEvent( window->platform->pInputQueue, pInputEvent, handled );
 			}
 		}
 	}
 }
 
-static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
+static void imappPlatformWindowHandleWindowChangedEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent )
 {
 	window->pNativeWindow = pSystemEvent->data.window.window;
 
@@ -857,23 +857,23 @@ static void ImAppPlatformWindowHandleWindowChangedEvent( ImAppWindow* window, co
 	}
 	else if( window->hasDeviceLost )
 	{
-		window->isOpen = ImAppPlatformWindowCreateGlContext( window );
+		window->isOpen = imappPlatformWindowCreateGlContext( window );
 		window->hasDeviceLost = false;
 		window->hasDeviceChange = true;
 	}
 }
 
-static void	ImAppPlatformWindowHandleWindowResizeEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
+static void	imappPlatformWindowHandleWindowResizeEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent )
 {
 	IMAPP_ASSERT( window->pNativeWindow == pSystemEvent->data.window.window );
 
 	window->width	= ANativeWindow_getWidth( window->pNativeWindow );
 	window->height	= ANativeWindow_getHeight( window->pNativeWindow );
 
-	ImAppAndroidUpdateViewBoundsAndDpiScale( window->platform );
+	imappAndroidUpdateViewBoundsAndDpiScale( window->platform );
 }
 
-static void ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, const ImAppAndroidEvent* pSystemEvent )
+static void imappPlatformWindowHandleInputChangedEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent )
 {
 	if( window->platform->pInputQueue != NULL )
 	{
@@ -884,11 +884,11 @@ static void ImAppPlatformWindowHandleInputChangedEvent( ImAppWindow* window, con
 
 	if( window->platform->pInputQueue != NULL )
 	{
-		AInputQueue_attachLooper( window->platform->pInputQueue, window->platform->pLooper, ImAppAndroidLooperType_Input, NULL, window->platform );
+		AInputQueue_attachLooper( window->platform->pInputQueue, window->platform->pLooper, imappAndroidLooperType_Input, NULL, window->platform );
 	}
 }
 
-static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInputEvent* pInputEvent )
+static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInputEvent* pInputEvent )
 {
 	const int32_t eventType = AInputEvent_getType( pInputEvent );
 	switch( eventType )
@@ -930,7 +930,7 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 
                         if( unicodeKey != 0 )
                         {
-                            const ImAppEvent charEvent = { .character = { .type = ImAppEventType_Character, .character = unicodeKey } };
+                            const ImappEvent charEvent = { .character = { .type = ImappEventType_Character, .character = unicodeKey } };
                             imappEventQueuePush( &window->eventQueue, &charEvent );
                         }
                     }
@@ -956,8 +956,8 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
                             repeat = true;
                         }
 
-                        const ImAppEventType eventType = keyAction == AKEY_EVENT_ACTION_DOWN ? ImAppEventType_KeyDown : ImAppEventType_KeyUp;
-                        const ImAppEvent keyEvent = { .key = { .type = eventType, .key = key, .repeat = repeat } };
+                        const ImappEventType eventType = keyAction == AKEY_EVENT_ACTION_DOWN ? ImappEventType_KeyDown : ImappEventType_KeyUp;
+                        const ImappEvent keyEvent = { .key = { .type = eventType, .key = key, .repeat = repeat } };
                         imappEventQueuePush( &window->eventQueue, &keyEvent );
                     }
 				}
@@ -985,13 +985,13 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 					const int x = (int)AMotionEvent_getX( pInputEvent, 0 );
 					const int y = (int)AMotionEvent_getY( pInputEvent, 0 );
 
-					const ImAppEvent motionEvent = { .motion = { .type = ImAppEventType_Motion, .x = x, .y = y } };
+					const ImappEvent motionEvent = { .motion = { .type = ImappEventType_Motion, .x = x, .y = y } };
 					imappEventQueuePush( &window->eventQueue, &motionEvent );
 
 					if( motionAction != AMOTION_EVENT_ACTION_MOVE )
 					{
-						const ImAppEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImAppEventType_ButtonDown : ImAppEventType_ButtonUp;
-						const ImAppEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImUiInputMouseButton_Left, .repeateCount = 1 } };
+						const ImappEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImappEventType_ButtonDown : ImappEventType_ButtonUp;
+						const ImappEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImUiInputMouseButton_Left, .repeateCount = 1 } };
 						imappEventQueuePush( &window->eventQueue, &buttonEvent );
 					}
 
@@ -1012,7 +1012,7 @@ static bool	ImAppPlatformWindowHandleInputEvent( ImAppWindow* window, const AInp
 	return false;
 }
 
-void imappPlatformWindowBeginRender( ImAppWindow* window )
+void imappPlatformWindowBeginRender( ImappWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{
@@ -1027,7 +1027,7 @@ void imappPlatformWindowBeginRender( ImAppWindow* window )
 	return true;
 }
 
-bool imappPlatformWindowEndRender( ImAppWindow* window )
+bool imappPlatformWindowEndRender( ImappWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{
@@ -1036,7 +1036,7 @@ bool imappPlatformWindowEndRender( ImAppWindow* window )
 
 	if( window->hasDeviceLost )
 	{
-		ImAppPlatformWindowDestroyGlContext( window );
+		imappPlatformWindowDestroyGlContext( window );
 		return false;
 	}
 
@@ -1046,23 +1046,23 @@ bool imappPlatformWindowEndRender( ImAppWindow* window )
 	return true;
 }
 
-ImAppEventQueue* imappPlatformWindowGetEventQueue( ImAppWindow* window )
+ImappEventQueue* imappPlatformWindowGetEventQueue( ImappWindow* window )
 {
 	return &window->eventQueue;
 }
 
-ImAppWindowDoUiFunc ImAppPlatformWindowGetUiFunc( ImAppWindow* window )
+ImappWindowDoUiFunc imappPlatformWindowGetUiFunc( ImappWindow* window )
 {
     return  window->uiFunc;
 }
 
 
-bool imappPlatformWindowPopDropData( ImAppWindow* window, ImAppDropData* outData )
+bool imappPlatformWindowPopDropData( ImappWindow* window, ImappDropData* outData )
 {
 	return false;
 }
 
-void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* pX, int* pY, int* pWidth, int* pHeight )
+void imappPlatformWindowGetViewRect( const ImappWindow* window, int* pX, int* pY, int* pWidth, int* pHeight )
 {
 	*pX			= 0u; //window->platform->viewLeft;
 	*pY			= window->platform->viewTop;
@@ -1070,64 +1070,64 @@ void imappPlatformWindowGetViewRect( const ImAppWindow* window, int* pX, int* pY
 	*pHeight	= window->platform->viewHeight;
 }
 
-bool imappPlatformWindowHasFocus( const ImAppWindow* window )
+bool imappPlatformWindowHasFocus( const ImappWindow* window )
 {
     return true;
 }
 
-void imappPlatformWindowGetSize( const ImAppWindow* window, int* pWidth, int* pHeight )
+void imappPlatformWindowGetSize( const ImappWindow* window, int* pWidth, int* pHeight )
 {
 	*pWidth		= window->width;
 	*pHeight	= window->height;
 }
 
-void imappPlatformWindowSetSize( const ImAppWindow* window, int width, int height )
+void imappPlatformWindowSetSize( const ImappWindow* window, int width, int height )
 {
     // not supported
 }
 
-void imappPlatformWindowGetPosition( const ImAppWindow* window, int* pX, int* pY )
+void imappPlatformWindowGetPosition( const ImappWindow* window, int* pX, int* pY )
 {
 	*pX			= 0u;
 	*pY			= window->platform->viewTop;
 }
 
-void imappPlatformWindowSetPosition( const ImAppWindow* window, int x, int y )
+void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
     // not supported
 }
 
-ImAppWindowState imappPlatformWindowGetState( const ImAppWindow* window )
+ImappWindowState imappPlatformWindowGetState( const ImappWindow* window )
 {
-	return ImAppWindowState_Maximized;
+	return ImappWindowState_Maximized;
 }
 
-void imappPlatformWindowSetState( ImAppWindow* window, ImAppWindowState state )
+void imappPlatformWindowSetState( ImappWindow* window, ImappWindowState state )
 {
     // not supported
 }
 
-const char* imappPlatformWindowGetTitle( const ImAppWindow* window )
+const char* imappPlatformWindowGetTitle( const ImappWindow* window )
 {
     return NULL;
 }
 
-void imappPlatformWindowSetTitle( ImAppWindow* window, const char* title )
+void imappPlatformWindowSetTitle( ImappWindow* window, const char* title )
 {
     // not supported
 }
 
-void imappPlatformWindowSetTitleBounds( ImAppWindow* window, int height, int buttonsX )
+void imappPlatformWindowSetTitleBounds( ImappWindow* window, int height, int buttonsX )
 {
     // not supported
 }
 
-float imappPlatformWindowGetDpiScale( const ImAppWindow* window )
+float imappPlatformWindowGetDpiScale( const ImappWindow* window )
 {
 	return window->platform->dpiScale;
 }
 
-void imappPlatformWindowClose( ImAppWindow* window )
+void imappPlatformWindowClose( ImappWindow* window )
 {
     // not supported
 }
@@ -1135,17 +1135,17 @@ void imappPlatformWindowClose( ImAppWindow* window )
 //////////////////////////////////////////////////////////////////////////
 // Resources
 
-void imappPlatformResourceGetPath( ImAppPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
+void imappPlatformResourceGetPath( ImappPlatform* platform, char* outPath, uintsize pathCapacity, const char* resourceName )
 {
 	strncpy( outPath, resourceName, pathCapacity );
 }
 
-ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resourceName )
+ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resourceName )
 {
 	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
 	if( asset == NULL )
 	{
-		const ImAppBlob result = { NULL, 0u };
+		const ImappBlob result = { NULL, 0u };
 		return result;
 	}
 
@@ -1157,15 +1157,15 @@ ImAppBlob imappPlatformResourceLoad( ImAppPlatform* platform, const char* resour
 
 	AAsset_close( asset );
 
-	const ImAppBlob result = { data, size };
+	const ImappBlob result = { data, size };
 	return result;
 }
 
-ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
+ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* resourceName, uintsize offset, uintsize length )
 {
-	ImAppBlob result = { NULL, 0u };
+	ImappBlob result = { NULL, 0u };
 
-	ImAppFile* file = imappPlatformResourceOpen( platform, resourceName );
+	ImappFile* file = imappPlatformResourceOpen( platform, resourceName );
 	if( !file )
 	{
 		return result;
@@ -1197,7 +1197,7 @@ ImAppBlob imappPlatformResourceLoadRange( ImAppPlatform* platform, const char* r
 	return result;
 }
 
-ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resourceName )
+ImappFile* imappPlatformResourceOpen( ImappPlatform* platform, const char* resourceName )
 {
 	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
 	if( asset == NULL )
@@ -1205,10 +1205,10 @@ ImAppFile* imappPlatformResourceOpen( ImAppPlatform* platform, const char* resou
 		return NULL;
 	}
 
-	return (ImAppFile*)asset;
+	return (ImappFile*)asset;
 }
 
-uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize length, uintsize offset )
+uintsize imappPlatformResourceRead( ImappFile* file, void* outData, uintsize length, uintsize offset )
 {
 	AAsset* asset = (AAsset*)file;
 
@@ -1228,14 +1228,14 @@ uintsize imappPlatformResourceRead( ImAppFile* file, void* outData, uintsize len
 	return length;
 }
 
-void imappPlatformResourceClose( ImAppPlatform* platform, ImAppFile* file )
+void imappPlatformResourceClose( ImappPlatform* platform, ImappFile* file )
 {
 	AAsset* asset = (AAsset*)file;
 
 	AAsset_close( asset );
 }
 
-ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const char* fontName )
+ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const char* fontName )
 {
 	static const char* s_fontDirectories[] =
 	{
@@ -1264,44 +1264,44 @@ ImAppBlob imappPlatformResourceLoadSystemFont( ImAppPlatform* platform, const ch
 		{
 			fclose( file );
 
-			const ImAppBlob result = { NULL, 0u };
+			const ImappBlob result = { NULL, 0u };
 			return result;
 		}
 
 		fread( data, 1u, st.st_size, file );
 		fclose( file );
 
-		const ImAppBlob result = { data, st.st_size };
+		const ImappBlob result = { data, st.st_size };
 		return result;
 	}
 
-	const ImAppBlob result = { NULL, 0u };
+	const ImappBlob result = { NULL, 0u };
 	return result;
 }
 
-void imappPlatformResourceFree( ImAppPlatform* platform, ImAppBlob blob )
+void imappPlatformResourceFree( ImappPlatform* platform, ImappBlob blob )
 {
 	ImUiMemoryFree( platform->allocator, blob.data );
 }
 
-ImAppFileWatcher* imappPlatformFileWatcherCreate( ImAppPlatform* platform )
+ImappFileWatcher* imappPlatformFileWatcherCreate( ImappPlatform* platform )
 {
 	return NULL;
 }
 
-void imappPlatformFileWatcherDestroy( ImAppPlatform* platform, ImAppFileWatcher* watcher )
+void imappPlatformFileWatcherDestroy( ImappPlatform* platform, ImappFileWatcher* watcher )
 {
 }
 
-void imappPlatformFileWatcherAddPath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherAddPath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-void imappPlatformFileWatcherRemovePath( ImAppFileWatcher* watcher, const char* path )
+void imappPlatformFileWatcherRemovePath( ImappFileWatcher* watcher, const char* path )
 {
 }
 
-bool imappPlatformFileWatcherPopEvent( ImAppFileWatcher* watcher, ImAppFileWatchEvent* outEvent )
+bool imappPlatformFileWatcherPopEvent( ImappFileWatcher* watcher, ImappFileWatchEvent* outEvent )
 {
 	return false;
 }

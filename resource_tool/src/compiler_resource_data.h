@@ -18,7 +18,7 @@ namespace imapp
 	struct CompilerFontData
 	{
 		using ByteArray = DynamicArray< byte >;
-		using CodepointArray = DynamicArray< ImUiFontCodepoint >;
+		using CodepointArray = DynamicArray< ImuiFontCodepoint >;
 
 		ByteArray					pixelData;
 		uint32						width;
@@ -68,7 +68,7 @@ namespace imapp
 			ResourceType			type			= ResourceType::Count;
 			DynamicString			name;
 			DynamicString			filePath;
-			ImUiHash				fileHash		= 0u;
+			ImuiHash				fileHash		= 0u;
 			ByteArray				fileData;
 
 			ImageData				image;

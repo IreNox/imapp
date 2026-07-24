@@ -1,5 +1,5 @@
 #pragma once
 
-typedef struct ImAppPlatform ImAppPlatform;
+typedef struct ImappPlatform ImappPlatform;
 
-int imappMain( ImAppPlatform* pPlatform, int argc, char* argv[] );
+int imappMain( ImappPlatform* pPlatform, int argc, char* argv[] );

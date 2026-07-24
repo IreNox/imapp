@@ -38,7 +38,7 @@ namespace imapp
 
 		struct CompiledResource
 		{
-			ImAppResPakType				type;
+			ImappResPakType				type;
 			const CompilerResourceData*	data;
 			const CompilerFontData*		fontData;
 			uint32						nameOffset;
@@ -57,8 +57,8 @@ namespace imapp
 		using ResourceMap = HashMap< DynamicString, CompilerResourceData* >;
 		using AtlasImageMap = HashMap< DynamicString, AtlasImage >;
 		using CompiledResourceArray = DynamicArray< CompiledResource >;
-		using ResourceTypeIndexArray = StaticArray< DynamicArray< uint16 >, ImAppResPakType_MAX >;
-		using ResourceTypeIndexMap = StaticArray< HashMap< DynamicString, uint16 >, ImAppResPakType_MAX >;
+		using ResourceTypeIndexArray = StaticArray< DynamicArray< uint16 >, ImappResPakType_MAX >;
+		using ResourceTypeIndexMap = StaticArray< HashMap< DynamicString, uint16 >, ImappResPakType_MAX >;
 
 		class BinaryBuffer
 		{
@@ -116,6 +116,6 @@ namespace imapp
 		void					writeBinaryFile();
 		void					writeCodeFile();
 
-		bool					findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImAppResPakType type, const DynamicString& name, const StringView& resourceName ) const;
+		bool					findResourceIndex( uint16& target, const ResourceTypeIndexMap& mapping, ImappResPakType type, const DynamicString& name, const StringView& resourceName ) const;
 	};
 }

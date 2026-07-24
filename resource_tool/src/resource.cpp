@@ -60,7 +60,7 @@ namespace imapp
 	{
 		if( m_image )
 		{
-			ImAppImageFree( m_imapp, m_image );
+			imappImageFree( m_imapp, m_image );
 			m_image = nullptr;
 		}
 
@@ -195,7 +195,7 @@ namespace imapp
 			return;
 		}
 
-		const ImUiHash newFileHash = ImUiHashCreate( m_fileData.getData(), m_fileData.getLength() );
+		const ImuiHash newFileHash = imuiHashCreate( m_fileData.getData(), m_fileData.getLength() );
 		if( newFileHash == m_fileHash )
 		{
 			return;
@@ -255,12 +255,12 @@ namespace imapp
 		m_revision++;
 	}
 
-	ImAppImage* Resource::getOrCreateImage( ImAppContext* imapp )
+	ImappImage* Resource::getOrCreateImage( ImappContext* imapp )
 	{
 		if( !m_image )
 		{
 			m_imapp			= imapp;
-			m_image			= ImAppImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), (int)m_imageWidth, (int)m_imageHeight );
+			m_image			= imappImageCreateRaw( imapp, m_imageData.getData(), m_imageData.getSizeInBytes(), (int)m_imageWidth, (int)m_imageHeight );
 		}
 
 		return m_image;
@@ -365,7 +365,7 @@ namespace imapp
 	{
 		if( m_image )
 		{
-			ImAppImageFree( m_imapp, m_image );
+			imappImageFree( m_imapp, m_image );
 			m_image = nullptr;
 		}
 
@@ -373,7 +373,7 @@ namespace imapp
 		const int bufferResult = spng_set_png_buffer( spng, m_fileData.getData(), m_fileData.getSizeInBytes() );
 		if( bufferResult != SPNG_OK )
 		{
-			ImAppTrace( "Error: Failed to set PNG buffer. Result: %d", bufferResult );
+			imappTrace( "Error: Failed to set PNG buffer. Result: %d", bufferResult );
 			spng_ctx_free( spng );
 			return false;
 		}
@@ -382,7 +382,7 @@ namespace imapp
 		const int sizeResult = spng_decoded_image_size( spng, SPNG_FMT_RGBA8, &pixelDataSize );
 		if( sizeResult != SPNG_OK )
 		{
-			ImAppTrace( "Error: Failed to calculate PNG size. Result: %d", sizeResult );
+			imappTrace( "Error: Failed to calculate PNG size. Result: %d", sizeResult );
 			spng_ctx_free( spng );
 			return false;
 		}
@@ -391,7 +391,7 @@ namespace imapp
 		const int headerResult = spng_get_ihdr( spng, &ihdr );
 		if( headerResult != SPNG_OK )
 		{
-			ImAppTrace( "Error: Failed to get PNG header. Result: %d", headerResult );
+			imappTrace( "Error: Failed to get PNG header. Result: %d", headerResult );
 			spng_ctx_free( spng );
 			return false;
 		}
@@ -403,7 +403,7 @@ namespace imapp
 
 		if( decodeResult != 0 )
 		{
-			ImAppTrace( "Error: Failed to decode PNG. Result: %d", decodeResult );
+			imappTrace( "Error: Failed to decode PNG. Result: %d", decodeResult );
 			return false;
 		}
 

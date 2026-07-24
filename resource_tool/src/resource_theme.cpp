@@ -11,19 +11,19 @@ namespace imapp
 	struct ResourceThemeTreeField : public LinkedNode< ResourceThemeTreeField >
 	{
 		using FieldList = LinkedList< ResourceThemeTreeField >;
-		using UiField = ImUiToolboxThemeReflectionField;
+		using UiField = ImuiToolboxThemeReflectionField;
 
 		StringView					name;
 		const UiField*				uiField	= nullptr;
-		ImAppResPakThemeFieldBase	base;
+		ImappResPakThemeFieldBase	base;
 
 		FieldList					childFields;
 	};
 
 	ResourceTheme::ResourceTheme()
 	{
-		ImUiToolboxThemeFillDefault( &m_theme.uiTheme, nullptr );
-		ImAppWindowThemeFillDefault( &m_theme.windowTheme );
+		imuiToolboxThemeFillDefault( &m_theme.uiTheme, nullptr );
+		imappWindowThemeFillDefault( &m_theme.windowTheme );
 
 		buildFields();
 	}
@@ -60,10 +60,10 @@ namespace imapp
 				field.xml = configNode;
 
 				bool ok = true;
-				const ImUiToolboxThemeReflectionField& uiField = *field.uiField;
+				const ImuiToolboxThemeReflectionField& uiField = *field.uiField;
 				switch( uiField.type )
 				{
-				case ImUiToolboxThemeReflectionType_Font:
+				case ImuiToolboxThemeReflectionType_Font:
 					{
 						const char* fontName;
 						if( configNode->QueryStringAttribute( "fontName", &fontName ) == XML_SUCCESS )
@@ -77,7 +77,7 @@ namespace imapp
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Color:
+				case ImuiToolboxThemeReflectionType_Color:
 					{
 						const char* colorHex;
 						if( configNode->QueryStringAttribute( "color", &colorHex ) == XML_SUCCESS )
@@ -91,7 +91,7 @@ namespace imapp
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Skin:
+				case ImuiToolboxThemeReflectionType_Skin:
 					{
 						const char* skinName;
 						if( configNode->QueryStringAttribute( "skinName", &skinName ) == XML_SUCCESS )
@@ -105,23 +105,23 @@ namespace imapp
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Float:
+				case ImuiToolboxThemeReflectionType_Float:
 					{
 						float& target = getFieldFloat( field );
 						ok &= configNode->QueryFloatAttribute( "value", &target ) == XML_SUCCESS;
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Double:
+				case ImuiToolboxThemeReflectionType_Double:
 					{
 						double& target = getFieldDouble( field );
 						ok &= configNode->QueryDoubleAttribute( "value", &target ) == XML_SUCCESS;
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Border:
+				case ImuiToolboxThemeReflectionType_Border:
 					{
-						ImUiBorder& target = getFieldBorder( field );
+						ImuiBorder& target = getFieldBorder( field );
 						ok &= configNode->QueryFloatAttribute( "top", &target.top ) == XML_SUCCESS;
 						ok &= configNode->QueryFloatAttribute( "left", &target.left ) == XML_SUCCESS;
 						ok &= configNode->QueryFloatAttribute( "right", &target.right ) == XML_SUCCESS;
@@ -129,15 +129,15 @@ namespace imapp
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Size:
+				case ImuiToolboxThemeReflectionType_Size:
 					{
-						ImUiSize& target = getFieldSize( field );
+						ImuiSize& target = getFieldSize( field );
 						ok &= configNode->QueryFloatAttribute( "width", &target.width ) == XML_SUCCESS;
 						ok &= configNode->QueryFloatAttribute( "height", &target.height ) == XML_SUCCESS;
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_Image:
+				case ImuiToolboxThemeReflectionType_Image:
 					{
 						const char* imageName;
 						if( configNode->QueryStringAttribute( "imageName", &imageName ) == XML_SUCCESS )
@@ -147,7 +147,7 @@ namespace imapp
 					}
 					break;
 
-				case ImUiToolboxThemeReflectionType_UInt32:
+				case ImuiToolboxThemeReflectionType_UInt32:
 					{
 						uint32& target = getFieldUInt32( field );
 						ok &= configNode->QueryIntAttribute( "value", (int*)&target ) == XML_SUCCESS;
@@ -181,13 +181,13 @@ namespace imapp
 
 			switch( field.uiField->type )
 			{
-			case ImUiToolboxThemeReflectionType_Font:
+			case ImuiToolboxThemeReflectionType_Font:
 				field.xml->SetAttribute( "fontName", field.value.toConstCharPointer() );
 				break;
 
-			case ImUiToolboxThemeReflectionType_Color:
+			case ImuiToolboxThemeReflectionType_Color:
 				{
-					ImUiColor& data = getFieldColor( field );
+					ImuiColor& data = getFieldColor( field );
 
 					char buffer[ 32u ];
 					formatUiColor( buffer, sizeof( buffer ), data );
@@ -196,27 +196,27 @@ namespace imapp
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Skin:
+			case ImuiToolboxThemeReflectionType_Skin:
 				field.xml->SetAttribute( "skinName", field.value.toConstCharPointer() );
 				break;
 
-			case ImUiToolboxThemeReflectionType_Float:
+			case ImuiToolboxThemeReflectionType_Float:
 				{
 					float& data = getFieldFloat( field );
 					field.xml->SetAttribute( "value", data );
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Double:
+			case ImuiToolboxThemeReflectionType_Double:
 				{
 					double& data = getFieldDouble( field );
 					field.xml->SetAttribute( "value", data );
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Border:
+			case ImuiToolboxThemeReflectionType_Border:
 				{
-					ImUiBorder& data = getFieldBorder( field );
+					ImuiBorder& data = getFieldBorder( field );
 					field.xml->SetAttribute( "top", data.top );
 					field.xml->SetAttribute( "left", data.left );
 					field.xml->SetAttribute( "right", data.right );
@@ -224,19 +224,19 @@ namespace imapp
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Size:
+			case ImuiToolboxThemeReflectionType_Size:
 				{
-					ImUiSize& data = getFieldSize( field );
+					ImuiSize& data = getFieldSize( field );
 					field.xml->SetAttribute( "width", data.width );
 					field.xml->SetAttribute( "height", data.height );
 				}
 				break;
 
-			case ImUiToolboxThemeReflectionType_Image:
+			case ImuiToolboxThemeReflectionType_Image:
 				field.xml->SetAttribute( "imageName", field.value.toConstCharPointer() );
 				break;
 
-			case ImUiToolboxThemeReflectionType_UInt32:
+			case ImuiToolboxThemeReflectionType_UInt32:
 				{
 					uint32& data = getFieldUInt32( field );
 					field.xml->SetAttribute( "value", data );
@@ -246,75 +246,75 @@ namespace imapp
 		}
 	}
 
-	ImUiColor& ResourceTheme::getFieldColor( ResourceThemeField& field )
+	ImuiColor& ResourceTheme::getFieldColor( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Color );
-		return *(ImUiColor*)getFieldData( field );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Color );
+		return *(ImuiColor*)getFieldData( field );
 	}
 
-	const ImUiColor& ResourceTheme::getFieldColor( const ResourceThemeField& field ) const
+	const ImuiColor& ResourceTheme::getFieldColor( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Color );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Color );
 		return const_cast<ResourceTheme* >( this )->getFieldColor( const_cast< ResourceThemeField& >( field ) );
 	}
 
 	float& ResourceTheme::getFieldFloat( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Float );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Float );
 		return *(float*)getFieldData( field );
 	}
 
 	const float& ResourceTheme::getFieldFloat( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Float );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Float );
 		return const_cast<ResourceTheme* >( this )->getFieldFloat( const_cast< ResourceThemeField& >( field ) );
 	}
 
 	double& ResourceTheme::getFieldDouble( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Double );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Double );
 		return *(double*)getFieldData( field );
 	}
 
 	const double& ResourceTheme::getFieldDouble( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Double );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Double );
 		return const_cast<ResourceTheme* >( this )->getFieldDouble( const_cast< ResourceThemeField& >( field ) );
 	}
 
-	ImUiBorder& ResourceTheme::getFieldBorder( ResourceThemeField& field )
+	ImuiBorder& ResourceTheme::getFieldBorder( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Border );
-		return *(ImUiBorder*)getFieldData( field );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Border );
+		return *(ImuiBorder*)getFieldData( field );
 	}
 
-	const ImUiBorder& ResourceTheme::getFieldBorder( const ResourceThemeField& field ) const
+	const ImuiBorder& ResourceTheme::getFieldBorder( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Border );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Border );
 		return const_cast<ResourceTheme* >( this )->getFieldBorder( const_cast< ResourceThemeField& >( field ) );
 	}
 
-	ImUiSize& ResourceTheme::getFieldSize( ResourceThemeField& field )
+	ImuiSize& ResourceTheme::getFieldSize( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Size );
-		return *(ImUiSize*)getFieldData( field );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Size );
+		return *(ImuiSize*)getFieldData( field );
 	}
 
-	const ImUiSize& ResourceTheme::getFieldSize( const ResourceThemeField& field ) const
+	const ImuiSize& ResourceTheme::getFieldSize( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_Size );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_Size );
 		return const_cast<ResourceTheme* >( this )->getFieldSize( const_cast< ResourceThemeField& >( field ) );
 	}
 
 	uint32& ResourceTheme::getFieldUInt32( ResourceThemeField& field )
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_UInt32 );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_UInt32 );
 		return *(uint32*)getFieldData( field );
 	}
 
 	const uint32& ResourceTheme::getFieldUInt32( const ResourceThemeField& field ) const
 	{
-		TIKI_ASSERT( field.uiField && field.uiField->type == ImUiToolboxThemeReflectionType_UInt32 );
+		TIKI_ASSERT( field.uiField && field.uiField->type == ImuiToolboxThemeReflectionType_UInt32 );
 		return const_cast<ResourceTheme* >( this )->getFieldUInt32( const_cast< ResourceThemeField& >( field ) );
 	}
 
@@ -333,18 +333,18 @@ namespace imapp
 		FieldPool pool( 256u );
 		ResourceThemeTreeField rootField;
 
-		const ImUiToolboxThemeReflection uiReflection = ImUiToolboxThemeReflectionGet();
-		buildReflectionFields( uiReflection, rootField, pool, ImAppResPakThemeFieldBase_UiTheme );
+		const ImuiToolboxThemeReflection uiReflection = imuiToolboxThemeReflectionGet();
+		buildReflectionFields( uiReflection, rootField, pool, ImappResPakThemeFieldBase_UiTheme );
 
 		{
 			ResourceThemeTreeField* windowRootField = pool.push();
 			windowRootField->name	= "Window";
-			windowRootField->base	= (ImAppResPakThemeFieldBase)-1;
+			windowRootField->base	= (ImappResPakThemeFieldBase)-1;
 
 			rootField.childFields.push( windowRootField );
 
-			const ImUiToolboxThemeReflection appReflection = ImAppWindowThemeReflectionGet();
-			buildReflectionFields( appReflection, *windowRootField, pool, ImAppResPakThemeFieldBase_WindowTheme );
+			const ImuiToolboxThemeReflection appReflection = imappWindowThemeReflectionGet();
+			buildReflectionFields( appReflection, *windowRootField, pool, ImappResPakThemeFieldBase_WindowTheme );
 		}
 
 		DynamicArray< ResourceThemeTreeField* > fields;
@@ -356,11 +356,11 @@ namespace imapp
 		}
 	}
 
-	void ResourceTheme::buildReflectionFields( const ImUiToolboxThemeReflection& reflection, ResourceThemeTreeField& rootField, FieldPool& fieldPool, ImAppResPakThemeFieldBase base )
+	void ResourceTheme::buildReflectionFields( const ImuiToolboxThemeReflection& reflection, ResourceThemeTreeField& rootField, FieldPool& fieldPool, ImappResPakThemeFieldBase base )
 	{
 		for( uintsize i = 0u; i < reflection.count; ++i )
 		{
-			const ImUiToolboxThemeReflectionField& field = reflection.fields[ i ];
+			const ImuiToolboxThemeReflectionField& field = reflection.fields[ i ];
 
 			ResourceThemeTreeField* parentField = &rootField;
 
@@ -385,7 +385,7 @@ namespace imapp
 				{
 					partField = fieldPool.push();
 					partField->name	= namePart;
-					partField->base	= (ImAppResPakThemeFieldBase)-1;
+					partField->base	= (ImappResPakThemeFieldBase)-1;
 
 					parentField->childFields.push( partField );
 				}
@@ -448,11 +448,11 @@ namespace imapp
 	void* ResourceTheme::getFieldData( ResourceThemeField& field )
 	{
 		byte* base = nullptr;
-		if( field.base == ImAppResPakThemeFieldBase_UiTheme )
+		if( field.base == ImappResPakThemeFieldBase_UiTheme )
 		{
 			base = (byte*)&m_theme.uiTheme;
 		}
-		else if( field.base == ImAppResPakThemeFieldBase_WindowTheme )
+		else if( field.base == ImappResPakThemeFieldBase_WindowTheme )
 		{
 			base = (byte*)&m_theme.windowTheme;
 		}

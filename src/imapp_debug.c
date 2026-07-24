@@ -14,7 +14,7 @@
 #	include <android/log.h>
 #endif
 
-void ImAppTrace( const char* format, ... )
+void imappTrace( const char* format, ... )
 {
 	char buffer[ 2048u ];
 
@@ -33,7 +33,7 @@ void ImAppTrace( const char* format, ... )
 	OutputDebugStringA( buffer );
 #	endif
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-	__android_log_write( ANDROID_LOG_INFO, "ImApp", buffer );
+	__android_log_write( ANDROID_LOG_INFO, "imapp", buffer );
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB ) || IMAPP_ENABLED( IMAPP_PLATFORM_LINUX )
 	printf( "%s", buffer );
 #else

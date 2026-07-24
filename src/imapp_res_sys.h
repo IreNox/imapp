@@ -6,53 +6,53 @@
 
 #include <stdbool.h>
 
-typedef struct ImAppPlatform ImAppPlatform;
-typedef struct ImAppRenderer ImAppRenderer;
-typedef struct ImAppRendererTexture ImAppRendererTexture;
-typedef struct ImAppResSys ImAppResSys;
-typedef struct ImUiAllocator ImUiAllocator;
-typedef struct ImUiContext ImUiContext;
+typedef struct ImappPlatform ImappPlatform;
+typedef struct ImappRenderer ImappRenderer;
+typedef struct ImappRendererTexture ImappRendererTexture;
+typedef struct ImappResSys ImappResSys;
+typedef struct ImuiAllocator ImuiAllocator;
+typedef struct ImuiContext ImuiContext;
 
-struct ImAppImage
+struct ImappImage
 {
-	ImUiStringView			resourceName;
+	ImuiStringView			resourceName;
 
-	ImUiImage				uiImage;
-	ImAppBlob				data;
-	ImAppResState			state;
+	ImuiImage				uiImage;
+	ImappBlob				data;
+	ImappResState			state;
 };
 
-typedef struct ImAppFont ImAppFont;
-struct ImAppFont
+typedef struct ImappFont ImappFont;
+struct ImappFont
 {
-	ImAppFont*				prevFont;
-	ImAppFont*				nextFont;
+	ImappFont*				prevFont;
+	ImappFont*				nextFont;
 
-	ImUiStringView			name;
+	ImuiStringView			name;
 	float					size;
 
-	ImUiFont*				uiFont;
-	ImAppRendererTexture*	texture;
+	ImuiFont*				uiFont;
+	ImappRendererTexture*	texture;
 };
 
-ImAppResSys*	imappResSysCreate( ImUiAllocator* allocator, ImAppPlatform* platform, ImAppRenderer* renderer, ImUiContext* imui );
-void			imappResSysDestroy( ImAppResSys* ressys );
+ImappResSys*	imappResSysCreate( ImuiAllocator* allocator, ImappPlatform* platform, ImappRenderer* renderer, ImuiContext* imui );
+void			imappResSysDestroy( ImappResSys* ressys );
 
-void			imappResSysUpdate( ImAppResSys* ressys, bool wait );
+void			imappResSysUpdate( ImappResSys* ressys, bool wait );
 
-void			imappResSysDestroyDeviceResources( ImAppResSys* ressys );
-void			imappResSysCreateDeviceResources( ImAppResSys* ressys );
+void			imappResSysDestroyDeviceResources( ImappResSys* ressys );
+void			imappResSysCreateDeviceResources( ImappResSys* ressys );
 
-ImAppResPak*	imappResSysAdd( ImAppResSys* ressys, const void* pakData, uintsize dataLength );
-ImAppResPak*	imappResSysOpen( ImAppResSys* ressys, const char* resourceName );
-void			imappResSysClose( ImAppResSys* ressys, ImAppResPak* respak );
+ImappResPak*	imappResSysAdd( ImappResSys* ressys, const void* pakData, uintsize dataLength );
+ImappResPak*	imappResSysOpen( ImappResSys* ressys, const char* resourceName );
+void			imappResSysClose( ImappResSys* ressys, ImappResPak* respak );
 
-ImAppImage*		imappResSysImageCreateRaw( ImAppResSys* ressys, const void* pixelData, int width, int height );
-ImAppImage*		imappResSysImageCreatePng( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
-ImAppImage*		imappResSysImageCreateJpeg( ImAppResSys* ressys, const void* imageData, uintsize imageDataSize );
-ImAppImage*		imappResSysImageLoadResource( ImAppResSys* ressys, const char* resourceName );
-ImAppResState	imappResSysImageGetState( ImAppResSys* ressys, ImAppImage* image );
-void			imappResSysImageFree( ImAppResSys* ressys, ImAppImage* image );
+ImappImage*		imappResSysImageCreateRaw( ImappResSys* ressys, const void* pixelData, int width, int height );
+ImappImage*		imappResSysImageCreatePng( ImappResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImappImage*		imappResSysImageCreateJpeg( ImappResSys* ressys, const void* imageData, uintsize imageDataSize );
+ImappImage*		imappResSysImageLoadResource( ImappResSys* ressys, const char* resourceName );
+ImappResState	imappResSysImageGetState( ImappResSys* ressys, ImappImage* image );
+void			imappResSysImageFree( ImappResSys* ressys, ImappImage* image );
 
-ImAppFont*		imappResSysFontCreateSystem( ImAppResSys* ressys, const char* fontName, float fontSize );
-void			imappResSysFontDestroy( ImAppResSys* ressys, ImAppFont* font );
+ImappFont*		imappResSysFontCreateSystem( ImappResSys* ressys, const char* fontName, float fontSize );
+void			imappResSysFontDestroy( ImappResSys* ressys, ImappFont* font );
