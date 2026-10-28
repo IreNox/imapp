@@ -1168,7 +1168,7 @@ static LRESULT CALLBACK imappPlatformWindowProc( HWND hWnd, UINT message, WPARAM
 
 		SetWindowLongPtrW( hWnd, GWLP_USERDATA, (LONG_PTR)createStruct->lpCreateParams );
 
-		return TRUE; // MUST return TRUE or creation fails
+		return DefWindowProc( hWnd, message, wParam, lParam ); // MUST return TRUE or creation fails
 	}
 	else if( message == WM_DESTROY )
 	{
