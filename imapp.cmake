@@ -8,6 +8,7 @@ include_directories("${CMAKE_CURRENT_LIST_DIR}/include"
 add_compile_definitions("SPNG_USE_MINIZ")
 add_compile_definitions("SPNG_STATIC")
 add_compile_definitions("MINIZ_NO_STDIO")
+add_compile_definitions("IMAPP_LIVEPP=TIKI_OFF")
 
 file(GLOB ImAppCFiles	"${CMAKE_CURRENT_LIST_DIR}/include/imapp/*.h"
 						"${CMAKE_CURRENT_LIST_DIR}/src/*.h"
