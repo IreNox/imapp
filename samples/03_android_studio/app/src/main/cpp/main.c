@@ -6,62 +6,60 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct ImAppTestProgramContext ImAppTestProgramContext;
-struct ImAppTestProgramContext
+typedef struct ImappTestProgramContext
 {
 	int		tickIndex;
 	char	nameBuffer[ 128u ];
-};
+} ImappTestProgramContext;
 
-void* ImAppProgramInitialize( ImAppParameters* parameters, int argc, char* argv[] )
+void* imappProgramInitialize( ImappParameters* parameters, int argc, char* argv[] )
 {
-	parameters->tickIntervalMs		= 15;
-	parameters->windowTitle			= "I'm App - Hello World";
-	parameters->windowWidth			= 400;
-	parameters->windowHeight		= 250;
-	parameters->windowMode			= ImAppDefaultWindow_Fullscreen;
-    parameters->defaultFontSize     = 16u;
+	parameters->tickIntervalMs			= 15;
+	parameters->defaultWindow.title		= "I'm App - Hello World";
+	parameters->defaultWindow.width		= 400;
+	parameters->defaultWindow.height	= 250;
+    parameters->defaultFontSize     	= 16u;
 
-	ImAppTestProgramContext* context = (ImAppTestProgramContext*)malloc( sizeof( ImAppTestProgramContext ) );
+	ImappTestProgramContext* context = (ImappTestProgramContext*)malloc( sizeof( ImappTestProgramContext ) );
 	context->tickIndex = 0u;
 	strncpy( context->nameBuffer, "World", sizeof( context->nameBuffer ) );
 
 	return context;
 }
 
-void ImAppProgramDoDefaultWindowUi( ImAppContext* imapp, void* programContext, ImAppWindow* appWindow, ImUiWindow* uiWindow )
+void imappProgramDoDefaultWindowUi( ImappContext* imapp, void* programContext, ImappWindow* appWindow, ImuiWindow* uiWindow )
 {
-	ImAppTestProgramContext* context = (ImAppTestProgramContext*)programContext;
+	ImappTestProgramContext* context = (ImappTestProgramContext*)programContext;
 
-	ImUiWidget* vLayout = ImUiWidgetBegin( uiWindow );
-	ImUiWidgetSetPadding( vLayout, ImUiBorderCreateAll( 8.0f ) );
-	ImUiWidgetSetLayoutVerticalSpacing( vLayout, 8.0f );
-	ImUiWidgetSetAlign( vLayout, 0.5f, 0.5f );
+	ImuiWidget* vLayout = imuiWidgetBegin( uiWindow );
+	imuiWidgetSetPadding( vLayout, imuiBorderCreateAll( 8.0f ) );
+	imuiWidgetSetLayoutVerticalSpacing( vLayout, 8.0f );
+	imuiWidgetSetAlign( vLayout, 0.5f, 0.5f );
 
 	{
-		ImUiWidget* hLayout = ImUiWidgetBegin( uiWindow );
-		ImUiWidgetSetHStretch( hLayout, 1.0f );
-		ImUiWidgetSetLayoutHorizontalSpacing( hLayout, 8.0f );
+		ImuiWidget* hLayout = imuiWidgetBegin( uiWindow );
+		imuiWidgetSetHStretch( hLayout, 1.0f );
+		imuiWidgetSetLayoutHorizontalSpacing( hLayout, 8.0f );
 
-		ImUiToolboxLabel( uiWindow, "Name:" );
-		ImUiToolboxTextEdit( uiWindow, context->nameBuffer, sizeof( context->nameBuffer ), NULL );
+		imuiToolboxLabel( uiWindow, "Name:" );
+		imuiToolboxTextEdit( uiWindow, context->nameBuffer, sizeof( context->nameBuffer ), NULL );
 
-		ImUiWidgetEnd( hLayout );
+		imuiWidgetEnd( hLayout );
 	}
 
-	ImUiToolboxLabelFormat( uiWindow, "Hello %s for the %d time.", context->nameBuffer, context->tickIndex );
+	imuiToolboxLabelFormat( uiWindow, "Hello %s for the %d time.", context->nameBuffer, context->tickIndex );
 
-	if( ImUiToolboxButtonLabel( uiWindow, "Exit" ) )
+	if( imuiToolboxButtonLabel( uiWindow, "Exit" ) )
 	{
-		ImAppQuit( imapp, 0 );
+		imappQuit( imapp, 0 );
 	}
 
-	ImUiWidgetEnd( vLayout );
+	imuiWidgetEnd( vLayout );
 
 	context->tickIndex++;
 }
 
-void ImAppProgramShutdown( ImAppContext* pImAppContext, void* pProgramContext )
+void imappProgramShutdown( ImappContext* imappContext, void* programContext )
 {
-	free( pProgramContext );
+	free( programContext );
 }
