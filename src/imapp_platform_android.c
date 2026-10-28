@@ -25,7 +25,7 @@
 
 typedef struct ImappPlatform
 {
-	ANativeActivity*		pActivity;
+	ANativeActivity*		nativeActivity;
 
 	int						eventPipeRead;
 	int						eventPipeWrite;
@@ -37,7 +37,7 @@ typedef struct ImappPlatform
 	ALooper*				pLooper;
 	AInputQueue*			pInputQueue;
 	uint8					inputKeyMapping[ 161u ];
-    uint32					inputKeyRepeat[ ImUiInputKey_MAX ];
+    uint32					inputKeyRepeat[ ImuiInputKey_MAX ];
 
 	int						viewTop;
 	int						viewLeft;
@@ -46,42 +46,42 @@ typedef struct ImappPlatform
 	float					dpiScale;
 
 	bool					started;
-	bool					stoped;
+	bool					stopped;
 
-	ImUiAllocator*			allocator;
+	ImuiAllocator*			allocator;
 } ImappPlatform;
 
 #include "imapp_platform_pthread.h"
 
-typedef enum imappAndroidLooperType
+typedef enum ImappAndroidLooperType
 {
-	imappAndroidLooperType_Invalid,
-	imappAndroidLooperType_Event,
-	imappAndroidLooperType_Input
-} imappAndroidLooperType;
+	ImappAndroidLooperType_Invalid,
+	ImappAndroidLooperType_Event,
+	ImappAndroidLooperType_Input
+} ImappAndroidLooperType;
 
-typedef enum imappAndroidEventType
+typedef enum ImappAndroidEventType
 {
-	imappAndroidEventType_StateChanged,
-	imappAndroidEventType_WindowChanged,
-	imappAndroidEventType_WindowResize,
-	imappAndroidEventType_InputChanged,
-	imappAndroidEventType_Shutdown
-} imappAndroidEventType;
+	ImappAndroidEventType_StateChanged,
+	ImappAndroidEventType_WindowChanged,
+	ImappAndroidEventType_WindowResize,
+	ImappAndroidEventType_InputChanged,
+	ImappAndroidEventType_Shutdown
+} ImappAndroidEventType;
 
-typedef enum imappAndroidStateType
+typedef enum ImappAndroidStateType
 {
-	imappAndroidStateType_Start,
-	imappAndroidStateType_Pause,
-	imappAndroidStateType_Resume,
-	imappAndroidStateType_Stop
-} imappAndroidStateType;
+	ImappAndroidStateType_Start,
+	ImappAndroidStateType_Pause,
+	ImappAndroidStateType_Resume,
+	ImappAndroidStateType_Stop
+} ImappAndroidStateType;
 
-typedef union imappAndroidEventData
+typedef union ImappAndroidEventData
 {
 	struct
 	{
-		imappAndroidStateType	state;
+		ImappAndroidStateType	state;
 	} state;
 	struct
 	{
@@ -91,12 +91,12 @@ typedef union imappAndroidEventData
 	{
 		AInputQueue*			pInputQueue;
 	} input;
-} imappAndroidEventData;
+} ImappAndroidEventData;
 
 typedef struct ImappAndroidEvent
 {
-	imappAndroidEventType		type;
-	imappAndroidEventData		data;
+	ImappAndroidEventType		type;
+	ImappAndroidEventData		data;
 } ImappAndroidEvent;
 
 static void*	imappAndroidCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize );
@@ -128,38 +128,41 @@ void imappPlatformShowError( ImappPlatform* platform, const char* message )
 {
 }
 
-void imappPlatformSetMouseCursor( ImappPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImuiInputMouseCursor cursor )
 {
 }
 
 void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 {
-	JNIEnv* pEnv = NULL;
-	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
+	JNIEnv* env = NULL;
+	(*platform->nativeActivity->vm)->AttachCurrentThread(platform->nativeActivity->vm, &env, NULL );
 
-	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
-	jmethodID getSystemServiceMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getSystemService", "()Ljava/lang/Object;" );
+	jclass activityClass = (*env)->GetObjectClass( env, platform->nativeActivity->clazz );
+	jmethodID getSystemServiceMethod = (*env)->GetMethodID( env, activityClass, "getSystemService", "()Ljava/lang/Object;" );
 
-	jobject clipboardManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getSystemServiceMethod, "clipboard" );
+	jobject clipboardManager = (*env)->CallObjectMethod(env, platform->nativeActivity->clazz, getSystemServiceMethod, "clipboard" );
 
-	jclass clipboardManagerClass = (*pEnv)->GetObjectClass( pEnv, clipboardManager );
-	jmethodID setTextMethod = (*pEnv)->GetMethodID( pEnv, clipboardManagerClass, "setText", "(Ljava/lang/CharSequence;)V" );
+	jclass clipboardManagerClass = (*env)->GetObjectClass( env, clipboardManager );
+	jmethodID setTextMethod = (*env)->GetMethodID( env, clipboardManagerClass, "setText", "(Ljava/lang/CharSequence;)V" );
 
-	jstring textString = (*pEnv)->NewStringUTF( pEnv, text );
-	(*pEnv)->CallVoidMethod( pEnv, clipboardManager, setTextMethod, textString );
+	jstring textString = (*env)->NewStringUTF( env, text );
+	(*env)->CallVoidMethod( env, clipboardManager, setTextMethod, textString );
 
-	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
+	(*env)->DeleteLocalRef( env, textString );
+	(*env)->DeleteLocalRef( env, activityClass );
+
+	(*platform->nativeActivity->vm)->DetachCurrentThread(platform->nativeActivity->vm );
 }
 
-void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImuiContext* imui )
 {
 	JNIEnv* pEnv = NULL;
-	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
+	(*platform->nativeActivity->vm)->AttachCurrentThread(platform->nativeActivity->vm, &pEnv, NULL );
 
-	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->nativeActivity->clazz );
 	jmethodID getSystemServiceMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getSystemService", "()Ljava/lang/Object;" );
 
-	jobject clipboardManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getSystemServiceMethod, "clipboard" );
+	jobject clipboardManager = (*pEnv)->CallObjectMethod(pEnv, platform->nativeActivity->clazz, getSystemServiceMethod, "clipboard" );
 
 	jclass clipboardManagerClass = (*pEnv)->GetObjectClass( pEnv, clipboardManager );
 	jmethodID getTextMethod = (*pEnv)->GetMethodID( pEnv, clipboardManagerClass, "getText", "()Ljava/lang/CharSequence;" );
@@ -167,9 +170,9 @@ void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
 	jstring textString = (*pEnv)->CallObjectMethod( pEnv, clipboardManager, getTextMethod );
 
 	const char* text = (*pEnv)->GetStringUTFChars( pEnv, textString, NULL );
-	ImUiInputSetPasteText( imui, text );
+	imuiInputSetPasteText( imui, text );
 
-	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
+	(*platform->nativeActivity->vm)->DetachCurrentThread(platform->nativeActivity->vm );
 }
 
 void ANativeActivity_onCreate( ANativeActivity* pActivity, void* savedState, size_t savedStateSize )
@@ -199,118 +202,133 @@ static void* imappAndroidCreate( ANativeActivity* pActivity, void* savedState, s
 	ImappPlatform* platform = (ImappPlatform*)malloc( sizeof( *platform ) );
     memset( platform, 0, sizeof( *platform ) );
 
-	platform->pActivity = pActivity;
+	platform->nativeActivity = pActivity;
 
 #if IMAPP_ENABLED( IMAPP_DEBUG )
 	uintsize maxScanCode = 0u;
 #endif
-	for( uintsize i = 0u; i < ImUiInputKey_MAX; ++i )
+	for( uintsize i = 0u; i < ImuiInputKey_MAX; ++i )
 	{
-		const ImUiInputKey keyValue = (ImUiInputKey)i;
+		const ImuiInputKey keyValue = (ImuiInputKey)i;
 
 		uint16 scanCode = 0u;
 		switch( keyValue )
 		{
-		case ImUiInputKey_None:				break;
-		case ImUiInputKey_A:				scanCode = AKEYCODE_A; break;
-		case ImUiInputKey_B:				scanCode = AKEYCODE_B; break;
-		case ImUiInputKey_C:				scanCode = AKEYCODE_C; break;
-		case ImUiInputKey_D:				scanCode = AKEYCODE_D; break;
-		case ImUiInputKey_E:				scanCode = AKEYCODE_E; break;
-		case ImUiInputKey_F:				scanCode = AKEYCODE_F; break;
-		case ImUiInputKey_G:				scanCode = AKEYCODE_G; break;
-		case ImUiInputKey_H:				scanCode = AKEYCODE_H; break;
-		case ImUiInputKey_I:				scanCode = AKEYCODE_I; break;
-		case ImUiInputKey_J:				scanCode = AKEYCODE_J; break;
-		case ImUiInputKey_K:				scanCode = AKEYCODE_K; break;
-		case ImUiInputKey_L:				scanCode = AKEYCODE_L; break;
-		case ImUiInputKey_M:				scanCode = AKEYCODE_M; break;
-		case ImUiInputKey_N:				scanCode = AKEYCODE_N; break;
-		case ImUiInputKey_O:				scanCode = AKEYCODE_O; break;
-		case ImUiInputKey_P:				scanCode = AKEYCODE_P; break;
-		case ImUiInputKey_Q:				scanCode = AKEYCODE_Q; break;
-		case ImUiInputKey_R:				scanCode = AKEYCODE_R; break;
-		case ImUiInputKey_S:				scanCode = AKEYCODE_S; break;
-		case ImUiInputKey_T:				scanCode = AKEYCODE_T; break;
-		case ImUiInputKey_U:				scanCode = AKEYCODE_U; break;
-		case ImUiInputKey_V:				scanCode = AKEYCODE_V; break;
-		case ImUiInputKey_W:				scanCode = AKEYCODE_W; break;
-		case ImUiInputKey_X:				scanCode = AKEYCODE_X; break;
-		case ImUiInputKey_Y:				scanCode = AKEYCODE_Y; break;
-		case ImUiInputKey_Z:				scanCode = AKEYCODE_Z; break;
-		case ImUiInputKey_1:				scanCode = AKEYCODE_1; break;
-		case ImUiInputKey_2:				scanCode = AKEYCODE_2; break;
-		case ImUiInputKey_3:				scanCode = AKEYCODE_3; break;
-		case ImUiInputKey_4:				scanCode = AKEYCODE_4; break;
-		case ImUiInputKey_5:				scanCode = AKEYCODE_5; break;
-		case ImUiInputKey_6:				scanCode = AKEYCODE_6; break;
-		case ImUiInputKey_7:				scanCode = AKEYCODE_7; break;
-		case ImUiInputKey_8:				scanCode = AKEYCODE_8; break;
-		case ImUiInputKey_9:				scanCode = AKEYCODE_9; break;
-		case ImUiInputKey_0:				scanCode = AKEYCODE_0; break;
-		case ImUiInputKey_Enter:			scanCode = AKEYCODE_ENTER; break;
-		case ImUiInputKey_Escape:			scanCode = AKEYCODE_ESCAPE; break;
-		case ImUiInputKey_Backspace:		scanCode = AKEYCODE_DEL; break;
-		case ImUiInputKey_Tab:				scanCode = AKEYCODE_TAB; break;
-		case ImUiInputKey_Space:			scanCode = AKEYCODE_SPACE; break;
-		case ImUiInputKey_LeftShift:		scanCode = AKEYCODE_SHIFT_LEFT; break;
-		case ImUiInputKey_RightShift:		scanCode = AKEYCODE_SHIFT_RIGHT; break;
-		case ImUiInputKey_LeftControl:		scanCode = AKEYCODE_CTRL_LEFT; break;
-		case ImUiInputKey_RightControl:		scanCode = AKEYCODE_CTRL_RIGHT; break;
-		case ImUiInputKey_LeftAlt:			scanCode = AKEYCODE_ALT_LEFT; break;
-		case ImUiInputKey_RightAlt:			scanCode = AKEYCODE_ALT_RIGHT; break;
-		case ImUiInputKey_Minus:			scanCode = AKEYCODE_MINUS; break;
-		case ImUiInputKey_Equals:			scanCode = AKEYCODE_EQUALS; break;
-		case ImUiInputKey_LeftBracket:		scanCode = AKEYCODE_LEFT_BRACKET; break;
-		case ImUiInputKey_RightBracket:		scanCode = AKEYCODE_RIGHT_BRACKET; break;
-		case ImUiInputKey_Backslash:		scanCode = AKEYCODE_BACKSLASH; break;
-		case ImUiInputKey_Semicolon:		scanCode = AKEYCODE_SEMICOLON; break;
-		case ImUiInputKey_Apostrophe:		scanCode = AKEYCODE_APOSTROPHE; break;
-		case ImUiInputKey_Grave:			scanCode = AKEYCODE_GRAVE; break;
-		case ImUiInputKey_Comma:			scanCode = AKEYCODE_COMMA; break;
-		case ImUiInputKey_Period:			scanCode = AKEYCODE_PERIOD; break;
-		case ImUiInputKey_Slash:			scanCode = AKEYCODE_SLASH; break;
-		case ImUiInputKey_F1:				scanCode = AKEYCODE_F1; break;
-		case ImUiInputKey_F2:				scanCode = AKEYCODE_F2; break;
-		case ImUiInputKey_F3:				scanCode = AKEYCODE_F3; break;
-		case ImUiInputKey_F4:				scanCode = AKEYCODE_F4; break;
-		case ImUiInputKey_F5:				scanCode = AKEYCODE_F5; break;
-		case ImUiInputKey_F6:				scanCode = AKEYCODE_F6; break;
-		case ImUiInputKey_F7:				scanCode = AKEYCODE_F7; break;
-		case ImUiInputKey_F8:				scanCode = AKEYCODE_F8; break;
-		case ImUiInputKey_F9:				scanCode = AKEYCODE_F9; break;
-		case ImUiInputKey_F10:				scanCode = AKEYCODE_F10; break;
-		case ImUiInputKey_F11:				scanCode = AKEYCODE_F11; break;
-		case ImUiInputKey_F12:				scanCode = AKEYCODE_F12; break;
-		case ImUiInputKey_Print:			scanCode = AKEYCODE_SYSRQ; break;
-		case ImUiInputKey_Pause:			scanCode = AKEYCODE_BREAK; break;
-		case ImUiInputKey_Insert:			scanCode = AKEYCODE_INSERT; break;
-		case ImUiInputKey_Delete:			scanCode = AKEYCODE_FORWARD_DEL; break;
-		case ImUiInputKey_Home:				scanCode = AKEYCODE_MOVE_HOME; break;
-		case ImUiInputKey_End:				scanCode = AKEYCODE_MOVE_END; break;
-		case ImUiInputKey_PageUp:			scanCode = AKEYCODE_PAGE_UP; break;
-		case ImUiInputKey_PageDown:			scanCode = AKEYCODE_PAGE_DOWN; break;
-		case ImUiInputKey_Up:				scanCode = AKEYCODE_DPAD_UP; break;
-		case ImUiInputKey_Left:				scanCode = AKEYCODE_DPAD_LEFT; break;
-		case ImUiInputKey_Down:				scanCode = AKEYCODE_DPAD_DOWN; break;
-		case ImUiInputKey_Right:			scanCode = AKEYCODE_DPAD_RIGHT; break;
-		case ImUiInputKey_Numpad_Divide:	scanCode = AKEYCODE_NUMPAD_DIVIDE; break;
-		case ImUiInputKey_Numpad_Multiply:	scanCode = AKEYCODE_NUMPAD_MULTIPLY; break;
-		case ImUiInputKey_Numpad_Minus:		scanCode = AKEYCODE_NUMPAD_SUBTRACT; break;
-		case ImUiInputKey_Numpad_Plus:		scanCode = AKEYCODE_NUMPAD_ADD; break;
-		case ImUiInputKey_Numpad_Enter:		scanCode = AKEYCODE_NUMPAD_ENTER; break;
-		case ImUiInputKey_Numpad_1:			scanCode = AKEYCODE_NUMPAD_1; break;
-		case ImUiInputKey_Numpad_2:			scanCode = AKEYCODE_NUMPAD_2; break;
-		case ImUiInputKey_Numpad_3:			scanCode = AKEYCODE_NUMPAD_3; break;
-		case ImUiInputKey_Numpad_4:			scanCode = AKEYCODE_NUMPAD_4; break;
-		case ImUiInputKey_Numpad_5:			scanCode = AKEYCODE_NUMPAD_5; break;
-		case ImUiInputKey_Numpad_6:			scanCode = AKEYCODE_NUMPAD_6; break;
-		case ImUiInputKey_Numpad_7:			scanCode = AKEYCODE_NUMPAD_7; break;
-		case ImUiInputKey_Numpad_8:			scanCode = AKEYCODE_NUMPAD_8; break;
-		case ImUiInputKey_Numpad_9:			scanCode = AKEYCODE_NUMPAD_9; break;
-		case ImUiInputKey_Numpad_0:			scanCode = AKEYCODE_NUMPAD_0; break;
-		case ImUiInputKey_Numpad_Period:	scanCode = AKEYCODE_NUMPAD_DOT; break;
-		case ImUiInputKey_MAX:				break;
+		case ImuiInputKey_None:				break;
+		case ImuiInputKey_A:				scanCode = AKEYCODE_A; break;
+		case ImuiInputKey_B:				scanCode = AKEYCODE_B; break;
+		case ImuiInputKey_C:				scanCode = AKEYCODE_C; break;
+		case ImuiInputKey_D:				scanCode = AKEYCODE_D; break;
+		case ImuiInputKey_E:				scanCode = AKEYCODE_E; break;
+		case ImuiInputKey_F:				scanCode = AKEYCODE_F; break;
+		case ImuiInputKey_G:				scanCode = AKEYCODE_G; break;
+		case ImuiInputKey_H:				scanCode = AKEYCODE_H; break;
+		case ImuiInputKey_I:				scanCode = AKEYCODE_I; break;
+		case ImuiInputKey_J:				scanCode = AKEYCODE_J; break;
+		case ImuiInputKey_K:				scanCode = AKEYCODE_K; break;
+		case ImuiInputKey_L:				scanCode = AKEYCODE_L; break;
+		case ImuiInputKey_M:				scanCode = AKEYCODE_M; break;
+		case ImuiInputKey_N:				scanCode = AKEYCODE_N; break;
+		case ImuiInputKey_O:				scanCode = AKEYCODE_O; break;
+		case ImuiInputKey_P:				scanCode = AKEYCODE_P; break;
+		case ImuiInputKey_Q:				scanCode = AKEYCODE_Q; break;
+		case ImuiInputKey_R:				scanCode = AKEYCODE_R; break;
+		case ImuiInputKey_S:				scanCode = AKEYCODE_S; break;
+		case ImuiInputKey_T:				scanCode = AKEYCODE_T; break;
+		case ImuiInputKey_U:				scanCode = AKEYCODE_U; break;
+		case ImuiInputKey_V:				scanCode = AKEYCODE_V; break;
+		case ImuiInputKey_W:				scanCode = AKEYCODE_W; break;
+		case ImuiInputKey_X:				scanCode = AKEYCODE_X; break;
+		case ImuiInputKey_Y:				scanCode = AKEYCODE_Y; break;
+		case ImuiInputKey_Z:				scanCode = AKEYCODE_Z; break;
+		case ImuiInputKey_1:				scanCode = AKEYCODE_1; break;
+		case ImuiInputKey_2:				scanCode = AKEYCODE_2; break;
+		case ImuiInputKey_3:				scanCode = AKEYCODE_3; break;
+		case ImuiInputKey_4:				scanCode = AKEYCODE_4; break;
+		case ImuiInputKey_5:				scanCode = AKEYCODE_5; break;
+		case ImuiInputKey_6:				scanCode = AKEYCODE_6; break;
+		case ImuiInputKey_7:				scanCode = AKEYCODE_7; break;
+		case ImuiInputKey_8:				scanCode = AKEYCODE_8; break;
+		case ImuiInputKey_9:				scanCode = AKEYCODE_9; break;
+		case ImuiInputKey_0:				scanCode = AKEYCODE_0; break;
+		case ImuiInputKey_Enter:			scanCode = AKEYCODE_ENTER; break;
+		case ImuiInputKey_Escape:			scanCode = AKEYCODE_ESCAPE; break;
+		case ImuiInputKey_Backspace:		scanCode = AKEYCODE_DEL; break;
+		case ImuiInputKey_Tab:				scanCode = AKEYCODE_TAB; break;
+		case ImuiInputKey_Space:			scanCode = AKEYCODE_SPACE; break;
+		case ImuiInputKey_LeftShift:		scanCode = AKEYCODE_SHIFT_LEFT; break;
+		case ImuiInputKey_RightShift:		scanCode = AKEYCODE_SHIFT_RIGHT; break;
+		case ImuiInputKey_LeftControl:		scanCode = AKEYCODE_CTRL_LEFT; break;
+		case ImuiInputKey_RightControl:		scanCode = AKEYCODE_CTRL_RIGHT; break;
+		case ImuiInputKey_LeftAlt:			scanCode = AKEYCODE_ALT_LEFT; break;
+		case ImuiInputKey_RightAlt:			scanCode = AKEYCODE_ALT_RIGHT; break;
+		case ImuiInputKey_Minus:			scanCode = AKEYCODE_MINUS; break;
+		case ImuiInputKey_Equals:			scanCode = AKEYCODE_EQUALS; break;
+		case ImuiInputKey_LeftBracket:		scanCode = AKEYCODE_LEFT_BRACKET; break;
+		case ImuiInputKey_RightBracket:		scanCode = AKEYCODE_RIGHT_BRACKET; break;
+		case ImuiInputKey_Backslash:		scanCode = AKEYCODE_BACKSLASH; break;
+		case ImuiInputKey_Semicolon:		scanCode = AKEYCODE_SEMICOLON; break;
+		case ImuiInputKey_Apostrophe:		scanCode = AKEYCODE_APOSTROPHE; break;
+		case ImuiInputKey_Grave:			scanCode = AKEYCODE_GRAVE; break;
+		case ImuiInputKey_Comma:			scanCode = AKEYCODE_COMMA; break;
+		case ImuiInputKey_Period:			scanCode = AKEYCODE_PERIOD; break;
+		case ImuiInputKey_Slash:			scanCode = AKEYCODE_SLASH; break;
+		case ImuiInputKey_F1:				scanCode = AKEYCODE_F1; break;
+		case ImuiInputKey_F2:				scanCode = AKEYCODE_F2; break;
+		case ImuiInputKey_F3:				scanCode = AKEYCODE_F3; break;
+		case ImuiInputKey_F4:				scanCode = AKEYCODE_F4; break;
+		case ImuiInputKey_F5:				scanCode = AKEYCODE_F5; break;
+		case ImuiInputKey_F6:				scanCode = AKEYCODE_F6; break;
+		case ImuiInputKey_F7:				scanCode = AKEYCODE_F7; break;
+		case ImuiInputKey_F8:				scanCode = AKEYCODE_F8; break;
+		case ImuiInputKey_F9:				scanCode = AKEYCODE_F9; break;
+		case ImuiInputKey_F10:				scanCode = AKEYCODE_F10; break;
+		case ImuiInputKey_F11:				scanCode = AKEYCODE_F11; break;
+		case ImuiInputKey_F12:				scanCode = AKEYCODE_F12; break;
+		case ImuiInputKey_Print:			scanCode = AKEYCODE_SYSRQ; break;
+		case ImuiInputKey_Pause:			scanCode = AKEYCODE_BREAK; break;
+		case ImuiInputKey_Insert:			scanCode = AKEYCODE_INSERT; break;
+		case ImuiInputKey_Delete:			scanCode = AKEYCODE_FORWARD_DEL; break;
+		case ImuiInputKey_Home:				scanCode = AKEYCODE_MOVE_HOME; break;
+		case ImuiInputKey_End:				scanCode = AKEYCODE_MOVE_END; break;
+		case ImuiInputKey_PageUp:			scanCode = AKEYCODE_PAGE_UP; break;
+		case ImuiInputKey_PageDown:			scanCode = AKEYCODE_PAGE_DOWN; break;
+		case ImuiInputKey_Up:				scanCode = AKEYCODE_DPAD_UP; break;
+		case ImuiInputKey_Left:				scanCode = AKEYCODE_DPAD_LEFT; break;
+		case ImuiInputKey_Down:				scanCode = AKEYCODE_DPAD_DOWN; break;
+		case ImuiInputKey_Right:			scanCode = AKEYCODE_DPAD_RIGHT; break;
+		case ImuiInputKey_Numpad_Divide:	scanCode = AKEYCODE_NUMPAD_DIVIDE; break;
+		case ImuiInputKey_Numpad_Multiply:	scanCode = AKEYCODE_NUMPAD_MULTIPLY; break;
+		case ImuiInputKey_Numpad_Minus:		scanCode = AKEYCODE_NUMPAD_SUBTRACT; break;
+		case ImuiInputKey_Numpad_Plus:		scanCode = AKEYCODE_NUMPAD_ADD; break;
+		case ImuiInputKey_Numpad_Enter:		scanCode = AKEYCODE_NUMPAD_ENTER; break;
+		case ImuiInputKey_Numpad_1:			scanCode = AKEYCODE_NUMPAD_1; break;
+		case ImuiInputKey_Numpad_2:			scanCode = AKEYCODE_NUMPAD_2; break;
+		case ImuiInputKey_Numpad_3:			scanCode = AKEYCODE_NUMPAD_3; break;
+		case ImuiInputKey_Numpad_4:			scanCode = AKEYCODE_NUMPAD_4; break;
+		case ImuiInputKey_Numpad_5:			scanCode = AKEYCODE_NUMPAD_5; break;
+		case ImuiInputKey_Numpad_6:			scanCode = AKEYCODE_NUMPAD_6; break;
+		case ImuiInputKey_Numpad_7:			scanCode = AKEYCODE_NUMPAD_7; break;
+		case ImuiInputKey_Numpad_8:			scanCode = AKEYCODE_NUMPAD_8; break;
+		case ImuiInputKey_Numpad_9:			scanCode = AKEYCODE_NUMPAD_9; break;
+		case ImuiInputKey_Numpad_0:			scanCode = AKEYCODE_NUMPAD_0; break;
+		case ImuiInputKey_Numpad_Period:	scanCode = AKEYCODE_NUMPAD_DOT; break;
+		case ImuiInputKey_Gamepad_Dpad_Up:			scanCode = AKEYCODE_DPAD_UP; break;
+		case ImuiInputKey_Gamepad_Dpad_Down:		scanCode = AKEYCODE_DPAD_DOWN; break;
+		case ImuiInputKey_Gamepad_Dpad_Left:		scanCode = AKEYCODE_DPAD_LEFT; break;
+		case ImuiInputKey_Gamepad_Dpad_Right:		scanCode = AKEYCODE_DPAD_RIGHT; break;
+		case ImuiInputKey_Gamepad_Start:			scanCode = AKEYCODE_BUTTON_START; break;
+		case ImuiInputKey_Gamepad_Back:				scanCode = AKEYCODE_BUTTON_SELECT; break;
+		case ImuiInputKey_Gamepad_LeftThumb:		scanCode = AKEYCODE_BUTTON_THUMBL; break;
+		case ImuiInputKey_Gamepad_RightThumb:		scanCode = AKEYCODE_BUTTON_THUMBR; break;
+		case ImuiInputKey_Gamepad_LeftShoulder:		scanCode = AKEYCODE_BUTTON_L1; break;
+		case ImuiInputKey_Gamepad_RightShoulder:	scanCode = AKEYCODE_BUTTON_R1; break;
+		case ImuiInputKey_Gamepad_A:				scanCode = AKEYCODE_BUTTON_A; break;
+		case ImuiInputKey_Gamepad_B:				scanCode = AKEYCODE_BUTTON_B; break;
+		case ImuiInputKey_Gamepad_X:				scanCode = AKEYCODE_BUTTON_X; break;
+		case ImuiInputKey_Gamepad_Y:				scanCode = AKEYCODE_BUTTON_Y; break;
+
+		case ImuiInputKey_MAX:				break;
 		}
 
 #if IMAPP_ENABLED( IMAPP_DEBUG )
@@ -347,12 +365,12 @@ static void imappAndroidDestroy( ImappPlatform* platform )
 {
 	{
 		ImappAndroidEvent androidEvent;
-		androidEvent.type = imappAndroidEventType_Shutdown;
+		androidEvent.type = ImappAndroidEventType_Shutdown;
 		imappAndroidEventPush( platform, &androidEvent );
 	}
 
 	pthread_mutex_lock( &platform->threadConditionMutex );
-	while( !platform->stoped )
+	while( !platform->stopped )
 	{
 		pthread_cond_wait( &platform->threadCondition, &platform->threadConditionMutex );
 	}
@@ -372,7 +390,7 @@ static void* imappAndroidThreadEntryPoint( void* pArgument )
 	ImappPlatform* platform = (ImappPlatform*)pArgument;
 
 	platform->pLooper = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
-	ALooper_addFd( platform->pLooper, platform->eventPipeRead, imappAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, platform );
+	ALooper_addFd( platform->pLooper, platform->eventPipeRead, ImappAndroidLooperType_Event, ALOOPER_EVENT_INPUT, NULL, platform );
 
 	pthread_mutex_lock( &platform->threadConditionMutex );
 	platform->started = true;
@@ -382,11 +400,11 @@ static void* imappAndroidThreadEntryPoint( void* pArgument )
 	imappMain( platform, 0, NULL );
 
 	pthread_mutex_lock( &platform->threadConditionMutex );
-	platform->stoped = true;
+	platform->stopped = true;
 	pthread_cond_broadcast( &platform->threadCondition );
 	pthread_mutex_unlock( &platform->threadConditionMutex );
 
-	ANativeActivity_finish( platform->pActivity );
+	ANativeActivity_finish( platform->nativeActivity );
 
 	return NULL;
 }
@@ -394,14 +412,14 @@ static void* imappAndroidThreadEntryPoint( void* pArgument )
 static void imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform )
 {
 	JNIEnv* pEnv = NULL;
-	(*platform->pActivity->vm)->AttachCurrentThread( platform->pActivity->vm, &pEnv, NULL );
+	(*platform->nativeActivity->vm)->AttachCurrentThread(platform->nativeActivity->vm, &pEnv, NULL );
 
-	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->pActivity->clazz );
+	jclass activityClass = (*pEnv)->GetObjectClass( pEnv, platform->nativeActivity->clazz );
 
 	{
 		jmethodID getWindowMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindow", "()Landroid/view/Window;" );
 
-		jobject window = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowMethod );
+		jobject window = (*pEnv)->CallObjectMethod(pEnv, platform->nativeActivity->clazz, getWindowMethod );
 
 		jclass windowClass = (*pEnv)->GetObjectClass( pEnv, window );
 		jmethodID getDecorViewMethod = (*pEnv)->GetMethodID( pEnv, windowClass, "getDecorView", "()Landroid/view/View;" );
@@ -433,7 +451,7 @@ static void imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform )
 	{
 		jmethodID getWindowManagerMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getWindowManager", "()Landroid/view/WindowManager;" );
 
-		jobject windowManager = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getWindowManagerMethod );
+		jobject windowManager = (*pEnv)->CallObjectMethod(pEnv, platform->nativeActivity->clazz, getWindowManagerMethod );
 
 		jclass windowManagerClass = (*pEnv)->GetObjectClass( pEnv, windowManager );
 		jmethodID getCurrentWindowMetricsMethod = NULL;//(*pEnv)->GetMethodID( pEnv, windowManagerClass, "getCurrentWindowMetrics ", "()Landroid/view/WindowMetrics;" );
@@ -450,7 +468,7 @@ static void imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform )
 		{
 			jmethodID getDisplayMethod = (*pEnv)->GetMethodID( pEnv, activityClass, "getDisplay", "()Landroid/view/Display;" );
 
-			jobject display = (*pEnv)->CallObjectMethod( pEnv, platform->pActivity->clazz, getDisplayMethod );
+			jobject display = (*pEnv)->CallObjectMethod(pEnv, platform->nativeActivity->clazz, getDisplayMethod );
 
 			jclass displayClass = (*pEnv)->GetObjectClass( pEnv, display );
 			jmethodID getRealMetricsMethod = (*pEnv)->GetMethodID( pEnv, displayClass, "getRealMetrics", "(Landroid/util/DisplayMetrics;)V" );
@@ -468,7 +486,7 @@ static void imappAndroidUpdateViewBoundsAndDpiScale( ImappPlatform* platform )
 
 	}
 
-	(*platform->pActivity->vm)->DetachCurrentThread( platform->pActivity->vm );
+	(*platform->nativeActivity->vm)->DetachCurrentThread(platform->nativeActivity->vm );
 }
 
 static bool imappAndroidEventPop( ImappAndroidEvent* pTarget, ImappPlatform* platform )
@@ -490,7 +508,7 @@ static void imappAndroidOnStart( ANativeActivity* pActivity )
 {
 	imappTrace( "Start: %p\n", pActivity );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Start };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_StateChanged, .data.state.state = ImappAndroidStateType_Start };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -498,7 +516,7 @@ static void imappAndroidOnPause( ANativeActivity* pActivity )
 {
 	imappTrace( "Pause: %p\n", pActivity );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Pause };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_StateChanged, .data.state.state = ImappAndroidStateType_Pause };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -506,7 +524,7 @@ static void imappAndroidOnResume( ANativeActivity* pActivity )
 {
 	imappTrace( "Resume: %p\n", pActivity );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Resume };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_StateChanged, .data.state.state = ImappAndroidStateType_Resume };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -514,7 +532,7 @@ static void imappAndroidOnStop( ANativeActivity* pActivity )
 {
 	imappTrace( "Stop: %p\n", pActivity );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_StateChanged, .data.state.state = imappAndroidStateType_Stop };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_StateChanged, .data.state.state = ImappAndroidStateType_Stop };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -529,7 +547,7 @@ static void imappAndroidOnDestroy( ANativeActivity* pActivity )
 static void imappAndroidOnLowMemory( ANativeActivity* pActivity )
 {
 	imappTrace( "LowMemory: %p\n", pActivity );
-	//android_app_write_cmd( (struct android_app*)pActivity->instance, APP_CMD_LOW_MEMORY );
+	//android_app_write_cmd( (struct android_app*)nativeActivity->instance, APP_CMD_LOW_MEMORY );
 }
 
 static void* imappAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t* pOutLen )
@@ -542,20 +560,20 @@ static void* imappAndroidOnSaveInstanceState( ANativeActivity* pActivity, size_t
 static void imappAndroidOnConfigurationChanged( ANativeActivity* pActivity )
 {
 	imappTrace( "ConfigurationChanged: %p\n", pActivity );
-	//android_app_write_cmd( (struct android_app*)pActivity->instance, APP_CMD_CONFIG_CHANGED );
+	//android_app_write_cmd( (struct android_app*)nativeActivity->instance, APP_CMD_CONFIG_CHANGED );
 }
 
 static void imappAndroidOnWindowFocusChanged( ANativeActivity* pActivity, int focused )
 {
 	imappTrace( "WindowFocusChanged: %p -- %d\n", pActivity, focused );
-	//android_app_write_cmd( (struct android_app*)pActivity->instance, focused ? APP_CMD_GAINED_FOCUS : APP_CMD_LOST_FOCUS );
+	//android_app_write_cmd( (struct android_app*)nativeActivity->instance, focused ? APP_CMD_GAINED_FOCUS : APP_CMD_LOST_FOCUS );
 }
 
 static void imappAndroidOnNativeWindowCreated( ANativeActivity* pActivity, ANativeWindow* window )
 {
 	imappTrace( "NativeWindowCreated: %p -- %p\n", pActivity, window );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowChanged, .data.window.window = window };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_WindowChanged, .data.window.window = window };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -563,7 +581,7 @@ static void imappAndroidOnNativeWindowDestroyed( ANativeActivity* pActivity, ANa
 {
 	imappTrace( "NativeWindowDestroyed: %p -- %p\n", pActivity, window );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowChanged, .data.window.window = NULL };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_WindowChanged, .data.window.window = NULL };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -571,7 +589,7 @@ static void imappAndroidOnNativeWindowResized( ANativeActivity* pActivity, ANati
 {
 	imappTrace( "NativeWindowResized: %p -- %p\n", pActivity, window );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_WindowResize, .data.window.window = window };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_WindowResize, .data.window.window = window };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -579,7 +597,7 @@ static void imappAndroidOnInputQueueCreated( ANativeActivity* pActivity, AInputQ
 {
 	imappTrace( "InputQueueCreated: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_InputChanged, .data.input.pInputQueue = pInputQueue };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_InputChanged, .data.input.pInputQueue = pInputQueue };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
@@ -587,14 +605,14 @@ static void imappAndroidOnInputQueueDestroyed( ANativeActivity* pActivity, AInpu
 {
 	imappTrace( "InputQueueDestroyed: %p -- %p\n", pActivity, pInputQueue );
 
-	const ImappAndroidEvent androidEvent = { imappAndroidEventType_InputChanged, .data.input.pInputQueue = NULL };
+	const ImappAndroidEvent androidEvent = { ImappAndroidEventType_InputChanged, .data.input.pInputQueue = NULL };
 	imappAndroidEventPush( (ImappPlatform*)pActivity->instance, &androidEvent );
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Platform
 
-bool imappPlatformInitialize( ImappPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImuiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
@@ -630,18 +648,23 @@ sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 
 	return currentTickValue;
 }
 
+double imappPlatformTicksToSeconds( ImappPlatform* platform, sint64 ticks )
+{
+	return (double)ticks / 1000.0;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Window
 
 struct ImappWindow
 {
-	ImUiAllocator*		allocator;
+	ImuiAllocator*		allocator;
 	ImappPlatform*		platform;
     ImappWindowDoUiFunc uiFunc;
 
 	ImappEventQueue		eventQueue;
 
-	ANativeWindow*		pNativeWindow;
+	ANativeWindow*		nativeWindow;
 	bool				isOpen;
 
 	EGLDisplay			display;
@@ -660,7 +683,7 @@ static void	imappPlatformWindowHandleInputChangedEvent( ImappWindow* window, con
 
 static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInputEvent* pInputEvent );
 
-ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImappWindowStyle style, ImappWindowState state, ImappWindowDoUiFunc uiFunc )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const ImappWindowParameters* parameters )
 {
 	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 	if( window == NULL )
@@ -670,7 +693,6 @@ ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* win
 
 	window->allocator	= platform->allocator;
 	window->platform	= platform;
-    window->uiFunc      = uiFunc;
 	window->isOpen		= true;
 	window->display		= EGL_NO_DISPLAY;
 	window->surface		= EGL_NO_SURFACE;
@@ -679,12 +701,12 @@ ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* win
 	imappEventQueueConstruct( &window->eventQueue, platform->allocator );
 
 	while( window->isOpen &&
-		   window->pNativeWindow == NULL )
+	       window->nativeWindow == NULL )
 	{
 		imappPlatformWindowUpdate( window, NULL, NULL );
 	}
 
-	if( window->pNativeWindow == NULL )
+	if(window->nativeWindow == NULL )
 	{
 		imappPlatformWindowDestroy( window );
 		return NULL;
@@ -701,12 +723,12 @@ void imappPlatformWindowDestroy( ImappWindow* window )
 
 	imappEventQueueDestruct( &window->eventQueue );
 
-	ImUiMemoryFree( window->allocator, window );
+	imuiMemoryFree( window->allocator, window );
 }
 
 bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 {
-	IMAPP_ASSERT( window->pNativeWindow != NULL );
+	IMAPP_ASSERT(window->nativeWindow != NULL );
 	IMAPP_ASSERT( window->display == EGL_NO_DISPLAY );
 
 	window->display = eglGetDisplay( EGL_DEFAULT_DISPLAY );
@@ -727,9 +749,9 @@ bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 	EGLint format;
 	eglGetConfigAttrib( window->display, config, EGL_NATIVE_VISUAL_ID, &format );
 
-	ANativeWindow_setBuffersGeometry( window->pNativeWindow, 0, 0, format );
+	ANativeWindow_setBuffersGeometry(window->nativeWindow, 0, 0, format );
 
-	window->surface = eglCreateWindowSurface( window->display, config, window->pNativeWindow, NULL );
+	window->surface = eglCreateWindowSurface(window->display, config, window->nativeWindow, NULL );
 
 	const EGLint contextAttributes[] = {
 		EGL_CONTEXT_CLIENT_VERSION,	3,
@@ -775,7 +797,7 @@ void imappPlatformWindowDestroyGlContext( ImappWindow* window )
 	eglTerminate( window->display );
 	window->display = EGL_NO_DISPLAY;
 
-	window->pNativeWindow = NULL;
+	window->nativeWindow = NULL;
 }
 
 ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
@@ -805,22 +827,22 @@ void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCa
 	{
 		IMAPP_ASSERT( pUserData == window->platform );
 
-		if( eventType == imappAndroidLooperType_Event )
+		if( eventType == ImappAndroidLooperType_Event )
 		{
 			ImappAndroidEvent androidEvent;
 			if( imappAndroidEventPop( &androidEvent, window->platform ) )
 			{
 				switch( androidEvent.type )
 				{
-				case imappAndroidEventType_WindowChanged:
+				case ImappAndroidEventType_WindowChanged:
 					imappPlatformWindowHandleWindowChangedEvent( window, &androidEvent );
 					break;
 
-				case imappAndroidEventType_WindowResize:
+				case ImappAndroidEventType_WindowResize:
 					imappPlatformWindowHandleWindowResizeEvent( window, &androidEvent );
 					break;
 
-				case imappAndroidEventType_InputChanged:
+				case ImappAndroidEventType_InputChanged:
 					imappPlatformWindowHandleInputChangedEvent( window, &androidEvent );
 					break;
 
@@ -829,7 +851,7 @@ void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCa
 				}
 			}
 		}
-		else if( eventType == imappAndroidLooperType_Input )
+		else if( eventType == ImappAndroidLooperType_Input )
 		{
 			AInputEvent* pInputEvent = NULL;
 			while( AInputQueue_getEvent( window->platform->pInputQueue, &pInputEvent ) >= 0 )
@@ -848,9 +870,9 @@ void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCa
 
 static void imappPlatformWindowHandleWindowChangedEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent )
 {
-	window->pNativeWindow = pSystemEvent->data.window.window;
+	window->nativeWindow = pSystemEvent->data.window.window;
 
-	if( !window->pNativeWindow )
+	if( !window->nativeWindow )
 	{
 		window->hasDeviceLost = true;
 		window->isOpen = false;
@@ -865,10 +887,10 @@ static void imappPlatformWindowHandleWindowChangedEvent( ImappWindow* window, co
 
 static void	imappPlatformWindowHandleWindowResizeEvent( ImappWindow* window, const ImappAndroidEvent* pSystemEvent )
 {
-	IMAPP_ASSERT( window->pNativeWindow == pSystemEvent->data.window.window );
+	IMAPP_ASSERT(window->nativeWindow == pSystemEvent->data.window.window );
 
-	window->width	= ANativeWindow_getWidth( window->pNativeWindow );
-	window->height	= ANativeWindow_getHeight( window->pNativeWindow );
+	window->width	= ANativeWindow_getWidth( window->nativeWindow );
+	window->height	= ANativeWindow_getHeight( window->nativeWindow );
 
 	imappAndroidUpdateViewBoundsAndDpiScale( window->platform );
 }
@@ -884,7 +906,7 @@ static void imappPlatformWindowHandleInputChangedEvent( ImappWindow* window, con
 
 	if( window->platform->pInputQueue != NULL )
 	{
-		AInputQueue_attachLooper( window->platform->pInputQueue, window->platform->pLooper, imappAndroidLooperType_Input, NULL, window->platform );
+		AInputQueue_attachLooper( window->platform->pInputQueue, window->platform->pLooper, ImappAndroidLooperType_Input, NULL, window->platform );
 	}
 }
 
@@ -907,7 +929,7 @@ static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInp
                     // Text Input
                     {
                         JNIEnv* jniEnv = NULL;
-                        (*window->platform->pActivity->vm)->AttachCurrentThread( window->platform->pActivity->vm, &jniEnv, NULL );
+                        (*window->platform->nativeActivity->vm)->AttachCurrentThread(window->platform->nativeActivity->vm, &jniEnv, NULL );
 
                         jclass keyEventClass = (*jniEnv)->FindClass( jniEnv, "android/view/KeyEvent" );
                         jmethodID keyEventConstructor = (*jniEnv)->GetMethodID( jniEnv, keyEventClass, "<init>", "(II)V");
@@ -926,7 +948,7 @@ static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInp
                             unicodeKey = (*jniEnv)->CallIntMethod( jniEnv, keyEventObj, getUnicodeCharMethod, metaState );
                         }
 
-                        (*window->platform->pActivity->vm)->DetachCurrentThread( window->platform->pActivity->vm );
+                        (*window->platform->nativeActivity->vm)->DetachCurrentThread(window->platform->nativeActivity->vm );
 
                         if( unicodeKey != 0 )
                         {
@@ -942,8 +964,8 @@ static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInp
                             break;
                         }
 
-                        const ImUiInputKey key = (ImUiInputKey)window->platform->inputKeyMapping[ keyCode ];
-                        if( key == ImUiInputKey_None )
+                        const ImuiInputKey key = (ImuiInputKey)window->platform->inputKeyMapping[ keyCode ];
+                        if( key == ImuiInputKey_None )
                         {
                             break;
                         }
@@ -990,8 +1012,8 @@ static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInp
 
 					if( motionAction != AMOTION_EVENT_ACTION_MOVE )
 					{
-						const ImappEventType eventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImappEventType_ButtonDown : ImappEventType_ButtonUp;
-						const ImappEvent buttonEvent	= { .button = { .type = eventType, .x = x, .y = y, .button = ImUiInputMouseButton_Left, .repeateCount = 1 } };
+						const ImappEventType buttonEventType	= motionAction == AMOTION_EVENT_ACTION_DOWN ? ImappEventType_ButtonDown : ImappEventType_ButtonUp;
+						const ImappEvent buttonEvent			= { .button = { .type = buttonEventType, .button = ImuiInputMouseButton_Left, .repeateCount = 1 } };
 						imappEventQueuePush( &window->eventQueue, &buttonEvent );
 					}
 
@@ -1012,7 +1034,7 @@ static bool	imappPlatformWindowHandleInputEvent( ImappWindow* window, const AInp
 	return false;
 }
 
-void imappPlatformWindowBeginRender( ImappWindow* window )
+bool imappPlatformWindowBeginRender( ImappWindow* window )
 {
 	if( window->display == EGL_NO_DISPLAY )
 	{
@@ -1081,7 +1103,7 @@ void imappPlatformWindowGetSize( const ImappWindow* window, int* pWidth, int* pH
 	*pHeight	= window->height;
 }
 
-void imappPlatformWindowSetSize( const ImappWindow* window, int width, int height )
+void imappPlatformWindowSetSize( ImappWindow* window, int width, int height )
 {
     // not supported
 }
@@ -1095,6 +1117,11 @@ void imappPlatformWindowGetPosition( const ImappWindow* window, int* pX, int* pY
 void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
     // not supported
+}
+
+ImappWindowStyle imappPlatformWindowGetStyle( const ImappWindow* window )
+{
+	return ImappWindowStyle_Borderless;
 }
 
 ImappWindowState imappPlatformWindowGetState( const ImappWindow* window )
@@ -1142,7 +1169,7 @@ void imappPlatformResourceGetPath( ImappPlatform* platform, char* outPath, uints
 
 ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resourceName )
 {
-	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
+	AAsset* asset = AAssetManager_open(platform->nativeActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
 	if( asset == NULL )
 	{
 		const ImappBlob result = { NULL, 0u };
@@ -1150,7 +1177,7 @@ ImappBlob imappPlatformResourceLoad( ImappPlatform* platform, const char* resour
 	}
 
 	const uintsize size = AAsset_getLength64( asset );
-	void* data = ImUiMemoryAlloc( platform->allocator, size );
+	void* data = imuiMemoryAlloc( platform->allocator, size );
 
 	const void* sourceData = AAsset_getBuffer( asset );
 	memcpy( data, sourceData, size );
@@ -1176,7 +1203,7 @@ ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* r
 		length = AAsset_getLength64( (AAsset*)file ) - offset;
 	}
 
-	void* memory = ImUiMemoryAlloc( platform->allocator, length );
+	void* memory = imuiMemoryAlloc( platform->allocator, length );
 	if( !memory )
 	{
 		imappPlatformResourceClose( platform, file );
@@ -1188,7 +1215,7 @@ ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* r
 
 	if( readResult != length )
 	{
-		ImUiMemoryFree( platform->allocator, memory );
+		imuiMemoryFree( platform->allocator, memory );
 		return result;
 	}
 
@@ -1199,7 +1226,7 @@ ImappBlob imappPlatformResourceLoadRange( ImappPlatform* platform, const char* r
 
 ImappFile* imappPlatformResourceOpen( ImappPlatform* platform, const char* resourceName )
 {
-	AAsset* asset = AAssetManager_open( platform->pActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
+	AAsset* asset = AAssetManager_open(platform->nativeActivity->assetManager, resourceName, AASSET_MODE_BUFFER );
 	if( asset == NULL )
 	{
 		return NULL;
@@ -1259,7 +1286,7 @@ ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const ch
 		struct stat st;
 		fstat( fd, &st );
 
-		void* data = ImUiMemoryAlloc( platform->allocator, st.st_size );
+		void* data = imuiMemoryAlloc( platform->allocator, st.st_size );
 		if( !data )
 		{
 			fclose( file );
@@ -1281,7 +1308,7 @@ ImappBlob imappPlatformResourceLoadSystemFont( ImappPlatform* platform, const ch
 
 void imappPlatformResourceFree( ImappPlatform* platform, ImappBlob blob )
 {
-	ImUiMemoryFree( platform->allocator, blob.data );
+	imuiMemoryFree( platform->allocator, blob.data );
 }
 
 ImappFileWatcher* imappPlatformFileWatcherCreate( ImappPlatform* platform )

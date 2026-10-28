@@ -10,7 +10,7 @@
 #if IMAPP_ENABLED( IMAPP_PLATFORM_WINDOWS )
 #	include <GL/glew.h>
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID )
-#	include <GLES3/gl3.h>
+#	include <GLES3/gl32.h>
 #elif IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
 #	include <GL/glew.h>
 #	include <GLES/gl.h>
@@ -104,7 +104,7 @@ static const char s_fragmentShaderFont[] =
 	"in vec4 vtfColor;\n"
 	"out vec4 fbColor;\n"
 	"void main() {\n"
-	"	float charAlpha = texture(Texture, vtfUV.xy).a;\n"
+	"	float charAlpha = texture(Texture, vtfUV.xy).r;\n"
 	"	fbColor = vec4(vtfColor.rgb, vtfColor.a * charAlpha);\n"
 	"}\n";
 
@@ -455,8 +455,8 @@ bool imappRendererTextureInitializeDataFromMemory( ImappRenderer* renderer, Imap
 	switch( format )
 	{
 	case ImappRendererFormat_R8:
-		sourceFormat	= GL_ALPHA;
-		targetFormat	= GL_ALPHA8;
+		sourceFormat	= GL_RED;
+		targetFormat	= GL_R8;
 		break;
 
 	case ImappRendererFormat_RGB8:

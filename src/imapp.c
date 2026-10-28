@@ -311,8 +311,8 @@ static void imappFillDefaultParameters( ImappParameters* parameters )
 
 	parameters->useDefaultWindow			= true;
 #if IMAPP_ENABLED( IMAPP_PLATFORM_ANDROID ) || IMAPP_ENABLED( IMAPP_PLATFORM_WEB )
-	parameters->window.style				= ImappWindowStyle_Borderless;
-	parameters->window.state				= ImappWindowState_Maximized;
+	parameters->defaultWindow.style			= ImappWindowStyle_Borderless;
+	parameters->defaultWindow.state			= ImappWindowState_Maximized;
 #else
 	parameters->defaultWindow.style			= ImappWindowStyle_Resizable;
 	parameters->defaultWindow.state			= ImappWindowState_Default;

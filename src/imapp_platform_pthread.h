@@ -48,7 +48,7 @@ ImappThread* imappPlatformThreadCreate( ImappPlatform* platform, const char* nam
 
 	if( result < 0 )
 	{
-		ImUiMemoryFree( platform->allocator, thread );
+		imuiMemoryFree( platform->allocator, thread );
 		return NULL;
 	}
 
@@ -59,7 +59,7 @@ void imappPlatformThreadDestroy( ImappThread* thread )
 {
 	pthread_join( thread->handle, NULL );
 
-	ImUiMemoryFree( thread->platform->allocator, thread );
+	imuiMemoryFree( thread->platform->allocator, thread );
 }
 
 bool imappPlatformThreadIsRunning( const ImappThread* thread )
@@ -81,9 +81,9 @@ static void* imappPlatformThreadEntry( void* voidThread )
 ImappMutex* imappPlatformMutexCreate( ImappPlatform* platform )
 {
 	pthread_mutex_t* mutex = IMUI_MEMORY_NEW_ZERO( platform->allocator, pthread_mutex_t );
-	if( pthread_mutex_init( mutex, NULL ) < 0 )
+	if( pthread_mutex_init( mutex, NULL ) != 0 )
 	{
-		ImUiMemoryFree( platform->allocator, mutex );
+		imuiMemoryFree( platform->allocator, mutex );
 		return NULL;
 	}
 
@@ -93,7 +93,7 @@ ImappMutex* imappPlatformMutexCreate( ImappPlatform* platform )
 void imappPlatformMutexDestroy( ImappPlatform* platform, ImappMutex* mutex )
 {
 	pthread_mutex_destroy( (pthread_mutex_t*)mutex );
-	ImUiMemoryFree( platform->allocator, mutex );
+	imuiMemoryFree( platform->allocator, mutex );
 }
 
 void imappPlatformMutexLock( ImappMutex* mutex )
@@ -111,7 +111,7 @@ ImappSemaphore* imappPlatformSemaphoreCreate( ImappPlatform* platform )
 	sem_t* semaphore = IMUI_MEMORY_NEW_ZERO( platform->allocator, sem_t );
 	if( sem_init( semaphore, 0, 0 ) < 0 )
 	{
-		ImUiMemoryFree( platform->allocator, semaphore );
+		imuiMemoryFree( platform->allocator, semaphore );
 		return NULL;
 	}
 
@@ -121,7 +121,7 @@ ImappSemaphore* imappPlatformSemaphoreCreate( ImappPlatform* platform )
 void imappPlatformSemaphoreDestroy( ImappPlatform* platform, ImappSemaphore* semaphore )
 {
 	sem_destroy( (sem_t*)semaphore );
-	ImUiMemoryFree( platform->allocator, semaphore );
+	imuiMemoryFree( platform->allocator, semaphore );
 }
 
 void imappPlatformSemaphoreInc( ImappSemaphore* semaphore )
