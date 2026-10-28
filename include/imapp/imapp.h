@@ -52,7 +52,7 @@ typedef struct ImappWindowParameters
 
 typedef struct ImappParameters
 {
-	ImuiAllocator			allocator;				// Override memory Allocator. Default: malloc/free
+	ImuiAllocatorParameters	allocator;				// Override memory Allocator. Default: malloc/free
 
 	int						tickIntervalMs;			// Tick interval. Use 0 to disable. Default: 0
 

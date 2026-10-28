@@ -4,6 +4,7 @@
 
 #include "imapp_event.h"
 
+typedef struct ImuiAllocator ImuiAllocator;
 typedef struct ImappEventQueueChunk ImappEventQueueChunk;
 
 typedef struct ImappEventQueue
