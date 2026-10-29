@@ -8,6 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 // Core
 
+typedef struct ImuiAllocator ImuiAllocator;
 typedef struct ImappPlatform ImappPlatform;
 
 bool					imappPlatformInitialize( ImappPlatform* platform, ImuiAllocator* allocator, const char* resourcePath );

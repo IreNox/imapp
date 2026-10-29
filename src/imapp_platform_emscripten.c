@@ -17,7 +17,7 @@
 
 struct ImappPlatform
 {
-	ImUiAllocator*		allocator;
+	ImuiAllocator*		allocator;
 
 	Display*			xDisplay;
 };
@@ -49,7 +49,7 @@ int main()
 	return result;
 }
 
-bool imappPlatformInitialize( ImappPlatform* platform, ImUiAllocator* allocator, const char* resourcePath )
+bool imappPlatformInitialize( ImappPlatform* platform, ImuiAllocator* allocator, const char* resourcePath )
 {
 	platform->allocator = allocator;
 
@@ -79,6 +79,11 @@ sint64 imappPlatformTick( ImappPlatform* platform, sint64 lastTickValue, sint64 
 	return 1;
 }
 
+double imappPlatformTicksToSeconds( ImappPlatform* platform, sint64 tickValue )
+{
+	return 0.01666;
+}
+
 void imappPlatformShowError( ImappPlatform* platform, const char* message )
 {
 	EM_ASM( {
@@ -86,7 +91,7 @@ void imappPlatformShowError( ImappPlatform* platform, const char* message )
 	}, message );
 }
 
-void imappPlatformSetMouseCursor( ImappPlatform* platform, ImUiInputMouseCursor cursor )
+void imappPlatformSetMouseCursor( ImappPlatform* platform, ImuiInputMouseCursor cursor )
 {
 		// TODO
 }
@@ -96,19 +101,18 @@ void imappPlatformSetClipboardText( ImappPlatform* platform, const char* text )
 	// TODO
 }
 
-void imappPlatformGetClipboardText( ImappPlatform* platform, ImUiContext* imui )
+void imappPlatformGetClipboardText( ImappPlatform* platform, ImuiContext* imui )
 {
 	// TODO
 }
 
-ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* windowTitle, int x, int y, int width, int height, ImappWindowStyle style, ImappWindowState state, ImappWindowDoUiFunc uiFunc )
+ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const ImappWindowParameters* parameters )
 {
 	ImappWindow* window = IMUI_MEMORY_NEW_ZERO( platform->allocator, ImappWindow );
 
 	window->platform	= platform;
-	window->width		= width;
-	window->height		= height;
-	window->uiFunc		= uiFunc;
+	window->width		= parameters->width;
+	window->height		= parameters->height;
 
 	Window rootWindow;
 	rootWindow = DefaultRootWindow( platform->xDisplay );
@@ -119,10 +123,10 @@ ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* win
 	window->xWindow = XCreateWindow(
 		platform->xDisplay,
 		rootWindow,
-		x,
-		y,
-		width,
-		height,
+		parameters->x,
+		parameters->y,
+		parameters->width,
+		parameters->height,
 		0,
 		CopyFromParent,
 		InputOutput,
@@ -142,7 +146,7 @@ ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* win
 
 	// make the window visible on the screen
 	XMapWindow( platform->xDisplay, window->xWindow );
-	XStoreName( platform->xDisplay, window->xWindow, windowTitle );
+	XStoreName( platform->xDisplay, window->xWindow, parameters->title );
 
 	// get identifiers for the provided atom name strings
 	Atom wm_state;
@@ -165,22 +169,14 @@ ImappWindow* imappPlatformWindowCreate( ImappPlatform* platform, const char* win
 
 	//esContext->hWnd = (EGLNativeWindowType) win;
 
-	return window;
-}
-
-void imappPlatformWindowDestroy( ImappWindow* window )
-{
-
-}
-
-bool imappPlatformWindowCreateGlContext( ImappWindow* window )
-{
+	// Ref: https://github.com/emscripten-core/emscripten/blob/main/test/third_party/glbook/Common/esUtil.c#L128
 	EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
 
 	window->eglDisplay = eglGetDisplay( (EGLNativeDisplayType)window->platform->xDisplay );
 	if ( window->eglDisplay == EGL_NO_DISPLAY )
 	{
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
 	// Initialize EGL
@@ -188,8 +184,8 @@ bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 	EGLint minorVersion;
 	if ( !eglInitialize( window->eglDisplay, &majorVersion, &minorVersion ) )
 	{
-		imappPlatformWindowDestroyGlContext( window );
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
 	// Get configs
@@ -217,41 +213,39 @@ bool imappPlatformWindowCreateGlContext( ImappWindow* window )
 	EGLConfig config;
 	if ( !eglChooseConfig( window->eglDisplay, attribList, &config, 1, &numConfigs ) )
 	{
-		imappPlatformWindowDestroyGlContext( window );
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
 	// Create a surface
 	window->eglSurface = eglCreateWindowSurface( window->eglDisplay, config, (EGLNativeWindowType)window->xWindow, NULL );
 	if ( window->eglSurface == EGL_NO_SURFACE )
 	{
-		imappPlatformWindowDestroyGlContext( window );
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
 	// Create a GL context
 	window->eglContext = eglCreateContext( window->eglDisplay, config, EGL_NO_CONTEXT, contextAttribs );
 	if ( window->eglContext == EGL_NO_CONTEXT )
 	{
-		imappPlatformWindowDestroyGlContext( window );
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
 	// Make the context current
 	if ( !eglMakeCurrent( window->eglDisplay, window->eglSurface, window->eglSurface, window->eglContext ) )
 	{
-		imappPlatformWindowDestroyGlContext( window );
-		return false;
+		imappPlatformWindowDestroy( window );
+		return NULL;
 	}
 
-	// https://github.com/emscripten-core/emscripten/blob/main/test/third_party/glbook/Common/esUtil.c#L128
-
-	return true;
+	return window;
 }
 
-void imappPlatformWindowDestroyGlContext( ImappWindow* window )
+void imappPlatformWindowDestroy( ImappWindow* window )
 {
-	if( window->eglContext != EGL_NO_CONTEXT )
+		if( window->eglContext != EGL_NO_CONTEXT )
 	{
 		eglDestroyContext( window->eglDisplay, window->eglContext );
 		window->eglContext = EGL_NO_CONTEXT;
@@ -264,6 +258,10 @@ void imappPlatformWindowDestroyGlContext( ImappWindow* window )
 	}
 
 	window->eglDisplay = EGL_NO_DISPLAY;
+
+	// TODO
+
+	imuiMemoryFree( window->platform->allocator, window );
 }
 
 ImappWindowDeviceState imappPlatformWindowGetGlContextState( const ImappWindow* window )
@@ -281,7 +279,18 @@ void imappPlatformWindowUpdate( ImappWindow* window, imappPlatformWindowUpdateCa
 	// TODO
 }
 
-bool imappPlatformWindowPresent( ImappWindow* window )
+bool imappPlatformWindowBeginRender( ImappWindow* window )
+{
+	if( !eglMakeCurrent( window->eglDisplay, window->eglSurface, window->eglSurface, window->eglContext ) )
+	{
+		IMAPP_DEBUG_LOGE( "Failed to activate GL context." );
+		return false;
+	}
+
+	return true;
+}
+
+bool imappPlatformWindowEndRender( ImappWindow* window )
 {
 	if( window->eglContext == EGL_NO_CONTEXT )
 	{
@@ -328,7 +337,7 @@ void imappPlatformWindowGetSize( const ImappWindow* window, int* outWidth, int* 
 	*outHeight	= window->height;
 }
 
-void imappPlatformWindowSetSize( const ImappWindow* window, int width, int height )
+void imappPlatformWindowSetSize( ImappWindow* window, int width, int height )
 {
 	//XEvent resizeEvent;
 	//resizeEvent.xresizerequest
@@ -344,6 +353,11 @@ void imappPlatformWindowGetPosition( const ImappWindow* window, int* outX, int* 
 void imappPlatformWindowSetPosition( const ImappWindow* window, int x, int y )
 {
 	// not supported
+}
+
+ImappWindowStyle imappPlatformWindowGetStyle( const ImappWindow* window )
+{
+	return ImappWindowStyle_Borderless;
 }
 
 ImappWindowState imappPlatformWindowGetState( const ImappWindow* window )

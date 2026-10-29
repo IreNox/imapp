@@ -226,7 +226,9 @@ void imappRendererUpdate( ImappRenderer* renderer )
 static bool imappRendererCompileShader( GLuint shader, const char* pShaderCode )
 {
 	glShaderSource( shader, 1, &pShaderCode, 0 );
+#if IMAPP_DISABLED( IMAPP_PLATFORM_WEB )
 	glObjectLabel( GL_SHADER, shader, sizeof( __FILE__ ), __FILE__ );
+#endif
 	glCompileShader( shader );
 
 	GLint shaderStatus;
